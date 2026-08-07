@@ -24,16 +24,19 @@ RUN apk add --no-cache openssl && addgroup --system --gid 1001 nodejs && adduser
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/scripts ./scripts
-COPY --from=builder /app/lib ./lib
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/package.json ./package.json
+# Use node_modules from the builder stage, after `prisma generate` has populated
+# @prisma/client and .prisma/client. Copying from `deps` here would overwrite
+# the generated Prisma client with its uninitialized pre-generate version.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 # Prisma Client is already generated in the builder stage. At runtime we only
-# synchronize the schema; --skip-generate avoids writes to read-only node_modules.
+# synchronize the schema; --skip-generate avoids unnecessary writes.
 CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && exec node server.js"]
