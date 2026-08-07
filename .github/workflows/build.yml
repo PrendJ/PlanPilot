@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       DATABASE_URL: postgresql://planpilot:build-only@127.0.0.1:5432/planpilot?schema=public
     steps:
@@ -19,3 +19,5 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+      - name: Build runtime Docker image
+        run: docker build -t planpilot-ci .
