@@ -86,7 +86,10 @@ Keep summaries concise and in the user's language.`;
           content: `Workspace: ${input.workspaceName}\n\nCURRENT PLAN JSON:\n${JSON.stringify(input.plan)}\n\nUSER UPDATE:\n${input.userText}`,
         },
       ],
-      temperature: 0.1,
+      // Keep the request limited to parameters supported by GPT-5 Nano.
+      // In particular, sending `temperature` together with
+      // provider.require_parameters=true can leave OpenRouter with no eligible
+      // endpoint. Structured output is the parameter we actually require.
       response_format: { type: "json_schema", json_schema: responseSchema },
       provider: { require_parameters: true },
     }),
