@@ -18,6 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { slug } = await params;
   const workspace = await prisma.workspace.findUnique({ where: { slug } });
   if (!workspace || !(await canAccessWorkspace(user.id, workspace.id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!workspace.dictationEnabled) return NextResponse.json({ error: "La dettatura è disattivata per questo workspace" }, { status: 403 });
   const apiKey = getWorkspaceApiKey(workspace);
   if (!apiKey) return NextResponse.json({ error: "OpenRouter key missing" }, { status: 503 });
   const form = await request.formData();
