@@ -9,7 +9,16 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
   const workspace = await prisma.workspace.findUnique({ where: { slug }, include: { columns: { orderBy: { position: "asc" }, include: { cards: { where: { archived: false }, orderBy: [{ position: "asc" }, { updatedAt: "desc" }] } } }, updateLogs: { orderBy: { createdAt: "desc" }, take: 8 } } });
   if (!workspace || !(await canAccessWorkspace(user.id, workspace.id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({
-    workspace: { id: workspace.id, name: workspace.name, slug: workspace.slug, planModel: workspace.planModel, keyEnv: workspace.openrouterKeyEnv },
+    workspace: {
+      id: workspace.id,
+      name: workspace.name,
+      slug: workspace.slug,
+      planModel: workspace.planModel,
+      transcriptionModel: workspace.transcriptionModel,
+      dictationEnabled: workspace.dictationEnabled,
+      keyEnv: workspace.openrouterKeyEnv,
+      canConfigure: user.isAdmin,
+    },
     columns: workspace.columns,
     logs: workspace.updateLogs,
   });
