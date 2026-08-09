@@ -3,8 +3,8 @@ import "./globals.css";
 import "./draftapps-theme.css";
 
 export const metadata: Metadata = {
-  title: "PlanPilot — AI-first planning board",
-  description: "Tell the plan. PlanPilot keeps the board updated.",
+  title: "VoxBoard AI — Talk. Update. Repeat.",
+  description: "AI-first voice-powered planning board. Tell VoxBoard AI what changed and keep your work in sync.",
 };
 
 const themeScript = `
