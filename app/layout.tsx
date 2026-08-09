@@ -1,10 +1,21 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./draftapps-theme.css";
+import "./marketing.css";
+import { CookieNotice } from "@/components/CookieNotice";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://voxboard.draftapps.it"),
   title: "VoxBoard AI — Talk. Update. Repeat.",
   description: "AI-first voice-powered planning board. Tell VoxBoard AI what changed and keep your work in sync.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "VoxBoard AI — Talk. Update. Repeat.",
+    description: "Parla o scrivi un aggiornamento: l’AI capisce cosa è cambiato e mantiene la board sincronizzata.",
+    url: "https://voxboard.draftapps.it",
+    siteName: "VoxBoard AI",
+    type: "website",
+  },
 };
 
 const themeScript = `
@@ -22,7 +33,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="it" data-theme="dark" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <CookieNotice />
+      </body>
     </html>
   );
 }

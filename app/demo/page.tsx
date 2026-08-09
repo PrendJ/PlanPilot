@@ -1,5 +1,6 @@
 import { Topbar } from "@/components/Topbar";
 import { DemoBoard } from "@/components/DemoBoard";
+import { PublicFooter } from "@/components/PublicFooter";
 
 export default function DemoPage() {
   return (
@@ -16,7 +17,7 @@ export default function DemoPage() {
             </p>
           </div>
           <div className="top-actions">
-            <a className="btn" href="/">Panoramica</a>
+            <a className="btn" href="/">Home</a>
             <a className="btn accent" href="/login">Accedi</a>
           </div>
         </div>
@@ -25,6 +26,7 @@ export default function DemoPage() {
         </div>
         <DemoBoard />
       </main>
+      <PublicFooter />
     </div>
   );
 }

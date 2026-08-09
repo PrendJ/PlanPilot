@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
-const COOKIE = "planpilot_session";
+const COOKIE = "voxboard_session";
 const SESSION_DAYS = 30;
 
 function hashToken(token: string) {
@@ -18,13 +18,7 @@ export async function createSession(userId: string) {
 
 export async function setSessionCookie(token: string, expiresAt: Date) {
   const jar = await cookies();
-  jar.set(COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: expiresAt,
-  });
+  jar.set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", expires: expiresAt });
 }
 
 export async function clearSession() {
@@ -38,16 +32,11 @@ export async function getCurrentUser() {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;
-  const session = await prisma.session.findUnique({
-    where: { tokenHash: hashToken(token) },
-    include: { user: true },
-  });
+  const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
   if (!session || session.expiresAt < new Date()) return null;
   return session.user;
 }
 
 export async function canAccessWorkspace(userId: string, workspaceId: string) {
-  return prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId } },
-  });
+  return prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId, userId } } });
 }

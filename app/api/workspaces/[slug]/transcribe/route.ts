@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const buffer = Buffer.from(await audio.arrayBuffer());
   const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.APP_URL || "https://planpilot.draftapps.io", "X-OpenRouter-Title": "PlanPilot" },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.APP_URL || "https://voxboard.draftapps.it", "X-OpenRouter-Title": "VoxBoard AI" },
     body: JSON.stringify({ model: workspace.transcriptionModel, input_audio: { data: buffer.toString("base64"), format: formatFromMime(audio.type) }, language: "it" }),
   });
   const raw = await response.json();
