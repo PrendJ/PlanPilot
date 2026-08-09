@@ -58,4 +58,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,
 .status { background:color-mix(in srgb,#63e6a6 10%,var(--da-card)); color:#63e6a6; border-color:color-mix(in srgb,#63e6a6 25%,var(--da-stroke)); }
 .status.error { background:color-mix(in srgb,#ff7b88 8%,var(--da-card)); color:#ff7b88; border-color:color-mix(in srgb,#ff7b88 25%,var(--da-stroke)); }
 .priority-HIGH,.priority-URGENT { background:transparent;color:#ff7b88; }.priority-LOW { background:transparent;color:#63e6a6; }
-@media (max-width:720px){.topbar{padding:.65rem .8rem}.top-actions{gap:5px}.top-actions .btn:not(.icon-btn){padding:.48rem .68rem}.hero-row{padding-top:28px}}
+.demo-composer-wrap { position:relative; top:auto; margin-top:6px; }
+.demo-examples { display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin-top:10px; }
+.demo-examples .btn { font-size:11px; padding:.42rem .65rem; }
+.demo-status { margin:0 auto 18px; max-width:1050px; }
+@media (max-width:720px){.topbar{padding:.65rem .8rem}.top-actions{gap:5px}.top-actions .btn:not(.icon-btn){padding:.48rem .68rem}.hero-row{padding-top:28px}.demo-examples{justify-content:flex-start}}
