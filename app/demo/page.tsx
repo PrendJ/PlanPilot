@@ -9,9 +9,9 @@ export default function DemoPage() {
         <div className="hero-row">
           <div className="hero-copy">
             <div className="pill">PUBLIC DEMO</div>
-            <h1>PlanPilot in azione, senza login.</h1>
+            <h1>VoxBoard AI in azione, senza login.</h1>
             <p>
-              Questa board mostra l’esperienza di PlanPilot con dati dimostrativi e in sola lettura.
+              Prova il loop principale: racconta cosa è cambiato e guarda la board aggiornarsi in locale.
               Nessun dato reale viene caricato e nessuna chiamata AI viene eseguita dalla demo.
             </p>
           </div>
@@ -21,7 +21,7 @@ export default function DemoPage() {
           </div>
         </div>
         <div className="demo-banner">
-          <span>Demo pubblica · sola lettura · nessuna autenticazione richiesta</span>
+          <span>Demo pubblica · interattiva · nessuna autenticazione richiesta</span>
         </div>
         <DemoBoard />
       </main>
