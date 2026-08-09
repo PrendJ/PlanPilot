@@ -1,5 +1,6 @@
 "use client";
 import { Brand } from "./Brand";
+import { ThemeToggle } from "./ThemeToggle";
 import { useRouter } from "next/navigation";
 
 export function Topbar({ loggedIn = false }: { loggedIn?: boolean }) {
@@ -9,5 +10,5 @@ export function Topbar({ loggedIn = false }: { loggedIn?: boolean }) {
     router.push("/");
     router.refresh();
   }
-  return <div className="topbar"><Brand/><div className="top-actions">{loggedIn ? <><button className="btn ghost" onClick={() => router.push("/app")}>Workspaces</button><button className="btn" onClick={logout}>Logout</button></> : <><button className="btn ghost" onClick={() => router.push("/login")}>Login</button><button className="btn primary" onClick={() => router.push("/login")}>Open board</button></>}</div></div>;
+  return <div className="topbar"><Brand/><div className="top-actions"><ThemeToggle/>{loggedIn ? <><button className="btn ghost" onClick={() => router.push("/app")}>Workspaces</button><button className="btn" onClick={logout}>Logout</button></> : <><button className="btn ghost" onClick={() => router.push("/login")}>Login</button><button className="btn accent" onClick={() => router.push("/demo")}>Demo</button></>}</div></div>;
 }
