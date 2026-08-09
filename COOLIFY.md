@@ -1,14 +1,14 @@
-# Deploy PlanPilot su Coolify
+# Deploy VoxBoard AI su Coolify
 
-Dominio suggerito: `planpilot.draftapps.io`.
+Dominio canonico: `voxboard.draftapps.it`.
 
 ## 1. Repository
 
-Carica questa cartella in un repository Git. In Coolify crea una nuova Resource dal repository e seleziona **Docker Compose**.
+In Coolify usa il repository esistente e seleziona **Docker Compose**. Il repository può mantenere il nome tecnico legacy `PlanPilot`: il brand pubblico dell'app è VoxBoard AI.
 
 Il file `docker-compose.yml` avvia:
 
-- `app`: Next.js / PlanPilot
+- `app`: Next.js / VoxBoard AI
 - `db`: PostgreSQL 16 con volume persistente
 
 Non pubblicare il servizio `db` su Internet.
@@ -19,118 +19,47 @@ In Coolify imposta almeno:
 
 ```env
 POSTGRES_PASSWORD=UNA_PASSWORD_LUNGA_E_URL_SAFE
-APP_URL=https://planpilot.draftapps.io
+APP_URL=https://voxboard.draftapps.it
 OPENROUTER_WORKSPACE_KEYS={"personal":"sk-or-v1-...","unguess":"sk-or-v1-..."}
 ```
 
-`OPENROUTER_WORKSPACE_KEYS` è il modo più pratico per mantenere una chiave OpenRouter distinta per ogni workspace senza salvarla nel database e senza dover modificare il Compose a ogni nuovo workspace.
+Il browser non riceve mai il valore delle chiavi OpenRouter.
 
-Il browser non riceve mai il valore della chiave. Nel database resta solo il nome/alias della configurazione.
+## 3. Cambio dominio
 
-### Alternativa: una env esplicita per workspace
+Nel servizio `app`:
 
-Puoi usare anche:
+1. aggiungi `https://voxboard.draftapps.it` come dominio pubblico;
+2. fai puntare il proxy alla porta interna `3000`;
+3. aggiorna `APP_URL` a `https://voxboard.draftapps.it`;
+4. ridistribuisci il servizio mantenendo lo stesso volume PostgreSQL;
+5. dopo aver verificato il nuovo hostname, rimuovi `planpilot.draftapps.io` oppure mantienilo temporaneamente solo come redirect verso il nuovo dominio.
 
-```env
-OPENROUTER_KEY_UNGUESS=sk-or-v1-...
-OPENROUTER_KEY_TESTBIRDS=sk-or-v1-...
-```
+Il cambio hostname non richiede una migrazione del database.
 
-In quel caso aggiungi anche le variabili sotto `app.environment` in `docker-compose.yml` e ridistribuisci.
+## 4. DNS
 
-## 3. Dominio
+Crea il record DNS `voxboard` per `draftapps.it` verso lo stesso endpoint/server usato dal servizio Coolify. Se Coolify gestisce automaticamente il certificato TLS, il certificato per il nuovo hostname verrà emesso dopo che il DNS punta correttamente al server.
 
-Assegna il dominio pubblico al servizio `app` e fai puntare il proxy alla porta interna `3000`.
+## 5. Primo accesso
 
-## 4. Primo deploy
+L'app esegue automaticamente `prisma db push` all'avvio. Gli account admin possono creare utenti e gestire membership, dettatura e modelli AI dall'interfaccia.
 
-Esegui il deploy. All'avvio l'app esegue automaticamente:
+## 6. Flusso di utilizzo
 
-```bash
-prisma db push
-```
-
-quindi avvia Next.js.
-
-## 5. Crea il tuo utente con permesso multi-workspace
-
-Apri il terminale del container `app` in Coolify ed esegui:
-
-```bash
-npm run user:create -- \
-  --email tuo@email.it \
-  --password 'PASSWORD_LUNGA_E_UNICA' \
-  --name 'Federico' \
-  --admin \
-  --can-create-workspaces
-```
-
-Questo account può creare tutti i workspace necessari dall'interfaccia.
-
-## 6. Crea gli utenti del team
-
-Sempre dal terminale del container:
-
-```bash
-npm run user:create -- \
-  --email collega@azienda.it \
-  --password 'PASSWORD_LUNGA_E_UNICA' \
-  --name 'Nome Collega'
-```
-
-Un utente normale non può creare workspace.
-
-Se vuoi permetterglielo:
-
-```bash
-npm run user:create -- \
-  --email collega@azienda.it \
-  --password 'PASSWORD_LUNGA_E_UNICA' \
-  --name 'Nome Collega' \
-  --can-create-workspaces
-```
-
-## 7. Crea un workspace da terminale (opzionale)
-
-Il tuo utente può farlo anche dalla UI. Da terminale:
-
-```bash
-npm run workspace:create -- \
-  --owner tuo@email.it \
-  --name 'UNGUESS' \
-  --slug unguess \
-  --key-env OPENROUTER_KEY_UNGUESS
-```
-
-Se usi `OPENROUTER_WORKSPACE_KEYS`, basta che esista la voce `"unguess":"sk-or-v1-..."` nella env JSON: non è necessario che `OPENROUTER_KEY_UNGUESS` esista davvero.
-
-## 8. Aggiungi un collega a un workspace
-
-```bash
-npm run membership:add -- \
-  --email collega@azienda.it \
-  --workspace unguess \
-  --role MEMBER
-```
-
-## 9. Flusso di utilizzo
-
-Da non autenticato viene mostrata solo la demo.
+Da non autenticato è disponibile la demo interattiva pubblica.
 
 Da autenticato:
 
 1. apri un workspace;
-2. scrivi un aggiornamento nella chat in alto oppure registra la voce;
-3. la voce viene trascritta via OpenRouter;
+2. scrivi un aggiornamento oppure registra la voce;
+3. la voce viene trascritta via OpenRouter quando la dettatura è abilitata;
 4. il modello riceve una versione compatta del piano corrente;
 5. restituisce una patch JSON strutturata;
-6. PlanPilot valida ID e operazioni e applica la patch in transazione;
+6. VoxBoard AI valida ID e operazioni e applica la patch in transazione;
 7. la board e l'audit log vengono aggiornati;
 8. il piano può essere esportato in Markdown o JSON.
 
-## 10. Modelli predefiniti
+## 7. Identificatori legacy
 
-- aggiornamento piano: `openai/gpt-5-nano`
-- trascrizione: `openai/gpt-4o-mini-transcribe`
-
-Sono memorizzati a livello di workspace e possono essere cambiati successivamente senza cambiare l'architettura.
+Database, volume Docker e repository possono continuare a usare internamente il nome `planpilot`. Non rinominarli durante il cambio dominio: non sono visibili all'utente e conservarli evita rischi sui dati persistenti.
