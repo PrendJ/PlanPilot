@@ -57,13 +57,13 @@ export function DemoBoard() {
     const title = titleFromUpdate(input);
     const card: DemoCard = {
       title,
-      desc: "Aggiornamento simulato dalla demo pubblica di PlanPilot.",
+      desc: "Aggiornamento simulato dalla demo pubblica di VoxBoard AI.",
       tags: ["demo"],
     };
 
     setColumns((current) => current.map((column) => column.title === target ? { ...column, cards: [card, ...column.cards] } : column));
     setLogs((current) => [{ input, result: `Creato in ${target}` }, ...current].slice(0, 4));
-    setStatus(`Demo: PlanPilot ha interpretato l’aggiornamento e creato una card in “${target}”.`);
+    setStatus(`Demo: VoxBoard AI ha interpretato l’aggiornamento e creato una card in “${target}”.`);
     setText("");
   }
 
