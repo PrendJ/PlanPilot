@@ -2,7 +2,8 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
-const COOKIE = "voxboard_session";
+const COOKIE = "boardcue_session";
+const LEGACY_COOKIE = "voxboard_session";
 const SESSION_DAYS = 30;
 
 function hashToken(token: string) {
@@ -23,14 +24,15 @@ export async function setSessionCookie(token: string, expiresAt: Date) {
 
 export async function clearSession() {
   const jar = await cookies();
-  const token = jar.get(COOKIE)?.value;
-  if (token) await prisma.session.deleteMany({ where: { tokenHash: hashToken(token) } });
+  const tokens = [jar.get(COOKIE)?.value, jar.get(LEGACY_COOKIE)?.value].filter(Boolean) as string[];
+  if (tokens.length) await prisma.session.deleteMany({ where: { tokenHash: { in: tokens.map(hashToken) } } });
   jar.set(COOKIE, "", { httpOnly: true, expires: new Date(0), path: "/" });
+  jar.set(LEGACY_COOKIE, "", { httpOnly: true, expires: new Date(0), path: "/" });
 }
 
 export async function getCurrentUser() {
   const jar = await cookies();
-  const token = jar.get(COOKIE)?.value;
+  const token = jar.get(COOKIE)?.value || jar.get(LEGACY_COOKIE)?.value;
   if (!token) return null;
   const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
   if (!session || session.expiresAt < new Date()) return null;

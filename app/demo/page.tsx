@@ -10,20 +10,15 @@ export default function DemoPage() {
         <div className="hero-row">
           <div className="hero-copy">
             <div className="pill">PUBLIC DEMO</div>
-            <h1>VoxBoard AI in azione, senza login.</h1>
-            <p>
-              Prova il loop principale: racconta cosa è cambiato e guarda la board aggiornarsi in locale.
-              Nessun dato reale viene caricato e nessuna chiamata AI viene eseguita dalla demo.
-            </p>
+            <h1>BoardCue AI in azione, senza login.</h1>
+            <p>Prova il loop principale: racconta cosa è cambiato e guarda la board aggiornarsi in locale. Nessun dato reale viene caricato e nessuna chiamata AI viene eseguita dalla demo.</p>
           </div>
           <div className="top-actions">
-            <a className="btn" href="/">Home</a>
+            <a className="btn" href="https://boardcue.draftapps.it/">Home</a>
             <a className="btn accent" href="/login">Accedi</a>
           </div>
         </div>
-        <div className="demo-banner">
-          <span>Demo pubblica · interattiva · nessuna autenticazione richiesta</span>
-        </div>
+        <div className="demo-banner"><span>Demo pubblica · interattiva · nessuna autenticazione richiesta</span></div>
         <DemoBoard />
       </main>
       <PublicFooter />

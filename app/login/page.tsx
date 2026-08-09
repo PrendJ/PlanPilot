@@ -4,6 +4,8 @@ import { Brand } from "@/components/Brand";
 import { LoginForm } from "@/components/LoginForm";
 import { PublicFooter } from "@/components/PublicFooter";
 
+const HOME_URL = "https://boardcue.draftapps.it/";
+
 export default async function LoginPage() {
   if (await getCurrentUser()) redirect("/app");
 
@@ -13,9 +15,9 @@ export default async function LoginPage() {
         <div className="auth-card">
           <Brand />
           <h1>Bentornato.</h1>
-          <p>Accedi a VoxBoard AI con il tuo account.</p>
+          <p>Accedi a BoardCue AI con il tuo account.</p>
           <LoginForm />
-          <a className="auth-home-link" href="/">← Torna alla home</a>
+          <a className="auth-home-link" href={HOME_URL}>← Torna alla home</a>
         </div>
       </main>
       <PublicFooter />

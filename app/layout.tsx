@@ -5,15 +5,15 @@ import "./marketing.css";
 import { CookieNotice } from "@/components/CookieNotice";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://voxboard.draftapps.it"),
-  title: "VoxBoard AI — Talk. Update. Repeat.",
-  description: "AI-first voice-powered planning board. Tell VoxBoard AI what changed and keep your work in sync.",
+  metadataBase: new URL("https://boardcue.draftapps.it"),
+  title: "BoardCue AI — Talk. Update. Repeat.",
+  description: "AI-first voice-powered planning board. Tell BoardCue AI what changed and keep your work in sync.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "VoxBoard AI — Talk. Update. Repeat.",
+    title: "BoardCue AI — Talk. Update. Repeat.",
     description: "Parla o scrivi un aggiornamento: l’AI capisce cosa è cambiato e mantiene la board sincronizzata.",
-    url: "https://voxboard.draftapps.it",
-    siteName: "VoxBoard AI",
+    url: "https://boardcue.draftapps.it",
+    siteName: "BoardCue AI",
     type: "website",
   },
 };

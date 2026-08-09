@@ -1,32 +1,8 @@
 {
-  "name": "voxboard-ai",
+  "name": "boardcue-ai",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
-    "start": "next start",
-    "db:push": "prisma db push",
-    "db:seed": "tsx scripts/seed.ts",
-    "user:create": "tsx scripts/create-user.ts",
-    "workspace:create": "tsx scripts/create-workspace.ts",
-    "membership:add": "tsx scripts/add-membership.ts"
-  },
-  "dependencies": {
-    "@prisma/client": "6.19.0",
-    "bcryptjs": "2.4.3",
-    "next": "15.5.7",
-    "react": "19.1.1",
-    "react-dom": "19.1.1",
-    "zod": "3.25.76",
-    "prisma": "6.19.0",
-    "tsx": "4.20.6"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "2.4.6",
-    "@types/node": "22.15.3",
-    "@types/react": "19.1.10",
-    "@types/react-dom": "19.1.7",
-    "typescript": "5.8.3"
-  }
+  "scripts": { "dev": "next dev", "build": "prisma generate && next build", "start": "next start", "db:push": "prisma db push", "db:seed": "tsx scripts/seed.ts", "user:create": "tsx scripts/create-user.ts", "workspace:create": "tsx scripts/create-workspace.ts", "membership:add": "tsx scripts/add-membership.ts" },
+  "dependencies": { "@prisma/client": "6.19.0", "bcryptjs": "2.4.3", "next": "15.5.7", "react": "19.1.1", "react-dom": "19.1.1", "zod": "3.25.76", "prisma": "6.19.0", "tsx": "4.20.6" },
+  "devDependencies": { "@types/bcryptjs": "2.4.6", "@types/node": "22.15.3", "@types/react": "19.1.10", "@types/react-dom": "19.1.7", "typescript": "5.8.3" }
 }
