@@ -8,18 +8,33 @@ datasource db {
 }
 
 model User {
-  id                  String            @id @default(cuid())
-  email               String            @unique
-  name                String
-  passwordHash        String
-  isAdmin             Boolean           @default(false)
-  canCreateWorkspaces Boolean           @default(false)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  sessions            Session[]
-  memberships         WorkspaceMember[]
-  createdWorkspaces   Workspace[]       @relation("WorkspaceCreator")
-  updateLogs          UpdateLog[]
+  id                      String               @id @default(cuid())
+  email                   String               @unique
+  name                    String
+  passwordHash            String
+  emailVerifiedAt         DateTime?
+  locale                  String               @default("it")
+  isAdmin                 Boolean              @default(false)
+  canCreateWorkspaces     Boolean              @default(false)
+  lifetimeFree           Boolean              @default(false)
+  lifetimeFreeGrantedAt  DateTime?
+  lifetimeFreeGrantedBy  String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  sessions                Session[]
+  memberships             WorkspaceMember[]
+  organizationMemberships OrganizationMember[]
+  createdOrganizations    Organization[]       @relation("OrganizationCreator")
+  createdWorkspaces       Workspace[]          @relation("WorkspaceCreator")
+  updateLogs              UpdateLog[]
+  activityEvents          ActivityEvent[]
+  assignedCards           CardAssignee[]
+  sentInvites             WorkspaceInvite[]    @relation("InviteSender")
+  verificationTokens      VerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  usageEvents             UsageEvent[]
+  adminAuditEvents        AdminAuditEvent[]    @relation("AdminAuditActor")
+  exchangeRateOverrides   ExchangeRateSetting[] @relation("ExchangeRateOverrideActor")
 }
 
 model Session {
@@ -31,24 +46,70 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+model Organization {
+  id             String               @id @default(cuid())
+  name           String
+  slug           String               @unique
+  legalType      String               @default("BUSINESS")
+  plan           String               @default("TRIAL")
+  locale         String               @default("it")
+  trialEndsAt    DateTime?
+  readOnlyAt     DateTime?
+  deleteAfter    DateTime?
+  createdById    String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  createdBy      User                 @relation("OrganizationCreator", fields: [createdById], references: [id])
+  members        OrganizationMember[]
+  workspaces     Workspace[]
+  invites        WorkspaceInvite[]
+  subscription   Subscription?
+  usageEvents    UsageEvent[]
+  activityEvents ActivityEvent[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String       @default("MEMBER")
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
 }
 
 model Workspace {
-  id                 String            @id @default(cuid())
-  name               String
-  slug               String            @unique
-  openrouterKeyEnv   String            @default("")
-  planModel          String            @default("openai/gpt-5-nano")
-  transcriptionModel String           @default("openai/gpt-4o-mini-transcribe")
-  dictationEnabled   Boolean           @default(true)
-  createdById        String
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  createdBy          User              @relation("WorkspaceCreator", fields: [createdById], references: [id])
-  members            WorkspaceMember[]
-  columns            BoardColumn[]
-  cards              Card[]
-  updateLogs         UpdateLog[]
+  id                   String            @id @default(cuid())
+  organizationId       String
+  name                 String
+  slug                 String            @unique
+  presetKey            String            @default("GENERAL")
+  locale               String            @default("it")
+  revision             Int               @default(0)
+  openrouterKeyEnv     String            @default("")
+  planModel            String            @default("openai/gpt-5-nano")
+  transcriptionModel   String            @default("openai/whisper-large-v3-turbo")
+  dictationEnabled     Boolean           @default(true)
+  createdById          String
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  organization         Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy            User              @relation("WorkspaceCreator", fields: [createdById], references: [id])
+  members              WorkspaceMember[]
+  columns              BoardColumn[]
+  cards                Card[]
+  updateLogs           UpdateLog[]
+  invites              WorkspaceInvite[]
+  usageEvents          UsageEvent[]
+  activityEvents       ActivityEvent[]
+
+  @@index([organizationId])
 }
 
 model WorkspaceMember {
@@ -64,38 +125,72 @@ model WorkspaceMember {
   @@index([userId])
 }
 
+model WorkspaceInvite {
+  id             String        @id @default(cuid())
+  organizationId String
+  workspaceId    String?
+  invitedById    String
+  email          String
+  role           String        @default("MEMBER")
+  tokenHash      String        @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace      Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy      User          @relation("InviteSender", fields: [invitedById], references: [id])
+
+  @@index([email, expiresAt])
+  @@index([organizationId])
+}
+
 model BoardColumn {
   id          String    @id @default(cuid())
   workspaceId String
   title       String
+  description String    @default("")
+  semanticKey String    @default("CUSTOM")
   position    Int
-  kind        String
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   cards       Card[]
 
-  @@unique([workspaceId, kind])
   @@index([workspaceId, position])
 }
 
 model Card {
-  id          String      @id @default(cuid())
+  id          String         @id @default(cuid())
   workspaceId String
   columnId    String
   title       String
-  description String      @default("")
-  priority    String      @default("NORMAL")
+  description String         @default("")
+  priority    String         @default("NORMAL")
   dueDate     DateTime?
-  tags        Json        @default("[]")
-  position    Int         @default(0)
-  archived    Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  column      BoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  tags        Json           @default("[]")
+  position    Int            @default(0)
+  archived    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  column      BoardColumn    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  assignees   CardAssignee[]
 
   @@index([workspaceId, archived])
   @@index([columnId, position])
+  @@index([dueDate])
+}
+
+model CardAssignee {
+  cardId     String
+  userId     String
+  assignedAt DateTime @default(now())
+  card       Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, userId])
+  @@index([userId])
 }
 
 model UpdateLog {
@@ -106,11 +201,129 @@ model UpdateLog {
   inputText   String    @db.Text
   summary     String    @default("")
   actions     Json
+  beforeState Json?
   model       String
   cost        Float?
+  undoneAt    DateTime?
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, createdAt])
+}
+
+model ActivityEvent {
+  id             String        @id @default(cuid())
+  organizationId String
+  workspaceId    String?
+  userId         String
+  type           String
+  entityType     String
+  entityId       String?
+  batchId        String?
+  beforeState    Json?
+  afterState     Json?
+  undoable       Boolean       @default(false)
+  undoneAt       DateTime?
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace      Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@index([batchId])
+}
+
+model UsageEvent {
+  id                String        @id @default(cuid())
+  organizationId    String
+  workspaceId       String?
+  userId            String?
+  providerRequestId String?       @unique
+  category          String
+  model             String
+  costUsd           Float
+  periodKey         String
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace         Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  user              User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, periodKey])
+}
+
+model Subscription {
+  id                   String       @id @default(cuid())
+  organizationId       String       @unique
+  stripeCustomerId     String?      @unique
+  stripeSubscriptionId String?      @unique
+  stripePriceId        String?
+  status               String       @default("trialing")
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model BillingWebhook {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  type        String
+  processedAt DateTime @default(now())
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model AdminAuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  actor      User     @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
+}
+
+model ExchangeRateSetting {
+  id                  String   @id
+  manualUsdToEur      Float?
+  manualSetAt         DateTime?
+  manualSetById       String?
+  latestUsdToEur      Float?
+  latestSource        String?
+  latestObservedAt    DateTime?
+  latestFetchedAt     DateTime?
+  lastFetchError      String?
+  updatedAt           DateTime @updatedAt
+  manualSetBy         User?    @relation("ExchangeRateOverrideActor", fields: [manualSetById], references: [id], onDelete: SetNull)
+
+  @@index([manualSetById])
 }

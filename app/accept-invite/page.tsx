@@ -1,0 +1,1 @@
+import{Suspense}from"react";import{Brand}from"@/components/Brand";import{AcceptInvite}from"@/components/AcceptInvite";export default function Page(){return <main className="auth-page"><div className="auth-card"><Brand/><h1>Invito BoardCue.</h1><p>Accedi con l’email invitata e conferma l’accesso.</p><Suspense><AcceptInvite/></Suspense></div></main>}

@@ -1,0 +1,2 @@
+import { Suspense } from "react"; import { Brand } from "@/components/Brand"; import { AccountForm } from "@/components/AccountForm";
+export default function ForgotPage(){return <main className="auth-page"><div className="auth-card"><Brand/><h1>Recupera l’accesso.</h1><p>Ti invieremo un link valido per un’ora.</p><Suspense><AccountForm mode="forgot"/></Suspense><a className="auth-home-link" href="/login">Torna al login</a></div></main>}

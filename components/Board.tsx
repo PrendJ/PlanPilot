@@ -1,150 +1,32 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-type Card = { id:string; title:string; description:string; priority:string; tags:unknown; dueDate:string|null };
-type Column = { id:string; title:string; kind:string; cards:Card[] };
-type Log = { id:string; inputText:string; summary:string; source:string; model:string; cost:number|null; createdAt:string };
-type BoardData = { workspace:{name:string;slug:string;planModel:string;transcriptionModel:string;dictationEnabled:boolean;keyEnv:string;canConfigure:boolean}; columns:Column[]; logs:Log[] };
+type Person={id:string;name:string;email:string};
+type Card={id:string;title:string;description:string;priority:string;tags:unknown;dueDate:string|null;archived:boolean;assignees:{user:Person}[]};
+type Column={id:string;title:string;description:string;position:number;cards:Card[]};
+type Log={id:string;inputText:string;summary:string;source:string;createdAt:string;undoneAt:string|null};
+type BoardData={workspace:{name:string;slug:string;dictationEnabled:boolean;revision:number;locale:string;role:string;canManage:boolean;readOnly:boolean};columns:Column[];members:Person[];logs:Log[];quota:{percent:number;status:string;resetsAt:string}|null};
 
-function TranscriptionLoader() {
-  return (
-    <div className="process-loader transcription-loader" role="status" aria-live="polite">
-      <div className="process-visual transcription-wave" aria-hidden="true">
-        {[18,34,52,28,62,42,24,48,30].map((height,index)=><i key={index} style={{height}} />)}
-      </div>
-      <div className="process-copy">
-        <strong>Sto trascrivendo il tuo aggiornamento…</strong>
-        <span>BoardCue sta trasformando l’audio in testo. Appena pronto comparirà nel campo di scrittura.</span>
-      </div>
-    </div>
-  );
-}
-
-function BoardUpdateLoader() {
-  return (
-    <div className="process-loader board-update-loader" role="status" aria-live="polite">
-      <div className="process-visual loader-board" aria-hidden="true">
-        <div className="loader-lane"><i/><i/></div>
-        <div className="loader-lane"><i className="moving-card"/></div>
-        <div className="loader-lane"><i/></div>
-      </div>
-      <div className="process-copy">
-        <strong>BoardCue sta aggiornando la board…</strong>
-        <span>L’AI interpreta il tuo update, prepara le modifiche e sincronizza card, stati e priorità.</span>
-      </div>
-    </div>
-  );
-}
-
-export function Board({ slug }: { slug:string }) {
-  const [data,setData]=useState<BoardData|null>(null);
-  const [text,setText]=useState("");
-  const [status,setStatus]=useState("");
-  const [error,setError]=useState("");
-  const [transcribing,setTranscribing]=useState(false);
-  const [updating,setUpdating]=useState(false);
-  const [recording,setRecording]=useState(false);
-  const recorder=useRef<MediaRecorder|null>(null);
-  const chunks=useRef<Blob[]>([]);
-  const busy=transcribing||updating;
-
-  async function load(){
-    const r=await fetch(`/api/workspaces/${slug}/board`,{cache:"no-store"});
-    const b=await r.json();
-    if(r.ok)setData(b); else setError(b.error||"Load failed");
-  }
-
-  useEffect(()=>{load();},[slug]);
-
-  async function send(source="text") {
-    if(!text.trim()||busy)return;
-    setUpdating(true);
-    setError("");
-    setStatus("");
-    try {
-      const r=await fetch(`/api/workspaces/${slug}/ingest`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,source})});
-      const b=await r.json();
-      if(!r.ok){setError(b.error||"AI update failed");return;}
-      setStatus(b.summary||"Piano aggiornato");
-      setText("");
-      await load();
-    } catch {
-      setError("Impossibile aggiornare la board. Riprova.");
-    } finally {
-      setUpdating(false);
-    }
-  }
-
-  async function toggleRecord(){
-    if(!data?.workspace.dictationEnabled){setError("La dettatura è disattivata per questo workspace");return;}
-    if(updating||transcribing)return;
-    if(recording){recorder.current?.stop();return;}
-    try {
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      const mr=new MediaRecorder(stream);
-      recorder.current=mr;
-      chunks.current=[];
-      mr.ondataavailable=e=>{if(e.data.size)chunks.current.push(e.data)};
-      mr.onstop=async()=>{
-        setRecording(false);
-        stream.getTracks().forEach(t=>t.stop());
-        setTranscribing(true);
-        setError("");
-        const blob=new Blob(chunks.current,{type:mr.mimeType||"audio/webm"});
-        const fd=new FormData();
-        fd.append("audio",blob,"recording.webm");
-        try {
-          const r=await fetch(`/api/workspaces/${slug}/transcribe`,{method:"POST",body:fd});
-          const b=await r.json();
-          if(!r.ok){setError(b.error||"Trascrizione fallita");return;}
-          setText(prev=>prev ? `${prev}\n${b.text}` : b.text);
-        } catch {
-          setError("Trascrizione non riuscita. Riprova.");
-        } finally {
-          setTranscribing(false);
-        }
-      };
-      mr.start();
-      setRecording(true);
-    } catch {
-      setError("Microfono non disponibile o permesso negato");
-    }
-  }
-
-  async function move(cardId:string,columnId:string){
-    if(!data)return;
-    setData({...data,columns:data.columns.map(c=>({...c,cards:c.cards.filter(x=>x.id!==cardId).concat(c.id===columnId?data.columns.flatMap(z=>z.cards).filter(x=>x.id===cardId):[])}))});
-    await fetch(`/api/workspaces/${slug}/cards/${cardId}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({columnId})});
-    await load();
-  }
-
-  if(!data) return <div style={{padding:40,color:"var(--muted)"}}>{error||"Caricamento board…"}</div>;
-
+export function Board({slug}:{slug:string}){
+  const [data,setData]=useState<BoardData|null>(null); const [text,setText]=useState(""); const [error,setError]=useState(""); const [status,setStatus]=useState(""); const [busy,setBusy]=useState(false); const [recording,setRecording]=useState(false); const [query,setQuery]=useState(""); const [priority,setPriority]=useState("ALL"); const [archived,setArchived]=useState(false); const [active,setActive]=useState(0); const [editing,setEditing]=useState<Card|null|"new">(null); const [targetColumn,setTargetColumn]=useState(""); const recorder=useRef<MediaRecorder|null>(null); const chunks=useRef<Blob[]>([]); const boardRef=useRef<HTMLDivElement|null>(null);
+  async function load(silent=false){const response=await fetch(`/api/workspaces/${slug}/board${archived?"?archived=1":""}`,{cache:"no-store"});const body=await response.json();if(response.ok){setData(body);if(!silent)setError("");}else setError(body.error||"Caricamento non riuscito");}
+  useEffect(()=>{load();const saved=Number(sessionStorage.getItem(`boardcue:${slug}:column`)||0);setActive(saved);const timer=setInterval(()=>load(true),15000);const visible=()=>{if(document.visibilityState==="visible")load(true)};document.addEventListener("visibilitychange",visible);return()=>{clearInterval(timer);document.removeEventListener("visibilitychange",visible)}} ,[slug,archived]);
+  useEffect(()=>{sessionStorage.setItem(`boardcue:${slug}:column`,String(active));const node=boardRef.current?.children[active] as HTMLElement|undefined;node?.scrollIntoView({behavior:"smooth",block:"nearest",inline:"start"})},[active,slug]);
+  const visible=useMemo(()=>data?.columns.map(column=>({...column,cards:column.cards.filter(card=>(!query||`${card.title} ${card.description} ${Array.isArray(card.tags)?card.tags.join(" "):""}`.toLowerCase().includes(query.toLowerCase()))&&(priority==="ALL"||card.priority===priority))}))||[],[data,query,priority]);
+  async function mutate(url:string,method:string,body:object){if(!data)return null;setBusy(true);setError("");const response=await fetch(url,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,revision:data.workspace.revision})});const result=await response.json();setBusy(false);if(!response.ok){setError(result.error||"Operazione non riuscita");if(response.status===409)await load();return null;}await load(true);return result;}
+  async function send(){if(!text.trim()||!data)return;setBusy(true);setError("");const response=await fetch(`/api/workspaces/${slug}/ingest`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,source:"text",revision:data.workspace.revision})});const body=await response.json();setBusy(false);if(!response.ok){setError(body.error||"Aggiornamento AI non riuscito");if(response.status===409)load();return;}setStatus(body.summary);setText("");await load(true)}
+  async function saveCard(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!data)return;const form=new FormData(event.currentTarget);const body={columnId:String(form.get("columnId")),title:String(form.get("title")),description:String(form.get("description")||""),priority:String(form.get("priority")||"NORMAL"),dueDate:form.get("dueDate")?new Date(String(form.get("dueDate"))).toISOString():null,tags:String(form.get("tags")||"").split(",").map(x=>x.trim()).filter(Boolean),assigneeIds:form.getAll("assigneeIds")};const result=editing==="new"?await mutate(`/api/workspaces/${slug}/cards`,"POST",body):await mutate(`/api/workspaces/${slug}/cards/${(editing as Card).id}`,"PATCH",body);if(result)setEditing(null)}
+  async function toggleRecord(){if(!data?.workspace.dictationEnabled||busy)return;if(recording){recorder.current?.stop();return}try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});const media=new MediaRecorder(stream);recorder.current=media;chunks.current=[];media.ondataavailable=e=>{if(e.data.size)chunks.current.push(e.data)};media.onstop=async()=>{setRecording(false);stream.getTracks().forEach(t=>t.stop());setBusy(true);const form=new FormData();form.append("audio",new Blob(chunks.current,{type:media.mimeType||"audio/webm"}),"recording.webm");const response=await fetch(`/api/workspaces/${slug}/transcribe`,{method:"POST",body:form});const body=await response.json();setBusy(false);if(response.ok)setText(current=>current?`${current}\n${body.text}`:body.text);else setError(body.error||"Trascrizione non riuscita")};media.start();setRecording(true)}catch{setError("Microfono non disponibile o permesso negato")}}
+  if(!data)return <div className="board-loading">{error||"Caricamento board…"}</div>;
+  const selected=editing&&editing!=="new"?editing:null;
   return <>
-    <div className="composer-wrap">
-      <div className="composer">
-        <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Raccontami cosa stai facendo: “Ho finito X, sto lavorando su Y e Z è bloccato fino a lunedì…”" onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==="Enter")send()}}/>
-        <div className="composer-tools">
-          {data.workspace.dictationEnabled&&<button className={`icon-btn ${recording?"recording":""}`} disabled={busy} onClick={toggleRecord} title={recording?"Ferma registrazione":`Detta aggiornamento · ${data.workspace.transcriptionModel}`}>{recording?"■":"●"}</button>}
-          <button className="send-btn" disabled={busy||!text.trim()} onClick={()=>send("text")} title="Aggiorna piano">↗</button>
-        </div>
-      </div>
-      <div className="composer-note">⌘/Ctrl + Enter per inviare · l’AI propone patch minime, il database resta la fonte di verità{!data.workspace.dictationEnabled?" · dettatura disattivata":""}</div>
-    </div>
-
-    {transcribing&&<TranscriptionLoader />}
-    {updating&&<BoardUpdateLoader />}
-    {status&&!busy&&<div className="status">{status}</div>}
-    {error&&<div className="status error">{error}</div>}
-
-    <div className={`board-content ${updating?"board-content-updating":""}`}>
-      <div className="workspace-head">
-        <div className="workspace-title"><div className="brandmark">B</div><div><h1>{data.workspace.name}</h1><span>{data.workspace.planModel}{data.workspace.dictationEnabled?` · voce: ${data.workspace.transcriptionModel}`:" · voce disattivata"} · secret: {data.workspace.keyEnv}</span></div></div>
-        <div className="top-actions">{data.workspace.canConfigure&&<a className="btn accent" href={`/app/${slug}/settings`}>Impostazioni</a>}<a className="btn accent" href={`/app/${slug}/print`}>Export PDF</a><a className="btn" href={`/api/workspaces/${slug}/export?format=md`}>Export MD</a><a className="btn" href={`/api/workspaces/${slug}/export?format=json`}>Export JSON</a></div>
-      </div>
-      <div className="board-wrap"><div className="board">{data.columns.map(col=><div className="column" key={col.id} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const id=e.dataTransfer.getData("text/card-id");if(id)move(id,col.id)}}><div className="column-head"><span>{col.title}</span><span className="count">{col.cards.length}</span></div>{col.cards.map(card=><div className="card" key={card.id} draggable={!busy} onDragStart={e=>e.dataTransfer.setData("text/card-id",card.id)}><div className="card-title">{card.title}</div>{card.description&&<div className="card-desc">{card.description}</div>}<div className="card-meta">{card.priority!=="NORMAL"&&<span className={`tag priority-${card.priority}`}>{card.priority.toLowerCase()}</span>}{Array.isArray(card.tags)&&card.tags.slice(0,4).map((t)=><span className="tag" key={String(t)}>{String(t)}</span>)}</div></div>)}</div>)}</div></div>
-    </div>
-
-    <div className="history"><h3>AI activity</h3>{data.logs.map(log=><div className="log" key={log.id}><div className="log-main"><div className="log-input">{log.source==="voice"?"🎙 ":""}{log.inputText}</div><div className="log-summary">{log.summary}</div></div><div className="log-cost">{log.cost!=null?`$${log.cost.toFixed(5)}`:log.model}</div></div>)}</div>
+    <section className="board-toolbar" aria-label="Strumenti board"><div><h1>{data.workspace.name}</h1><span>{data.workspace.role} · revisione {data.workspace.revision}</span></div><div className="quota" title={`La quota si rinnova il ${new Date(data.quota?.resetsAt||0).toLocaleDateString()}`}><span>AI {data.quota?.percent||0}%</span><i><b style={{width:`${data.quota?.percent||0}%`}}/></i></div><div className="board-actions"><button className="btn" onClick={()=>{setArchived(!archived);setActive(0)}}>{archived?"Board attiva":"Archivio"}</button><a className="btn" href={`/api/workspaces/${slug}/export?format=json`}>Export</a>{data.workspace.canManage&&<a className="btn" href={`/app/${slug}/settings`}>Impostazioni</a>}</div></section>
+    {!data.workspace.readOnly&&<section className="composer-wrap"><div className="composer"><textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Racconta cosa è cambiato…" onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")send()}}/><div className="composer-tools">{data.workspace.dictationEnabled&&<button className={`icon-btn ${recording?"recording":""}`} onClick={toggleRecord} aria-label={recording?"Ferma registrazione":"Detta aggiornamento"}>{recording?"■":"●"}</button>}<button className="send-btn" disabled={busy||!text.trim()||data.quota?.status==="PAUSED"} onClick={send} aria-label="Invia aggiornamento">↗</button></div></div><div className="composer-note">L’AI può modificare la board ma non assegna persone né valuta prestazioni. Ogni modifica è registrata e annullabile.</div></section>}
+    {(status||error||data.workspace.readOnly)&&<div className={`status ${error?"error":""}`}>{error||status||(data.workspace.readOnly?"Organizzazione in sola lettura: export e gestione account restano disponibili.":"")}</div>}
+    <section className="board-filters"><input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cerca card, descrizioni o tag" aria-label="Cerca nella board"/><select value={priority} onChange={e=>setPriority(e.target.value)} aria-label="Filtra per priorità"><option value="ALL">Tutte le priorità</option><option value="URGENT">Urgente</option><option value="HIGH">Alta</option><option value="NORMAL">Normale</option><option value="LOW">Bassa</option></select>{!archived&&!data.workspace.readOnly&&<button className="btn accent" onClick={()=>{setEditing("new");setTargetColumn(data.columns[active]?.id||data.columns[0]?.id)}}>+ Nuova card</button>}</section>
+    <nav className="mobile-column-nav" aria-label="Colonne"><button onClick={()=>setActive(Math.max(0,active-1))} disabled={active===0}>‹</button><select value={active} onChange={e=>setActive(Number(e.target.value))}>{data.columns.map((column,index)=><option value={index} key={column.id}>{column.title} ({column.cards.length})</option>)}</select><button onClick={()=>setActive(Math.min(data.columns.length-1,active+1))} disabled={active===data.columns.length-1}>›</button></nav>
+    <div className="board-shell"><button className="board-step left" onClick={()=>setActive(Math.max(0,active-1))} aria-label="Colonna precedente">‹</button><div className="board-responsive" ref={boardRef}>{visible.map((column,index)=><section className={`column ${index===active?"active":""}`} key={column.id} onDragOver={e=>e.preventDefault()} onDrop={e=>{const id=e.dataTransfer.getData("text/card-id");if(id)mutate(`/api/workspaces/${slug}/cards/${id}`,"PATCH",{columnId:column.id})}}><header className="column-head"><span><strong>{column.title}</strong>{column.description&&<small>{column.description}</small>}</span><span className="count">{column.cards.length}</span></header><div className="column-scroll">{column.cards.map(card=><article className="card" key={card.id} draggable={!busy&&!archived} onDragStart={e=>e.dataTransfer.setData("text/card-id",card.id)}><button className="card-open" onClick={()=>{setEditing(card);setTargetColumn(column.id)}} aria-label={`Modifica ${card.title}`}><div className="card-title">{card.title}</div>{card.description&&<div className="card-desc">{card.description}</div>}<div className="card-meta">{card.priority!=="NORMAL"&&<span className={`tag priority-${card.priority}`}>{card.priority}</span>}{Array.isArray(card.tags)&&card.tags.map(tag=><span className="tag" key={String(tag)}>{String(tag)}</span>)}</div>{card.assignees.length>0&&<div className="assignees">{card.assignees.map(a=><span title={a.user.email} key={a.user.id}>{a.user.name.slice(0,2).toUpperCase()}</span>)}</div>}</button><div className="card-move"><label>Sposta in…<select value={column.id} disabled={archived} onChange={e=>mutate(`/api/workspaces/${slug}/cards/${card.id}`,"PATCH",{columnId:e.target.value})}>{data.columns.map(c=><option value={c.id} key={c.id}>{c.title}</option>)}</select></label>{archived?<button onClick={()=>mutate(`/api/workspaces/${slug}/cards/${card.id}`,"PATCH",{archived:false})}>Ripristina</button>:<button onClick={()=>mutate(`/api/workspaces/${slug}/cards/${card.id}`,"DELETE",{})}>Archivia</button>}</div></article>)}</div></section>)}</div><button className="board-step right" onClick={()=>setActive(Math.min(data.columns.length-1,active+1))} aria-label="Colonna successiva">›</button></div>
+    <section className="history"><h2>Attività AI</h2>{data.logs.map(log=><article className="log" key={log.id}><div><strong>{log.source==="voice"?"🎙 ":""}{log.inputText}</strong><p>{log.summary}</p></div>{!log.undoneAt&&<button className="btn" onClick={()=>mutate(`/api/workspaces/${slug}/updates/${log.id}/undo`,"POST",{})}>Annulla</button>}</article>)}</section>
+    {editing&&<div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setEditing(null)}}><form className="modal-card" onSubmit={saveCard}><header><h2>{editing==="new"?"Nuova card":"Modifica card"}</h2><button type="button" onClick={()=>setEditing(null)} aria-label="Chiudi">×</button></header><label>Titolo<input name="title" defaultValue={selected?.title||""} required maxLength={180}/></label><label>Descrizione<textarea name="description" defaultValue={selected?.description||""}/></label><div className="form-grid"><label>Colonna<select name="columnId" value={targetColumn} onChange={e=>setTargetColumn(e.target.value)}>{data.columns.map(c=><option value={c.id} key={c.id}>{c.title}</option>)}</select></label><label>Priorità<select name="priority" defaultValue={selected?.priority||"NORMAL"}><option value="LOW">Bassa</option><option value="NORMAL">Normale</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select></label><label>Scadenza<input name="dueDate" type="date" defaultValue={selected?.dueDate?.slice(0,10)||""}/></label><label>Tag<input name="tags" defaultValue={Array.isArray(selected?.tags)?selected.tags.join(", "):""} placeholder="cliente, urgente"/></label></div><fieldset><legend>Assegnatari</legend>{data.members.map(member=><label className="check" key={member.id}><input type="checkbox" name="assigneeIds" value={member.id} defaultChecked={selected?.assignees.some(a=>a.user.id===member.id)}/>{member.name}</label>)}</fieldset><footer><button type="button" className="btn" onClick={()=>setEditing(null)}>Annulla</button><button className="btn accent" disabled={busy}>Salva</button></footer></form></div>}
   </>;
 }

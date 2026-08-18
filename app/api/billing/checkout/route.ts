@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getCurrentUser, getOrganizationAccess } from "@/lib/auth";
+import { appUrl } from "@/lib/email";
+import { PRICE_ENV, stripe } from "@/lib/stripe";
+import { rejectCrossOrigin } from "@/lib/security";
+
+export async function POST(request:Request){const user=await getCurrentUser();if(!user)return NextResponse.json({error:"Unauthorized"},{status:401});const originError=rejectCrossOrigin(request);if(originError)return originError;const parsed=z.object({organizationId:z.string().cuid(),plan:z.enum(["SOLO","TEAM","STUDIO"])}).safeParse(await request.json().catch(()=>({})));if(!parsed.success)return NextResponse.json({error:"Invalid checkout"},{status:400});const membership=await getOrganizationAccess(user.id,parsed.data.organizationId);if(!membership||membership.role!=="OWNER")return NextResponse.json({error:"Forbidden"},{status:403});if(membership.organization.plan==="LIFETIME")return NextResponse.json({error:"Questa organizzazione dispone già dell'accesso gratuito a vita"},{status:400});const price=process.env[PRICE_ENV[parsed.data.plan]];if(!price)return NextResponse.json({error:"Checkout non ancora configurato"},{status:503});const session=await stripe().checkout.sessions.create({mode:"subscription",customer_email:user.email,line_items:[{price,quantity:1}],success_url:`${appUrl()}/app?checkout=success`,cancel_url:`${appUrl()}/pricing?checkout=cancelled`,allow_promotion_codes:true,automatic_tax:{enabled:true},tax_id_collection:{enabled:true},subscription_data:{metadata:{organizationId:membership.organizationId,plan:parsed.data.plan}},metadata:{organizationId:membership.organizationId,plan:parsed.data.plan}});return NextResponse.json({url:session.url})}

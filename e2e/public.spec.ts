@@ -1,0 +1,3 @@
+import { test,expect } from "@playwright/test";
+test("pricing exposes the exact plans and Enterprise call",async({page})=>{await page.goto("/pricing");await expect(page.getByText("€10")).toBeVisible();await expect(page.getByText("Fino a 7 membri")).toBeVisible();await expect(page.getByText("Fino a 16 membri")).toBeVisible();await expect(page.getByRole("button",{name:"Richiedi una call con Lorenzo"})).toBeVisible()});
+test("registration is usable without horizontal overflow",async({page})=>{await page.goto("/register");await expect(page.getByRole("button",{name:"Crea account"})).toBeVisible();const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth);expect(overflow).toBe(false)});

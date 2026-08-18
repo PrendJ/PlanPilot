@@ -37,6 +37,5 @@ USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-# Prisma Client is already generated in the builder stage. At runtime we only
-# synchronize the schema; --skip-generate avoids unnecessary writes.
-CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && exec node server.js"]
+# Production schema changes are versioned and applied before the server starts.
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && exec node server.js"]

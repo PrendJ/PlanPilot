@@ -1,0 +1,2 @@
+import { Suspense } from "react"; import { Brand } from "@/components/Brand"; import { AccountForm } from "@/components/AccountForm";
+export default function RegisterPage(){return <main className="auth-page"><div className="auth-card"><Brand/><h1>Inizia gratis.</h1><p>7 giorni, senza carta. Un membro e un workspace.</p><Suspense><AccountForm mode="register"/></Suspense><a className="auth-home-link" href="/login">Hai già un account? Accedi</a></div></main>}

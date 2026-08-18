@@ -12,10 +12,10 @@ const loop = [
 const features = [
   ["🎙", "Voice-first", "Detta gli aggiornamenti dal browser. La trascrizione può essere attivata o disattivata per ogni workspace."],
   ["✦", "AI-native", "Il modello non riscrive il progetto: propone mutazioni strutturate e limitate sulla board esistente."],
-  ["▦", "Board operativa", "Inbox, Next, In progress, Waiting, Done e Parked, con drag & drop manuale sempre disponibile."],
-  ["↺", "Audit trail", "Ogni update AI lascia una traccia con input, sintesi, modello, azioni applicate e costo quando disponibile."],
-  ["◎", "Multi-workspace", "Utenti, membership, permessi e chiavi OpenRouter possono essere gestiti separatamente per workspace."],
-  ["⚙", "Modelli configurabili", "Scegli modello di planning e trascrizione per workspace, privilegiando alternative economiche o gratuite."],
+  ["▦", "Board su misura", "Cinque preset, colonne condivise personalizzabili e card complete, dal desktop allo smartphone."],
+  ["↺", "Audit e annullamento", "Ogni aggiornamento AI è visibile, attribuito, registrato e annullabile senza esporre costi o provider."],
+  ["◎", "Organizzazioni", "Separa clienti e progetti con più workspace, membership esplicite e ruoli granulari."],
+  ["⚙", "Privacy AI", "Endpoint ZDR, raccolta dati negata e nessun fallback verso provider con garanzie inferiori."],
 ];
 
 export default async function Home() {
@@ -40,7 +40,7 @@ export default async function Home() {
               <a className="btn accent marketing-cta" href="/demo">Prova la demo</a>
               <a className="btn marketing-cta" href={accountHref}>{accountLabel}</a>
             </div>
-            <div className="marketing-fineprint">Demo senza login · nessuna chiamata AI · nessun dato reale</div>
+            <div className="marketing-fineprint">Demo senza login · nessuna chiamata AI · prova reale di 7 giorni senza carta</div>
           </div>
 
           <div className="voice-loop-card" aria-label="Esempio di aggiornamento BoardCue AI">
@@ -81,7 +81,7 @@ export default async function Home() {
 
         <section className="final-cta">
           <div className="pill">TALK. UPDATE. REPEAT.</div><h2>Prova il loop prima di entrare nel workspace.</h2><p>La demo simula l’esperienza principale nel browser. Se hai già un account, entra direttamente nelle tue board.</p>
-          <div className="marketing-actions centered"><a className="btn accent marketing-cta" href="/demo">Apri la demo</a><a className="btn marketing-cta" href={accountHref}>{accountLabel}</a></div>
+          <div className="marketing-actions centered"><a className="btn accent marketing-cta" href="/register">Prova gratis</a><a className="btn marketing-cta" href="/pricing">Vedi i prezzi</a><a className="btn marketing-cta" href={accountHref}>{accountLabel}</a></div>
         </section>
       </main>
       <PublicFooter />
