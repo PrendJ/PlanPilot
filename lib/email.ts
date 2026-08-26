@@ -6,7 +6,7 @@ function transport() {
 }
 
 export async function sendEmail(input: { to: string; subject: string; text?: string; html?: string }) {
-  const sender = process.env.SMTP_FROM || process.env.EMAIL_FROM || "BoardCue AI <noreply@boardcue.draftapps.it>";
+  const sender = process.env.SMTP_FROM || "BoardCue AI <noreply@boardcue.draftapps.it>";
   const smtp = transport();
   if (!smtp) {
     if (process.env.NODE_ENV !== "production") console.info(`[email preview] ${input.to} | ${input.subject}\n${input.text || input.html || ""}`);

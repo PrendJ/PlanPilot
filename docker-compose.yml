@@ -1,15 +1,17 @@
+name: boardcue
+
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: planpilot
-      POSTGRES_USER: planpilot
+      POSTGRES_DB: boardcue
+      POSTGRES_USER: boardcue
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set-a-strong-password}
     volumes:
-      - planpilot_postgres:/var/lib/postgresql/data
+      - boardcue_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U planpilot -d planpilot"]
+      test: ["CMD-SHELL", "pg_isready -U boardcue -d boardcue"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -21,9 +23,10 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://planpilot:${POSTGRES_PASSWORD}@db:5432/planpilot?schema=public
+      DATABASE_URL: postgresql://boardcue:${POSTGRES_PASSWORD}@db:5432/boardcue?schema=public
       APP_URL: ${APP_URL:-https://boardcue.draftapps.it}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_WORKSPACE_KEYS: ${OPENROUTER_WORKSPACE_KEYS:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_PRICE_SOLO: ${STRIPE_PRICE_SOLO:-}
@@ -31,6 +34,7 @@ services:
       STRIPE_PRICE_STUDIO: ${STRIPE_PRICE_STUDIO:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
@@ -43,4 +47,5 @@ services:
       - "3000"
 
 volumes:
-  planpilot_postgres:
+  boardcue_postgres:
+    name: boardcue_postgres

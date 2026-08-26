@@ -10,7 +10,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Prisma validates the datasource while generating the client during image build.
 # This build-only URL does not connect to a database; the real DATABASE_URL is
 # supplied by docker-compose at runtime.
-ENV DATABASE_URL="postgresql://planpilot:build-only@127.0.0.1:5432/planpilot?schema=public"
+ENV DATABASE_URL="postgresql://boardcue:build-only@127.0.0.1:5432/boardcue?schema=public"
 RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
