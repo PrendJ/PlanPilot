@@ -40,7 +40,7 @@ model User {
   archivedAt              DateTime?
   deleteAfter             DateTime?
   isAdmin                 Boolean              @default(false)
-  canCreateWorkspaces     Boolean              @default(false)
+  defaultOrganizationId   String?               @unique
   lifetimeFree           Boolean              @default(false)
   lifetimeFreeGrantedAt  DateTime?
   lifetimeFreeGrantedBy  String?
@@ -50,6 +50,7 @@ model User {
   memberships             WorkspaceMember[]
   organizationMemberships OrganizationMember[]
   createdOrganizations    Organization[]       @relation("OrganizationCreator")
+  defaultOrganization     Organization?         @relation("DefaultOrganization", fields: [defaultOrganizationId], references: [id], onDelete: SetNull)
   createdWorkspaces       Workspace[]          @relation("WorkspaceCreator")
   updateLogs              UpdateLog[]
   activityEvents          ActivityEvent[]
@@ -94,6 +95,7 @@ model Organization {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
   createdBy      User                 @relation("OrganizationCreator", fields: [createdById], references: [id])
+  defaultForUser User?                @relation("DefaultOrganization")
   members        OrganizationMember[]
   workspaces     Workspace[]
   invites        WorkspaceInvite[]

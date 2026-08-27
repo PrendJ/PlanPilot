@@ -6,12 +6,13 @@ import { hasPlatformCapability, platformRoleOf } from "@/lib/platform-access";
 import { prisma } from "@/lib/prisma";
 import { createOrganization } from "@/lib/workspace";
 import { stripe } from "@/lib/stripe";
+import { ensureDefaultOrganization } from "@/lib/default-organization";
 
 async function requireAdmin() { const user = await getCurrentUser(); return user && hasPlatformCapability(user, "METADATA") ? user : null; }
 const createSchema = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email().max(254), password: z.string().min(10).max(200), platformRole: z.enum(["USER", "SUPPORT", "BILLING", "SUPERADMIN"]).default("USER"), isAdmin: z.boolean().optional(), lifetimeFree: z.boolean().default(false) });
 const updateSchema = z.object({ id: z.string().cuid(), platformRole: z.enum(["USER", "SUPPORT", "BILLING", "SUPERADMIN"]).optional(), isAdmin: z.boolean().optional(), lifetimeFree: z.boolean().optional(), emailVerified: z.boolean().optional() });
 
-const userSelect = { id: true, email: true, name: true, platformRole: true, lifecycleStatus: true, isAdmin: true, lifetimeFree: true, emailVerifiedAt: true, memberships: { select: { role: true, workspace: { select: { id: true, name: true, slug: true } } } }, organizationMemberships: { orderBy: { createdAt: "asc" as const }, select: { role: true, organization: { select: { id: true, name: true, slug: true, plan: true, legalType: true, createdById: true, licenseSource: true, accessExpiresAt: true } } } } } as const;
+const userSelect = { id: true, email: true, name: true, platformRole: true, lifecycleStatus: true, isAdmin: true, defaultOrganizationId: true, lifetimeFree: true, emailVerifiedAt: true, memberships: { select: { role: true, workspace: { select: { id: true, name: true, slug: true } } } }, organizationMemberships: { orderBy: { createdAt: "asc" as const }, select: { role: true, organization: { select: { id: true, name: true, slug: true, plan: true, legalType: true, createdById: true, licenseSource: true, lifecycleStatus: true, accessExpiresAt: true, trialEndsAt: true } } } } } as const;
 
 export async function GET() {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
     const platformRole = body.isAdmin ? "SUPERADMIN" : body.platformRole;
     const user = await prisma.user.create({ data: { email: body.email.toLowerCase(), name: body.name, passwordHash: await bcrypt.hash(body.password, 12), emailVerifiedAt: new Date(), platformRole, isAdmin: platformRole === "SUPERADMIN", lifetimeFree: body.lifetimeFree, lifetimeFreeGrantedAt: body.lifetimeFree ? new Date() : null, lifetimeFreeGrantedBy: body.lifetimeFree ? actor.id : null }, select: userSelect });
     await createOrganization({ name: `${body.name}`, userId: user.id, locale: "it", legalType: "PERSONAL" });
+    await ensureDefaultOrganization(user.id);
     await prisma.adminAuditEvent.create({ data: { actorId: actor.id, action: "USER_CREATED", targetType: "USER", targetId: user.id, metadata: { lifetimeFree: body.lifetimeFree, platformRole } } });
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) { const message = error instanceof Error ? error.message : "Could not create user"; return NextResponse.json({ error: message.includes("Unique constraint") ? "Esiste già un utente con questa email" : message }, { status: 400 }); }

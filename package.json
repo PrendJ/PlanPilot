@@ -15,7 +15,8 @@
     "user:promote-superadmin": "tsx scripts/promote-superadmin.ts",
     "license:grant": "tsx scripts/grant-license.ts",
     "workspace:create": "tsx scripts/create-workspace.ts",
-    "membership:add": "tsx scripts/add-membership.ts"
+    "membership:add": "tsx scripts/add-membership.ts",
+    "organization:backfill-defaults": "tsx scripts/backfill-default-organizations.ts"
   },
   "dependencies": {
     "@prisma/client": "6.12.0",

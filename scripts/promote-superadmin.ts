@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { ensureDefaultOrganization } from "../lib/default-organization";
 
 function arg(name: string) {
   const index = process.argv.indexOf(`--${name}`);
@@ -27,6 +28,7 @@ async function main() {
     },
     select: { email: true, platformRole: true, emailVerifiedAt: true, lifecycleStatus: true },
   });
+  await ensureDefaultOrganization(existing.id);
 
   console.log(`User promoted: ${user.email} | platformRole=${user.platformRole} | verified=${Boolean(user.emailVerifiedAt)} | status=${user.lifecycleStatus}`);
 }

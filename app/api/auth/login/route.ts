@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createSession, setSessionCookie } from "@/lib/auth";
 import { clientIp, rateLimit, rejectCrossOrigin } from "@/lib/security";
 import { z } from "zod";
+import { ensureDefaultOrganization } from "@/lib/default-organization";
 
 const schema = z.object({ email: z.string().email().max(254), password: z.string().min(8).max(200) });
 
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
   }
   if (!user.emailVerifiedAt) return NextResponse.json({ error: "Verifica prima il tuo indirizzo email" }, { status: 403 });
   if (user.lifecycleStatus !== "ACTIVE") return NextResponse.json({ error: "Account sospeso o archiviato" }, { status: 403 });
+  await ensureDefaultOrganization(user.id);
   const session = await createSession(user.id);
   await setSessionCookie(session.token, session.expiresAt);
   return NextResponse.json({ ok: true });

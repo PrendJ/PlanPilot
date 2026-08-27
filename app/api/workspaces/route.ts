@@ -5,6 +5,7 @@ import { createWorkspace } from "@/lib/workspace";
 import { getOrganizationAccess } from "@/lib/auth";
 import { organizationReadOnly, PLANS, planKey } from "@/lib/plans";
 import { z } from "zod";
+import { canCreateWorkspaceInOrganization, ensureDefaultOrganization } from "@/lib/default-organization";
 
 const schema = z.object({ organizationId: z.string().cuid(), name: z.string().trim().min(1).max(100), presetKey: z.enum(["GENERAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"]), locale: z.enum(["it", "en", "de", "fr", "es", "ru", "pl"]) });
 
@@ -21,8 +22,10 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "Invalid workspace" }, { status: 400 });
   const body = parsed.data;
+  const defaultOrganization = user.defaultOrganizationId ? null : await ensureDefaultOrganization(user.id);
   const membership = await getOrganizationAccess(user.id, body.organizationId);
-  if (!membership || !["OWNER", "ADMIN"].includes(membership.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const defaultOrganizationId = user.defaultOrganizationId || defaultOrganization?.id || null;
+  if (!membership || !canCreateWorkspaceInOrganization(defaultOrganizationId, body.organizationId, membership.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   if (organizationReadOnly(membership.organization)) return NextResponse.json({ error: "Organization is read-only" }, { status: 423 });
   const config = PLANS[planKey(membership.organization.plan)];
   const count = await prisma.workspace.count({ where: { organizationId: body.organizationId } });
