@@ -14,10 +14,11 @@ export async function POST(request: Request) {
       if (organizationId && ["SOLO", "TEAM", "STUDIO", "ENTERPRISE"].includes(plan)) {
         const organization = await prisma.organization.findUnique({ where: { id: organizationId }, include: { createdBy: { select: { lifetimeFree: true } } } });
         if (organization) {
-          const periodEnd = (current.items.data[0] as Stripe.SubscriptionItem | undefined)?.current_period_end; const active = ["active", "trialing", "past_due"].includes(current.status); const complimentary = organization.plan === "LIFETIME" || organization.createdBy.lifetimeFree;
+          const periodEnd = (current.items.data[0] as Stripe.SubscriptionItem | undefined)?.current_period_end; const active = ["active", "trialing", "past_due"].includes(current.status); const complimentary = organization.licenseSource === "LIFETIME" || organization.createdBy.lifetimeFree;
+          const stripeData = complimentary || organization.licenseSource === "MANUAL" ? {} : { plan: active ? plan : "TRIAL", licenseSource: (active ? "STRIPE" : "TRIAL") as "STRIPE" | "TRIAL", accessExpiresAt: null, trialEndsAt: active ? null : new Date(Date.now() + 7 * 86400000), readOnlyAt: active ? null : new Date(), deleteAfter: active ? null : new Date(Date.now() + 30 * 86400000) };
           await prisma.$transaction([
             prisma.subscription.upsert({ where: { organizationId }, create: { organizationId, stripeCustomerId: String(current.customer), stripeSubscriptionId: current.id, stripePriceId: current.items.data[0]?.price.id, status: current.status, currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null, cancelAtPeriodEnd: current.cancel_at_period_end }, update: { stripeCustomerId: String(current.customer), stripeSubscriptionId: current.id, stripePriceId: current.items.data[0]?.price.id, status: current.status, currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null, cancelAtPeriodEnd: current.cancel_at_period_end } }),
-            prisma.organization.update({ where: { id: organizationId }, data: complimentary ? { plan: "LIFETIME", trialEndsAt: null, readOnlyAt: null, deleteAfter: null } : { plan: active ? plan : "TRIAL", readOnlyAt: active ? null : new Date(), deleteAfter: active ? null : new Date(Date.now() + 30 * 86400000) } }),
+            prisma.organization.update({ where: { id: organizationId }, data: complimentary ? { plan: "LIFETIME", licenseSource: "LIFETIME", trialEndsAt: null, readOnlyAt: null, deleteAfter: null } : stripeData }),
           ]);
         }
       }

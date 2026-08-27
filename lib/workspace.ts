@@ -97,7 +97,7 @@ export async function createOrganization(input: { name: string; userId: string; 
   const locale = normalizeLocale(input.locale);
   const creator = await prisma.user.findUnique({ where: { id: input.userId }, select: { lifetimeFree: true } });
   const lifetime = Boolean(creator?.lifetimeFree);
-  return prisma.organization.create({ data: { name: input.name, slug: await uniqueSlug(input.name, "organization"), legalType: input.legalType === "PERSONAL" ? "PERSONAL" : "BUSINESS", locale, plan: lifetime ? "LIFETIME" : "TRIAL", trialEndsAt: lifetime ? null : new Date(Date.now() + 7 * 86400000), createdById: input.userId, members: { create: { userId: input.userId, role: "OWNER" } } } });
+  return prisma.organization.create({ data: { name: input.name, slug: await uniqueSlug(input.name, "organization"), legalType: input.legalType === "PERSONAL" ? "PERSONAL" : "BUSINESS", locale, plan: lifetime ? "LIFETIME" : "TRIAL", licenseSource: lifetime ? "LIFETIME" : "TRIAL", trialEndsAt: lifetime ? null : new Date(Date.now() + 7 * 86400000), createdById: input.userId, members: { create: { userId: input.userId, role: "OWNER" } } } });
 }
 
 export async function createWorkspace(input: { name: string; slug?: string; userId: string; organizationId?: string; presetKey?: string; locale?: string; openrouterKeyEnv?: string; planModel?: string; transcriptionModel?: string }) {

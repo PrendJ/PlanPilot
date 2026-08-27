@@ -57,6 +57,28 @@ npx prisma migrate deploy
 
 Fresh databases run both migrations automatically. Never run `migrate resolve` on a fresh database.
 
+## Provisioning da terminale
+
+Per creare un utente già abilitato all'accesso, con un'organizzazione personale:
+
+```sh
+npm run user:create -- --email persona@example.com --password 'PASSWORD_LUNGA_E_UNICA' --name 'Nome Cognome'
+```
+
+Per assegnare un piano alla sua organizzazione, con scadenza facoltativa:
+
+```sh
+npm run license:grant -- --email persona@example.com --plan TEAM --expires-at 2026-12-31 --actor superadmin@example.com
+```
+
+Piani disponibili: `TRIAL`, `SOLO`, `TEAM`, `STUDIO`, `LIFETIME`, `ENTERPRISE`. Se la persona possiede più organizzazioni, aggiungi `--organization slug-organizzazione`. Le licenze manuali prevalgono su Stripe fino alla revoca o alla scadenza.
+
+Per inserire una persona già creata in un workspace, il comando aggiunge anche la membership dell'organizzazione e rispetta il limite del piano:
+
+```sh
+npm run membership:add -- --email persona@example.com --workspace progetto-cliente --role MEMBER
+```
+
 ## AI model strategy
 
 The canonical plan remains relational data in PostgreSQL. The LLM returns a small schema-validated patch (`create`, `update`, `move`, `archive`), and the backend validates referenced IDs before applying it transactionally. Provider names, keys and monetary cost are not exposed in customer APIs.

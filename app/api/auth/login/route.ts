@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Credenziali non valide" }, { status: 401 });
   }
   if (!user.emailVerifiedAt) return NextResponse.json({ error: "Verifica prima il tuo indirizzo email" }, { status: 403 });
+  if (user.lifecycleStatus !== "ACTIVE") return NextResponse.json({ error: "Account sospeso o archiviato" }, { status: 403 });
   const session = await createSession(user.id);
   await setSessionCookie(session.token, session.expiresAt);
   return NextResponse.json({ ok: true });

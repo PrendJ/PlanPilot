@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createWorkspace } from "@/lib/workspace";
 import { getOrganizationAccess } from "@/lib/auth";
-import { PLANS, planKey } from "@/lib/plans";
+import { organizationReadOnly, PLANS, planKey } from "@/lib/plans";
 import { z } from "zod";
 
 const schema = z.object({ organizationId: z.string().cuid(), name: z.string().trim().min(1).max(100), presetKey: z.enum(["GENERAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"]), locale: z.enum(["it", "en", "de", "fr", "es", "ru", "pl"]) });
@@ -23,6 +23,7 @@ export async function POST(request: Request) {
   const body = parsed.data;
   const membership = await getOrganizationAccess(user.id, body.organizationId);
   if (!membership || !["OWNER", "ADMIN"].includes(membership.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (organizationReadOnly(membership.organization)) return NextResponse.json({ error: "Organization is read-only" }, { status: 423 });
   const config = PLANS[planKey(membership.organization.plan)];
   const count = await prisma.workspace.count({ where: { organizationId: body.organizationId } });
   if (count >= config.workspaceLimit) return NextResponse.json({ error: `Il piano ${config.label} ha raggiunto il limite di workspace` }, { status: 402 });

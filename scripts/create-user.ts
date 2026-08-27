@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
+import { createOrganization } from "../lib/workspace";
 
 function arg(name: string) {
   const i = process.argv.indexOf(`--${name}`);
@@ -19,10 +20,12 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.upsert({
     where: { email },
-    update: { name, passwordHash, isAdmin, canCreateWorkspaces },
-    create: { email, name, passwordHash, isAdmin, canCreateWorkspaces },
+    update: { name, passwordHash, isAdmin, canCreateWorkspaces, emailVerifiedAt: new Date() },
+    create: { email, name, passwordHash, isAdmin, canCreateWorkspaces, emailVerifiedAt: new Date() },
   });
-  console.log(`User ready: ${user.email} | admin=${user.isAdmin} | canCreateWorkspaces=${user.canCreateWorkspaces}`);
+  let organization = await prisma.organization.findFirst({ where: { createdById: user.id }, orderBy: { createdAt: "asc" } });
+  if (!organization) organization = await createOrganization({ name, userId: user.id, legalType: "PERSONAL" });
+  console.log(`User ready: ${user.email} | admin=${user.isAdmin} | canCreateWorkspaces=${user.canCreateWorkspaces} | organization=${organization.slug}`);
 }
 
 main().finally(() => prisma.$disconnect());

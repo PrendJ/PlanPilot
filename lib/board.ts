@@ -1,12 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { organizationReadOnly } from "@/lib/plans";
 
 export async function workspaceForUser(slug: string, userId: string) {
   return prisma.workspace.findFirst({ where: { slug, members: { some: { userId } } }, include: { organization: true } });
 }
 
-export function workspaceReadOnly(workspace: { organization: { readOnlyAt: Date | null; plan: string; trialEndsAt: Date | null } }) {
-  return Boolean(workspace.organization.readOnlyAt) || (workspace.organization.plan === "TRIAL" && Boolean(workspace.organization.trialEndsAt && workspace.organization.trialEndsAt < new Date()));
+export function workspaceReadOnly(workspace: { lifecycleStatus?: string; organization: { readOnlyAt: Date | null; plan: string; trialEndsAt: Date | null; accessExpiresAt: Date | null; lifecycleStatus?: string } }) {
+  return workspace.lifecycleStatus !== undefined && workspace.lifecycleStatus !== "ACTIVE" || workspace.organization.lifecycleStatus !== undefined && workspace.organization.lifecycleStatus !== "ACTIVE" || organizationReadOnly(workspace.organization);
 }
 
 export async function assertRevision(workspaceId: string, revision: unknown, tx: Prisma.TransactionClient = prisma) {

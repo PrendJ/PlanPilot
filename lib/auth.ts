@@ -45,7 +45,7 @@ export async function getCurrentUser() {
   const token = jar.get(COOKIE)?.value || jar.get(LEGACY_COOKIE)?.value;
   if (!token) return null;
   const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
-  if (!session || session.expiresAt < new Date()) {
+  if (!session || session.expiresAt < new Date() || session.user.lifecycleStatus !== "ACTIVE") {
     if (session) await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;
   }
@@ -63,8 +63,7 @@ export async function canAccessWorkspace(userId: string, workspaceId: string) {
   return getWorkspaceAccess(userId, workspaceId);
 }
 
-export async function canManageWorkspace(userId: string, workspaceId: string, globalAdmin = false) {
-  if (globalAdmin) return true;
+export async function canManageWorkspace(userId: string, workspaceId: string, _globalAdmin = false) {
   const membership = await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId, userId } }, select: { role: true } });
   return membership?.role === "OWNER" || membership?.role === "ADMIN";
 }
@@ -73,8 +72,7 @@ export async function getOrganizationAccess(userId: string, organizationId: stri
   return prisma.organizationMember.findUnique({ where: { organizationId_userId: { organizationId, userId } }, include: { organization: true } });
 }
 
-export async function canManageOrganization(userId: string, organizationId: string, globalAdmin = false) {
-  if (globalAdmin) return true;
+export async function canManageOrganization(userId: string, organizationId: string, _globalAdmin = false) {
   const membership = await prisma.organizationMember.findUnique({ where: { organizationId_userId: { organizationId, userId } }, select: { role: true } });
   return membership?.role === "OWNER" || membership?.role === "ADMIN";
 }

@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx scripts/seed.ts",
     "user:create": "tsx scripts/create-user.ts",
+    "license:grant": "tsx scripts/grant-license.ts",
     "workspace:create": "tsx scripts/create-workspace.ts",
     "membership:add": "tsx scripts/add-membership.ts"
   },

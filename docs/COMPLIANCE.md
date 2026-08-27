@@ -1,41 +1,15 @@
-# BoardCue AI — compliance launch pack
+# Governance, retention e AI literacy
 
-This folder is an operational baseline, not legal advice. Privacy Policy, Cookie Policy, B2B/B2C terms, DPA and every translation require professional review before commercial launch.
+## Ruoli interni
 
-## Roles and scope
+`SUPERADMIN` gestisce utenti, organizzazioni, workspace, ruoli, archiviazione e reporting. `SUPPORT` opera solo su metadati e membership, può verificare email, revocare sessioni e sospendere/riattivare; non accede ai contenuti delle board. `BILLING` vede dati economici Stripe salvati lato server e può gestire licenze manuali; rimborsi, annullamenti e modifiche finanziarie si effettuano esclusivamente nel Dashboard Stripe.
 
-- Controller: account, billing, security, service communications and marketing data.
-- Processor: workspace content handled on behalf of customer organizations.
-- No employee scoring, performance ranking, behavioural assignment or employment decisions.
-- AI operations are visible, attributable, logged and reversible.
+Un Supporto può vedere i contenuti di una sola organizzazione soltanto se un Superadmin gli trasferisce formalmente l'ownership durante l'archiviazione dell'unico owner; il trasferimento deve avere motivazione e audit.
 
-## Records of processing
+## Retention
 
-| Activity | Data | Purpose | Basis | Recipient | Retention |
-|---|---|---|---|---|---|
-| Account/auth | name, email, password hash, sessions | provide and secure service | contract / legitimate interest | hosting, SMTP | account lifetime; sessions 30 days |
-| Workspace | board content, memberships, activity | customer instructions | DPA / contract | hosting, approved AI providers on request | active term + read-only window |
-| AI planning | minimal prompt and board context | requested AI feature | contract | OpenRouter + approved ZDR endpoint | BoardCue audit per customer policy; provider ZDR |
-| Dictation | temporary audio, transcript | requested transcription | contract | OpenRouter + Whisper endpoint | audio not stored by BoardCue |
-| Billing | customer and transaction identifiers | payment, tax and accounting | contract / legal obligation | Stripe | statutory accounting period |
-| Enterprise lead | contact and requirements | respond to sales request | pre-contractual measures | SMTP | 12 months unless relationship continues |
+Archiviazione significa blocco immediato dell'accesso e delle modifiche. Dopo 30 giorni il job di retention elimina dati operativi di organizzazioni e workspace; per gli utenti disabilita e anonimizza l'account. Prima dell'eliminazione conserva un record immutabile dell'operazione e i dati economici/audit necessari, con scadenza a 10 anni. Le date e le eccezioni legali vanno riesaminate con consulenza privacy e fiscale prima del go-live.
 
-## Retention and deletion
+## Uso responsabile dell'AI
 
-- Trial expiry: organization read-only for 30 days, then operational data eligible for deletion.
-- Paid cancellation: service until period end, then read-only for 30 days.
-- Verification tokens: 24 hours. Password-reset tokens: 1 hour. Invites: 7 days.
-- Sessions: 30 days or immediate revocation.
-- Backups: encrypted daily; target rolling retention 30 days; deletion propagates as backups expire.
-- Security/audit records: define a justified production retention (recommended 12 months) with counsel.
-
-## Required launch evidence
-
-- Signed DPAs and current subprocessors with transfer mechanisms.
-- ZDR endpoint verification for every allowed model; no fallback.
-- Daily encrypted backup plus documented restore exercise.
-- Tenant-isolation, role-matrix, webhook replay and quota-idempotency test reports.
-- Cookie scan showing technical storage only.
-- WCAG 2.2 AA review covering keyboard, screen reader, focus, contrast, reduced motion and 44px touch targets.
-- Breach register and 72-hour assessment/notification runbook.
-- DPIA screening and international-transfer assessment.
+L'assistente AI è identificato nella UI, produce modifiche auditabili e annullabili, e non deve essere usato per HR, valutazioni individuali, assunzione, promozione, cessazione o decisioni automatizzate ad alto impatto. Il personale interno deve attestare la lettura della pagina AI literacy prima dell'accesso operativo. La policy e la UI vanno riesaminate ad ogni variazione normativa applicabile.

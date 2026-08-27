@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUsageStatus } from "@/lib/plans";
+import { getUsageStatus, organizationReadOnly } from "@/lib/plans";
 
 export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
   const user = await getCurrentUser();
@@ -23,7 +23,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ slug: stri
       locale: workspace.locale,
       role: membership.role,
       canManage: user.isAdmin || membership.role === "OWNER" || membership.role === "ADMIN",
-      readOnly: Boolean(workspace.organization.readOnlyAt) || (workspace.organization.plan === "TRIAL" && Boolean(workspace.organization.trialEndsAt && workspace.organization.trialEndsAt < new Date())),
+      readOnly: organizationReadOnly(workspace.organization),
     },
     columns: workspace.columns,
     members: workspace.members.map((member) => member.user),

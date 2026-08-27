@@ -7,6 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PlatformRole {
+  USER
+  SUPPORT
+  BILLING
+  SUPERADMIN
+}
+
+enum LifecycleStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum LicenseSource {
+  TRIAL
+  MANUAL
+  STRIPE
+  LIFETIME
+}
+
 model User {
   id                      String               @id @default(cuid())
   email                   String               @unique
@@ -14,6 +34,11 @@ model User {
   passwordHash            String
   emailVerifiedAt         DateTime?
   locale                  String               @default("it")
+  platformRole            PlatformRole         @default(USER)
+  lifecycleStatus         LifecycleStatus      @default(ACTIVE)
+  suspendedAt             DateTime?
+  archivedAt              DateTime?
+  deleteAfter             DateTime?
   isAdmin                 Boolean              @default(false)
   canCreateWorkspaces     Boolean              @default(false)
   lifetimeFree           Boolean              @default(false)
@@ -35,6 +60,7 @@ model User {
   usageEvents             UsageEvent[]
   adminAuditEvents        AdminAuditEvent[]    @relation("AdminAuditActor")
   exchangeRateOverrides   ExchangeRateSetting[] @relation("ExchangeRateOverrideActor")
+  complianceAcknowledgements ComplianceAcknowledgement[]
 }
 
 model Session {
@@ -55,6 +81,11 @@ model Organization {
   slug           String               @unique
   legalType      String               @default("BUSINESS")
   plan           String               @default("TRIAL")
+  accessExpiresAt DateTime?
+  licenseSource  LicenseSource        @default(TRIAL)
+  lifecycleStatus LifecycleStatus     @default(ACTIVE)
+  suspendedAt    DateTime?
+  archivedAt     DateTime?
   locale         String               @default("it")
   trialEndsAt    DateTime?
   readOnlyAt     DateTime?
@@ -69,6 +100,8 @@ model Organization {
   subscription   Subscription?
   usageEvents    UsageEvent[]
   activityEvents ActivityEvent[]
+
+  @@index([lifecycleStatus, deleteAfter])
 }
 
 model OrganizationMember {
@@ -96,6 +129,10 @@ model Workspace {
   planModel            String            @default("openai/gpt-5-nano")
   transcriptionModel   String            @default("openai/whisper-large-v3-turbo")
   dictationEnabled     Boolean           @default(true)
+  lifecycleStatus      LifecycleStatus   @default(ACTIVE)
+  suspendedAt          DateTime?
+  archivedAt           DateTime?
+  deleteAfter          DateTime?
   createdById          String
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
@@ -110,6 +147,7 @@ model Workspace {
   activityEvents       ActivityEvent[]
 
   @@index([organizationId])
+  @@index([lifecycleStatus, deleteAfter])
 }
 
 model WorkspaceMember {
@@ -310,6 +348,30 @@ model AdminAuditEvent {
 
   @@index([createdAt])
   @@index([targetType, targetId])
+}
+
+model RetainedRecord {
+  id          String   @id @default(cuid())
+  subjectType String
+  subjectId   String
+  kind        String
+  payload     Json
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([subjectType, subjectId])
+  @@index([expiresAt])
+}
+
+model ComplianceAcknowledgement {
+  id        String   @id @default(cuid())
+  userId    String
+  policyKey String
+  version   String
+  acceptedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, policyKey, version])
 }
 
 model ExchangeRateSetting {

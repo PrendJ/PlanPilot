@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPlatformCapability } from "@/lib/platform-access";
 import { prisma } from "@/lib/prisma";
 import { enableAutomaticUsdToEurRate, getUsdToEurRate, refreshUsdToEurRate, setManualUsdToEurRate } from "@/lib/exchange-rate";
 
@@ -8,7 +9,7 @@ const schema = z.object({ mode: z.enum(["AUTO", "MANUAL"]), usdToEur: z.number()
 
 async function requireAdmin() {
   const user = await getCurrentUser();
-  return user?.isAdmin ? user : null;
+  return user && hasPlatformCapability(user, "BILLING") ? user : null;
 }
 
 export async function GET() {

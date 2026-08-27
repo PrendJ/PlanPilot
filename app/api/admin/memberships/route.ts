@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { hasPlatformCapability } from "@/lib/platform-access";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
-  return user?.isAdmin ? user : null;
+  return user && hasPlatformCapability(user, "SUPPORT") ? user : null;
 }
 
 export async function POST(request: Request) {
