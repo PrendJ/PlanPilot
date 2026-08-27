@@ -20,12 +20,12 @@ async function main() {
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await prisma.user.upsert({
     where: { email },
-    update: { name, passwordHash, isAdmin, canCreateWorkspaces, emailVerifiedAt: new Date() },
-    create: { email, name, passwordHash, isAdmin, canCreateWorkspaces, emailVerifiedAt: new Date() },
+    update: { name, passwordHash, isAdmin, platformRole: isAdmin ? "SUPERADMIN" : "USER", canCreateWorkspaces, emailVerifiedAt: new Date(), lifecycleStatus: "ACTIVE", suspendedAt: null, archivedAt: null, deleteAfter: null },
+    create: { email, name, passwordHash, isAdmin, platformRole: isAdmin ? "SUPERADMIN" : "USER", canCreateWorkspaces, emailVerifiedAt: new Date() },
   });
   let organization = await prisma.organization.findFirst({ where: { createdById: user.id }, orderBy: { createdAt: "asc" } });
   if (!organization) organization = await createOrganization({ name, userId: user.id, legalType: "PERSONAL" });
-  console.log(`User ready: ${user.email} | admin=${user.isAdmin} | canCreateWorkspaces=${user.canCreateWorkspaces} | organization=${organization.slug}`);
+  console.log(`User ready: ${user.email} | platformRole=${user.platformRole} | organization=${organization.slug}`);
 }
 
 main().finally(() => prisma.$disconnect());

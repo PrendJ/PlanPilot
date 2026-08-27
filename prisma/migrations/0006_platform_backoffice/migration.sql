@@ -1,3 +1,5 @@
+BEGIN;
+
 CREATE TYPE "PlatformRole" AS ENUM ('USER', 'SUPPORT', 'BILLING', 'SUPERADMIN');
 CREATE TYPE "LifecycleStatus" AS ENUM ('ACTIVE', 'SUSPENDED', 'ARCHIVED');
 CREATE TYPE "LicenseSource" AS ENUM ('TRIAL', 'MANUAL', 'STRIPE', 'LIFETIME');
@@ -15,7 +17,12 @@ ALTER TABLE "Organization"
   ADD COLUMN "lifecycleStatus" "LifecycleStatus" NOT NULL DEFAULT 'ACTIVE',
   ADD COLUMN "suspendedAt" TIMESTAMP(3),
   ADD COLUMN "archivedAt" TIMESTAMP(3);
-UPDATE "Organization" SET "licenseSource" = CASE WHEN "plan" = 'LIFETIME' THEN 'LIFETIME' WHEN "plan" IN ('SOLO','TEAM','STUDIO','ENTERPRISE') THEN 'STRIPE' ELSE 'TRIAL' END;
+UPDATE "Organization"
+SET "licenseSource" = CASE
+  WHEN "plan" = 'LIFETIME' THEN 'LIFETIME'::"LicenseSource"
+  WHEN "plan" IN ('SOLO', 'TEAM', 'STUDIO', 'ENTERPRISE') THEN 'STRIPE'::"LicenseSource"
+  ELSE 'TRIAL'::"LicenseSource"
+END;
 CREATE INDEX "Organization_lifecycleStatus_deleteAfter_idx" ON "Organization"("lifecycleStatus", "deleteAfter");
 
 ALTER TABLE "Workspace"
@@ -54,3 +61,5 @@ CREATE TABLE "ComplianceAcknowledgement" (
 );
 CREATE UNIQUE INDEX "ComplianceAcknowledgement_userId_policyKey_version_key" ON "ComplianceAcknowledgement"("userId", "policyKey", "version");
 ALTER TABLE "ComplianceAcknowledgement" ADD CONSTRAINT "ComplianceAcknowledgement_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+COMMIT;
