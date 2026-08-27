@@ -73,6 +73,12 @@ npm run license:grant -- --email persona@example.com --plan TEAM --expires-at 20
 
 Piani disponibili: `TRIAL`, `SOLO`, `TEAM`, `STUDIO`, `LIFETIME`, `ENTERPRISE`. Se la persona possiede più organizzazioni, aggiungi `--organization slug-organizzazione`. Le licenze manuali prevalgono su Stripe fino alla revoca o alla scadenza.
 
+Per promuovere un account esistente a Superadmin, verificarne l'email e riattivarlo senza cambiare la password:
+
+```sh
+npm run user:promote-superadmin -- --email persona@example.com
+```
+
 Per inserire una persona già creata in un workspace, il comando aggiunge anche la membership dell'organizzazione e rispetta il limite del piano:
 
 ```sh
