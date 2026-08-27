@@ -1,2 +1,12 @@
-import{redirect}from"next/navigation";import{getCurrentUser}from"@/lib/auth";import{prisma}from"@/lib/prisma";import{Topbar}from"@/components/Topbar";import{AccountSettings}from"@/components/AccountSettings";
-export default async function Account(){const user=await getCurrentUser();if(!user)redirect("/login");const memberships=await prisma.organizationMember.findMany({where:{userId:user.id},include:{organization:true}});return <div className="shell"><Topbar loggedIn/><main className="grid-page"><div className="pill">ACCOUNT</div><h1>{user.name}</h1><p className="muted-copy">{user.email}</p><AccountSettings organizations={memberships.map(m=>({id:m.organization.id,name:m.organization.name,slug:m.organization.slug,plan:m.organization.plan,role:m.role}))}/></main></div>}
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { Topbar } from "@/components/Topbar";
+import { AccountSettings } from "@/components/AccountSettings";
+import { PLANS, planKey } from "@/lib/plans";
+
+export default async function Account() {
+  const user = await getCurrentUser(); if (!user) redirect("/login");
+  const memberships = await prisma.organizationMember.findMany({where:{userId:user.id},include:{organization:{include:{subscription:true}}},orderBy:{createdAt:"asc"}});
+  return <div className="shell"><Topbar loggedIn/><main className="grid-page"><div className="pill">ACCOUNT</div><h1>{user.name}</h1><p className="muted-copy">{user.email}</p><AccountSettings organizations={memberships.map(({role,organization})=>{const plan=PLANS[planKey(organization.plan)];return {id:organization.id,name:organization.name,slug:organization.slug,plan:organization.plan,planLabel:plan.label,priceEur:plan.priceEur,role,licenseSource:organization.licenseSource,accessExpiresAt:organization.accessExpiresAt?.toISOString()||null,trialEndsAt:organization.trialEndsAt?.toISOString()||null,readOnly:Boolean(organization.readOnlyAt),subscriptionStatus:organization.subscription?.status||null,currentPeriodEnd:organization.subscription?.currentPeriodEnd?.toISOString()||null,cancelAtPeriodEnd:Boolean(organization.subscription?.cancelAtPeriodEnd),hasBillingAccount:Boolean(organization.subscription?.stripeCustomerId)}})}/></main></div>;
+}

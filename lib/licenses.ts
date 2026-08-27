@@ -13,7 +13,9 @@ export async function grantManualLicense(input: { organizationId: string; plan: 
   if (input.plan === "LIFETIME" && expiresAt) throw new Error("Una licenza lifetime non può scadere");
   const trialEndsAt = input.plan === "TRIAL" ? (expiresAt || new Date(Date.now() + 7 * 86400000)) : null;
   return prisma.$transaction(async (tx) => {
-    const before = await tx.organization.findUniqueOrThrow({ where: { id: input.organizationId }, select: { plan: true, accessExpiresAt: true, licenseSource: true, lifecycleStatus: true } });
+    const stored = await tx.organization.findUniqueOrThrow({ where: { id: input.organizationId }, select: { plan: true, accessExpiresAt: true, licenseSource: true, lifecycleStatus: true, createdBy: { select: { lifetimeFree: true } } } });
+    if (!canAssignManualPlan(stored.createdBy.lifetimeFree, input.plan)) throw new Error("Revoca prima l'accesso Free a vita dell'utente");
+    const { createdBy: _createdBy, ...before } = stored;
     const organization = await tx.organization.update({ where: { id: input.organizationId }, data: { plan: input.plan, licenseSource: input.plan === "LIFETIME" ? "LIFETIME" : "MANUAL", accessExpiresAt: expiresAt, trialEndsAt, readOnlyAt: null, deleteAfter: null, lifecycleStatus: "ACTIVE", suspendedAt: null, archivedAt: null } });
     await tx.adminAuditEvent.create({ data: { actorId: input.actorId, action: "LICENSE_GRANTED", targetType: "ORGANIZATION", targetId: input.organizationId, metadata: { before, plan: input.plan, expiresAt, reason: input.reason } } });
     return organization;
@@ -34,4 +36,8 @@ export async function revokeManualLicense(input: { organizationId: string; actor
 
 export function isValidPlan(value: string): value is PlanKey {
   return value in PLANS && planKey(value) === value;
+}
+
+export function canAssignManualPlan(lifetimeFree: boolean, plan: PlanKey) {
+  return !lifetimeFree || plan === "LIFETIME";
 }

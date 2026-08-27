@@ -11,7 +11,7 @@ async function requireAdmin() { const user = await getCurrentUser(); return user
 const createSchema = z.object({ name: z.string().trim().min(2).max(100), email: z.string().email().max(254), password: z.string().min(10).max(200), platformRole: z.enum(["USER", "SUPPORT", "BILLING", "SUPERADMIN"]).default("USER"), isAdmin: z.boolean().optional(), lifetimeFree: z.boolean().default(false) });
 const updateSchema = z.object({ id: z.string().cuid(), platformRole: z.enum(["USER", "SUPPORT", "BILLING", "SUPERADMIN"]).optional(), isAdmin: z.boolean().optional(), lifetimeFree: z.boolean().optional(), emailVerified: z.boolean().optional() });
 
-const userSelect = { id: true, email: true, name: true, platformRole: true, lifecycleStatus: true, isAdmin: true, lifetimeFree: true, emailVerifiedAt: true, memberships: { select: { role: true, workspace: { select: { id: true, name: true, slug: true } } } }, organizationMemberships: { select: { role: true, organization: { select: { id: true, name: true, slug: true, plan: true } } } } } as const;
+const userSelect = { id: true, email: true, name: true, platformRole: true, lifecycleStatus: true, isAdmin: true, lifetimeFree: true, emailVerifiedAt: true, memberships: { select: { role: true, workspace: { select: { id: true, name: true, slug: true } } } }, organizationMemberships: { orderBy: { createdAt: "asc" as const }, select: { role: true, organization: { select: { id: true, name: true, slug: true, plan: true, legalType: true, createdById: true, licenseSource: true, accessExpiresAt: true } } } } } as const;
 
 export async function GET() {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
