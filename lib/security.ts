@@ -24,8 +24,12 @@ export function rateLimit(key: string, limit: number, windowMs: number) {
 export function rejectCrossOrigin(request: Request) {
   const origin = request.headers.get("origin");
   if (!origin) return null;
-  const appUrl = process.env.APP_URL;
-  if (!appUrl || origin === new URL(appUrl).origin) return null;
+  if (origin === new URL(request.url).origin) return null;
+  try {
+    if (process.env.APP_URL && origin === new URL(process.env.APP_URL).origin) return null;
+  } catch {
+    // A malformed deployment URL must not break every form submission.
+  }
   return NextResponse.json({ error: "Origin non consentita" }, { status: 403 });
 }
 

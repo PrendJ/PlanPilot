@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     return NextResponse.json({ error: "Credenziali non valide" }, { status: 401 });
   }
-  if (!user.emailVerifiedAt) return NextResponse.json({ error: "Verifica prima il tuo indirizzo email" }, { status: 403 });
+  if (!user.emailVerifiedAt) return NextResponse.json({ error: "Prima di accedere, verifica il tuo indirizzo email.", code: "EMAIL_NOT_VERIFIED" }, { status: 403 });
   if (user.lifecycleStatus !== "ACTIVE") return NextResponse.json({ error: "Account sospeso o archiviato" }, { status: 403 });
   await ensureDefaultOrganization(user.id);
   const session = await createSession(user.id);

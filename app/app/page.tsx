@@ -7,9 +7,11 @@ import { ensureDefaultOrganization } from "@/lib/default-organization";
 
 const limit = (value:number) => Number.isFinite(value) ? String(value) : "Illimitati";
 
-export default async function AppPage() {
+export default async function AppPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const query = await searchParams;
+  const checkout = Array.isArray(query.checkout) ? query.checkout[0] : query.checkout;
   const defaultOrganization = await ensureDefaultOrganization(user.id);
   const [memberships, organizations] = await Promise.all([
     prisma.workspaceMember.findMany({ where:{userId:user.id,workspace:{lifecycleStatus:"ACTIVE"}}, include:{workspace:{include:{organization:{select:{name:true}}}}}, orderBy:{createdAt:"desc"} }),
@@ -22,6 +24,8 @@ export default async function AppPage() {
 
   return <div className="shell"><Topbar loggedIn/><main className="grid-page dashboard-page">
     <div className="dashboard-head"><div><div className="pill">HOME</div><h1>Ciao, {user.name}.</h1><p className="muted-copy">Il punto di partenza per i tuoi workspace, le organizzazioni e l’abbonamento.</p></div>{user.isAdmin&&<a className="btn accent" href="/admin">Apri il backoffice</a>}</div>
+    {checkout === "success" && <div className="status dashboard-notice" role="status">Abbonamento confermato. Potrebbero servire pochi secondi per aggiornare piano e limiti.</div>}
+    {!memberships.length && <section className="first-run"><div><span className="eyebrow">PRIMO ACCESSO</span><h2>Cominciamo dalla tua prima board.</h2><p>Non devi configurare tutto subito: scegli un nome e un modello. Colonne e dettagli restano modificabili in seguito.</p><a className="btn accent" href="/workspaces#new-workspace">Crea la prima board</a></div><ol><li><strong>1</strong><span><b>Crea lo spazio di lavoro</b><small>È la board dedicata a un progetto o team.</small></span></li><li><strong>2</strong><span><b>Aggiungi o descrivi il lavoro</b><small>Puoi scrivere, parlare oppure creare card a mano.</small></span></li><li><strong>3</strong><span><b>Invita il team quando vuoi</b><small>Puoi iniziare anche da solo.</small></span></li></ol></section>}
     <section className="dashboard-grid">
       <article className="dashboard-card subscription-summary"><span className="eyebrow">ORGANIZZAZIONE PREDEFINITA</span>{primary?<><div className="dashboard-card-head"><div><h2>{primary.organization.name}</h2><small>{primary.organization.legalType==="PERSONAL"?"Personale":"Business"} · {primary.role}</small></div><span className={`plan-badge plan-${primary.organization.plan}`}>{plan.label}</span></div><strong className="dashboard-price">{plan.priceEur===null?"Su misura":plan.priceEur===0?"€0":`€${plan.priceEur}`}<small>{typeof plan.priceEur==="number"&&plan.priceEur>0?" + IVA / mese":""}</small></strong><p>{primary.organization.lifecycleStatus!=="ACTIVE"?"Organizzazione archiviata":primary.organization.subscription?.status?`Stato: ${primary.organization.subscription.status}`:primary.organization.readOnlyAt?"Accesso in sola lettura":"Accesso attivo"} · Licenza {primary.organization.licenseSource}</p>{renewal&&<p>{primary.organization.subscription?.currentPeriodEnd?"Prossimo rinnovo":"Scadenza"}: <strong>{new Date(renewal).toLocaleDateString("it-IT")}</strong></p>}<div className="usage-summary"><span>Workspace <strong>{primary.organization._count.workspaces} / {limit(plan.workspaceLimit)}</strong></span><span>Membri <strong>{primary.organization._count.members} / {limit(plan.memberLimit)}</strong></span></div><div className="dashboard-actions"><a className="btn" href="/account">Gestisci account</a><a className="btn ghost" href="/pricing">Confronta piani</a></div></>:<><h2>Provisioning non disponibile</h2><p>Non è stato possibile risolvere l’organizzazione predefinita.</p></>}</article>
       <article className="dashboard-card workspace-summary"><span className="eyebrow">WORKSPACE ATTIVI</span><strong className="dashboard-count">{memberships.length}</strong><p>La creazione parte sempre da <strong>{defaultOrganization.name}</strong>.</p><a className="btn accent" href="/workspaces">Crea o gestisci workspace</a></article>
