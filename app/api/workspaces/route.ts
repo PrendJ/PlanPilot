@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createWorkspace } from "@/lib/workspace";
 import { getOrganizationAccess } from "@/lib/auth";
-import { organizationReadOnly, PLANS, planKey } from "@/lib/plans";
+import { getOrganizationLimits, organizationReadOnly } from "@/lib/plans";
 import { z } from "zod";
 import { canCreateWorkspaceInOrganization, ensureDefaultOrganization } from "@/lib/default-organization";
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const defaultOrganizationId = user.defaultOrganizationId || defaultOrganization?.id || null;
   if (!membership || !canCreateWorkspaceInOrganization(defaultOrganizationId, body.organizationId, membership.role)) return NextResponse.json({ error: "Non hai i permessi per creare una board in questa organizzazione" }, { status: 403 });
   if (organizationReadOnly(membership.organization)) return NextResponse.json({ error: "Questa organizzazione è in sola lettura" }, { status: 423 });
-  const config = PLANS[planKey(membership.organization.plan)];
+  const config = getOrganizationLimits(membership.organization);
   const count = await prisma.workspace.count({ where: { organizationId: body.organizationId } });
   if (count >= config.workspaceLimit) return NextResponse.json({ error: `Il piano ${config.label} ha raggiunto il limite di workspace` }, { status: 402 });
   try {

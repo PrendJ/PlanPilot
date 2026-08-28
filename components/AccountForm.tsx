@@ -52,6 +52,12 @@ export function AccountForm({ mode }: { mode: Mode }) {
         router.refresh();
         return;
       }
+      if (mode === "register") {
+        form.reset();
+        router.replace(`/login?registered=1${next !== "/app" ? `&next=${encodeURIComponent(next)}` : ""}`);
+        router.refresh();
+        return;
+      }
       form.reset();
       setComplete({ email: String(fields.get("email") || ""), delivery: data.delivery });
     } catch {

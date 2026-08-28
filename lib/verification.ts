@@ -1,9 +1,9 @@
 import { createOpaqueToken, hashToken } from "@/lib/auth";
-import { appUrl, escapeHtml, sendEmail } from "@/lib/email";
+import { appUrl, escapeHtml, renderEmail, sendEmail } from "@/lib/email";
 import { safeNextPath } from "@/lib/navigation";
 import { prisma } from "@/lib/prisma";
 
-export async function issueVerificationEmail(user: { id: string; email: string; name: string }, request: Request, next?: string) {
+export async function issueVerificationEmail(user: { id: string; email: string; name: string }, request: Request, next?: string, reminder = false) {
   const token = createOpaqueToken();
   await prisma.$transaction([
     prisma.verificationToken.deleteMany({ where: { userId: user.id } }),
@@ -16,8 +16,16 @@ export async function issueVerificationEmail(user: { id: string; email: string; 
   try {
     const delivery = await sendEmail({
       to: user.email,
-      subject: "Verifica il tuo account BoardCue",
-      html: `<p>Ciao ${escapeHtml(user.name)},</p><p>Conferma il tuo indirizzo per attivare BoardCue:</p><p><a href="${escapeHtml(verificationUrl)}">Verifica email</a></p><p>Il link scade tra 24 ore. Se non hai richiesto tu l’account, ignora questa email.</p>`,
+      subject: reminder ? "Il tuo account BoardCue aspetta la conferma" : "Verifica il tuo account BoardCue",
+      html: renderEmail({
+        title: reminder ? "Conferma il tuo account" : "Un ultimo passaggio",
+        preheader: reminder ? "Conferma l’email per attivare il tuo spazio BoardCue." : "Conferma il tuo indirizzo email per iniziare con BoardCue.",
+        paragraphs: reminder
+          ? [`Ciao ${escapeHtml(user.name)},`, "Il tuo spazio BoardCue è pronto, ma per proteggerlo ci manca ancora la conferma del tuo indirizzo email.", "Se non completi la verifica entro le prossime 12 ore, elimineremo automaticamente l’account non attivato."]
+          : [`Ciao ${escapeHtml(user.name)},`, "Hai creato il tuo spazio BoardCue. Conferma il tuo indirizzo email per attivarlo e iniziare la prova gratuita.", "Per la tua sicurezza, il link è valido per 24 ore."],
+        action: { label: "Verifica email", href: verificationUrl },
+        note: "Se non hai creato tu questo account, puoi ignorare questo messaggio.",
+      }),
     });
     return delivery.preview ? "preview" as const : "sent" as const;
   } catch (error) {
@@ -35,7 +43,13 @@ export async function issueExistingAccountEmail(user: { email: string; name: str
     const delivery = await sendEmail({
       to: user.email,
       subject: "Il tuo account BoardCue è già attivo",
-      html: `<p>Ciao ${escapeHtml(user.name)},</p><p>È stata richiesta una registrazione con questo indirizzo, ma l’account è già attivo.</p><p><a href="${escapeHtml(loginUrl)}">Accedi a BoardCue</a> oppure <a href="${escapeHtml(recoveryUrl)}">recupera la password</a>.</p><p>Se non hai fatto tu la richiesta, puoi ignorare questa email.</p>`,
+      html: renderEmail({
+        title: "Il tuo account è già attivo",
+        preheader: "Accedi al tuo spazio BoardCue oppure reimposta la password.",
+        paragraphs: [`Ciao ${escapeHtml(user.name)},`, "È stata richiesta una registrazione con questo indirizzo, ma esiste già un account BoardCue attivo."],
+        action: { label: "Accedi a BoardCue", href: loginUrl },
+        note: `Hai dimenticato la password? <a href="${escapeHtml(recoveryUrl)}" style="color:#42d8ed">Reimpostala in sicurezza</a>. Se non hai fatto tu la richiesta, puoi ignorare questo messaggio.`,
+      }),
     });
     return delivery.preview ? "preview" as const : "sent" as const;
   } catch (error) {

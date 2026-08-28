@@ -1,6 +1,7 @@
 import { Topbar } from "@/components/Topbar";
 import { DemoBoard } from "@/components/DemoBoard";
 import { PublicFooter } from "@/components/PublicFooter";
+import { PAID_PLAN_KEYS, PLANS, quotaIncreaseFromSolo } from "@/lib/plans";
 
 const serviceBenefits = [
   {
@@ -20,11 +21,11 @@ const serviceBenefits = [
   },
 ];
 
-const demoPlans = [
-  { name: "Solo", price: "€10", audience: "Per chi gestisce in autonomia", details: ["1 membro", "6 workspace", "Quota AI inclusa"] },
-  { name: "Team", price: "€24", audience: "Per i team che lavorano insieme", details: ["Fino a 7 membri", "10 workspace", "Quota AI inclusa"], featured: true },
-  { name: "Studio", price: "€59", audience: "Per studi e team in crescita", details: ["Fino a 16 membri", "Workspace illimitati", "Quota AI inclusa"] },
-];
+const demoPlanDetails = {
+  SOLO: { audience: "Per chi gestisce in autonomia", details: ["1 membro", "6 workspace"], featured: false },
+  TEAM: { audience: "Per i team che lavorano insieme", details: ["Fino a 10 membri", "10 workspace"], featured: true },
+  STUDIO: { audience: "Per studi e team in crescita", details: ["Fino a 24 membri", "Workspace illimitati"], featured: false },
+};
 
 export default function DemoPage() {
   return (
@@ -73,16 +74,19 @@ export default function DemoPage() {
             <p>Prova BoardCue AI per 7 giorni senza carta. Poi scegli il piano che accompagna il tuo modo di lavorare.</p>
           </div>
           <div className="demo-pricing-grid">
-            {demoPlans.map((plan) => (
-              <article className={`demo-plan ${plan.featured ? "featured" : ""}`} key={plan.name}>
-                {plan.featured && <span className="demo-plan-label">PIÙ SCELTO</span>}
-                <h3>{plan.name}</h3>
-                <p>{plan.audience}</p>
-                <strong>{plan.price}<small> + IVA / mese</small></strong>
-                <ul>{plan.details.map((detail) => <li key={detail}>{detail}</li>)}</ul>
-                <a className={`btn ${plan.featured ? "accent" : ""}`} href="/register">Inizia la prova gratuita</a>
+            {PAID_PLAN_KEYS.map((key) => {
+              const plan = PLANS[key];
+              const details = demoPlanDetails[key];
+              const increase = quotaIncreaseFromSolo(key);
+              return <article className={`demo-plan ${details.featured ? "featured" : ""}`} key={key}>
+                {details.featured && <span className="demo-plan-label">PIÙ SCELTO</span>}
+                <h3>{plan.label}</h3>
+                <p>{details.audience}</p>
+                <strong>€{plan.priceEur}<small> + IVA / mese</small></strong>
+                <ul>{[...details.details, increase === null ? "Quota voce e AI inclusa" : `Quota voce e AI: +${increase}% rispetto a Solo`].map((detail) => <li key={detail}>{detail}</li>)}</ul>
+                <a className={`btn ${details.featured ? "accent" : ""}`} href="/register">Inizia la prova gratuita</a>
               </article>
-            ))}
+            })}
           </div>
           <div className="demo-pricing-footer">
             <span>Hai un team più grande o esigenze specifiche?</span>

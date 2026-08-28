@@ -1,9 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { classifyOwnedOrganizations, validInternalOwner } from "@/lib/lifecycle-policy";
+import { appUrl, escapeHtml, renderEmail, sendEmail } from "@/lib/email";
+import { issueVerificationEmail } from "@/lib/verification";
 
 const THIRTY_DAYS = 30 * 86400000;
 const TEN_YEARS = 3652 * 86400000;
+const TWELVE_HOURS = 12 * 60 * 60_000;
+const TWENTY_FOUR_HOURS = 24 * 60 * 60_000;
 
 type Subject = "user" | "organization" | "workspace";
 type Action = "suspend" | "reactivate" | "archive";
@@ -90,6 +94,82 @@ export async function changeLifecycle(input: { subject: Subject; id: string; act
 
 async function retain(subjectType: string, subjectId: string, kind: string, payload: Prisma.InputJsonValue) {
   await prisma.retainedRecord.create({ data: { subjectType, subjectId, kind, payload, expiresAt: retentionDate() } });
+}
+
+/** Runs from the protected daily cron endpoint. All send flags are claimed before delivery to avoid duplicate emails. */
+export async function runAccountEmailLifecycle(request: Request) {
+  const now = new Date();
+  const reminderCutoff = new Date(now.getTime() - TWELVE_HOURS);
+  const deletionCutoff = new Date(now.getTime() - TWENTY_FOUR_HOURS);
+  let verificationReminders = 0;
+  let deletedUnverifiedAccounts = 0;
+  let trialExpirationEmails = 0;
+  let expiredTrials = 0;
+
+  const pendingVerification = await prisma.user.findMany({
+    where: { emailVerifiedAt: null, verificationReminderSentAt: null, createdAt: { lte: reminderCutoff, gt: deletionCutoff } },
+    select: { id: true, email: true, name: true },
+  });
+  for (const user of pendingVerification) {
+    const claimed = await prisma.user.updateMany({ where: { id: user.id, emailVerifiedAt: null, verificationReminderSentAt: null }, data: { verificationReminderSentAt: now } });
+    if (!claimed.count) continue;
+    const delivery = await issueVerificationEmail(user, request, undefined, true);
+    if (delivery === "retry") {
+      await prisma.user.updateMany({ where: { id: user.id, emailVerifiedAt: null }, data: { verificationReminderSentAt: null } });
+    } else verificationReminders += 1;
+  }
+
+  const staleAccounts = await prisma.user.findMany({ where: { emailVerifiedAt: null, createdAt: { lte: deletionCutoff } }, select: { id: true, createdAt: true } });
+  for (const user of staleAccounts) {
+    const deleted = await prisma.$transaction(async transaction => {
+      const current = await transaction.user.findUnique({ where: { id: user.id }, select: { emailVerifiedAt: true, createdAt: true } });
+      if (!current || current.emailVerifiedAt || current.createdAt > deletionCutoff) return false;
+      await transaction.organization.deleteMany({ where: { createdById: user.id } });
+      await transaction.user.delete({ where: { id: user.id } });
+      return true;
+    });
+    if (deleted) deletedUnverifiedAccounts += 1;
+  }
+
+  const completedTrials = await prisma.organization.findMany({
+    where: { plan: "TRIAL", lifecycleStatus: "ACTIVE", trialEndsAt: { lte: now } },
+    select: { id: true, name: true, readOnlyAt: true, deleteAfter: true, createdBy: { select: { id: true, email: true, name: true } } },
+  });
+  for (const organization of completedTrials) {
+    await prisma.organization.updateMany({ where: { id: organization.id, readOnlyAt: null }, data: { readOnlyAt: now } });
+    await prisma.organization.updateMany({ where: { id: organization.id, deleteAfter: null }, data: { deleteAfter: new Date(now.getTime() + THIRTY_DAYS) } });
+    const claimed = await prisma.organization.updateMany({ where: { id: organization.id, trialExpirationEmailSentAt: null }, data: { trialExpirationEmailSentAt: now } });
+    if (!claimed.count) continue;
+    try {
+      await sendEmail({
+        to: organization.createdBy.email,
+        subject: "La prova gratuita BoardCue è terminata",
+        html: renderEmail({
+          title: "Continua il tuo lavoro",
+          preheader: "Scegli un piano BoardCue entro 30 giorni per continuare senza interruzioni.",
+          paragraphs: [`Ciao ${escapeHtml(organization.createdBy.name)},`, `La prova gratuita dello spazio <strong>${escapeHtml(organization.name)}</strong> è terminata. La board è ora in sola lettura, ma puoi scegliere un piano a pagamento nei prossimi 30 giorni per continuare il lavoro.`],
+          action: { label: "Scegli un piano", href: appUrl("/pricing", request) },
+          note: "I piani sono mensili e puoi scegliere quello più adatto al tuo team.",
+        }),
+      });
+      trialExpirationEmails += 1;
+    } catch (error) {
+      console.error("Trial expiration email delivery failed", error);
+      await prisma.organization.updateMany({ where: { id: organization.id }, data: { trialExpirationEmailSentAt: null } });
+    }
+  }
+
+  const pastGracePeriod = await prisma.organization.findMany({
+    where: { plan: "TRIAL", lifecycleStatus: "ACTIVE", readOnlyAt: { not: null }, deleteAfter: { lte: now } },
+    select: { id: true, slug: true, name: true, createdAt: true, trialEndsAt: true },
+  });
+  for (const organization of pastGracePeriod) {
+    await retain("organization", organization.id, "TRIAL_GRACE_PERIOD_EXPIRED", organization as unknown as Prisma.InputJsonValue);
+    await prisma.organization.delete({ where: { id: organization.id } });
+    expiredTrials += 1;
+  }
+
+  return { verificationReminders, deletedUnverifiedAccounts, trialExpirationEmails, expiredTrials };
 }
 
 export async function runRetention() {

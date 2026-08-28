@@ -3,12 +3,39 @@ import { prisma } from "@/lib/prisma";
 export const PLANS = {
   TRIAL: { label: "Trial", priceEur: 0, memberLimit: 1, workspaceLimit: 1, aiBudgetUsd: 0.05 },
   SOLO: { label: "Solo", priceEur: 10, memberLimit: 1, workspaceLimit: 6, aiBudgetUsd: 4 },
-  TEAM: { label: "Team", priceEur: 24, memberLimit: 7, workspaceLimit: 10, aiBudgetUsd: 14 },
-  STUDIO: { label: "Studio", priceEur: 59, memberLimit: 16, workspaceLimit: Infinity, aiBudgetUsd: 40 },
-  LIFETIME: { label: "Lifetime", priceEur: 0, memberLimit: 16, workspaceLimit: Infinity, aiBudgetUsd: 40 },
+  TEAM: { label: "Team", priceEur: 24, memberLimit: 10, workspaceLimit: 10, aiBudgetUsd: 14 },
+  STUDIO: { label: "Studio", priceEur: 59, memberLimit: 24, workspaceLimit: Infinity, aiBudgetUsd: 40 },
+  LIFETIME: { label: "Lifetime", priceEur: 0, memberLimit: 24, workspaceLimit: Infinity, aiBudgetUsd: 40 },
   ENTERPRISE: { label: "Enterprise", priceEur: null, memberLimit: Infinity, workspaceLimit: Infinity, aiBudgetUsd: Infinity },
 } as const;
 export type PlanKey = keyof typeof PLANS;
+export const PAID_PLAN_KEYS = ["SOLO", "TEAM", "STUDIO"] as const;
+export type PaidPlanKey = typeof PAID_PLAN_KEYS[number];
+
+type OrganizationEntitlementSource = {
+  plan: string;
+  memberLimitOverride?: number | null;
+  workspaceLimitOverride?: number | null;
+  aiBudgetUsdOverride?: number | null;
+};
+
+export function getOrganizationLimits(organization: OrganizationEntitlementSource) {
+  const key = planKey(organization.plan);
+  const plan = PLANS[key];
+  return {
+    ...plan,
+    memberLimit: key === "ENTERPRISE" ? organization.memberLimitOverride ?? plan.memberLimit : plan.memberLimit,
+    workspaceLimit: key === "ENTERPRISE" ? organization.workspaceLimitOverride ?? plan.workspaceLimit : plan.workspaceLimit,
+    aiBudgetUsd: key === "ENTERPRISE" ? organization.aiBudgetUsdOverride ?? plan.aiBudgetUsd : plan.aiBudgetUsd,
+  };
+}
+
+export function quotaIncreaseFromSolo(plan: PaidPlanKey) {
+  if (plan === "SOLO") return null;
+  const previousPlan = PLANS.SOLO;
+  const currentPlan = PLANS[plan];
+  return Math.round(((currentPlan.aiBudgetUsd - previousPlan.aiBudgetUsd) / previousPlan.aiBudgetUsd) * 100);
+}
 
 export function planKey(value?: string): PlanKey {
   return value && value in PLANS ? value as PlanKey : "TRIAL";
@@ -32,10 +59,10 @@ export function currentPeriodKey(date = new Date()) {
 }
 
 export async function getUsageStatus(organizationId: string) {
-  const organization = await prisma.organization.findUnique({ where: { id: organizationId }, select: { plan: true, trialEndsAt: true, accessExpiresAt: true, readOnlyAt: true, lifecycleStatus: true, licenseSource: true } });
+  const organization = await prisma.organization.findUnique({ where: { id: organizationId }, select: { plan: true, memberLimitOverride: true, workspaceLimitOverride: true, aiBudgetUsdOverride: true, trialEndsAt: true, accessExpiresAt: true, readOnlyAt: true, lifecycleStatus: true, licenseSource: true } });
   if (!organization) return null;
   const key = planKey(organization.plan);
-  const config = PLANS[key];
+  const config = getOrganizationLimits(organization);
   const aggregate = await prisma.usageEvent.aggregate({ where: { organizationId, periodKey: currentPeriodKey() }, _sum: { costUsd: true } });
   const used = aggregate._sum.costUsd || 0;
   const budget = config.aiBudgetUsd;

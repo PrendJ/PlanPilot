@@ -45,7 +45,7 @@ export async function getCurrentUser() {
   const token = jar.get(COOKIE)?.value || jar.get(LEGACY_COOKIE)?.value;
   if (!token) return null;
   const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
-  if (!session || session.expiresAt < new Date() || session.user.lifecycleStatus !== "ACTIVE") {
+  if (!session || session.expiresAt < new Date() || !session.user.emailVerifiedAt || session.user.lifecycleStatus !== "ACTIVE") {
     if (session) await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;
   }

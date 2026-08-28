@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { createOpaqueToken, hashToken } from "@/lib/auth";
-import { appUrl, escapeHtml, sendEmail } from "@/lib/email";
+import { appUrl, escapeHtml, renderEmail, sendEmail } from "@/lib/email";
 import { clientIp, rateLimit, rejectCrossOrigin } from "@/lib/security";
 
 export async function POST(request: Request) {
@@ -19,7 +19,17 @@ export async function POST(request: Request) {
     ]);
     const resetUrl = appUrl(`/reset-password?token=${encodeURIComponent(token)}`, request);
     try {
-      await sendEmail({ to: user.email, subject: "Reimposta la password BoardCue", html: `<p>Ciao ${escapeHtml(user.name)},</p><p><a href="${escapeHtml(resetUrl)}">Scegli una nuova password</a></p><p>Il link scade tra un’ora. Se non hai richiesto tu la modifica, ignora questa email.</p>` });
+      await sendEmail({
+        to: user.email,
+        subject: "Reimposta la password BoardCue",
+        html: renderEmail({
+          title: "Reimposta la password",
+          preheader: "Hai richiesto di scegliere una nuova password per BoardCue.",
+          paragraphs: [`Ciao ${escapeHtml(user.name)},`, "Abbiamo ricevuto una richiesta per reimpostare la password del tuo account BoardCue."],
+          action: { label: "Scegli una nuova password", href: resetUrl },
+          note: "Il link è valido per un’ora. Se non hai richiesto tu questa modifica, puoi ignorare questo messaggio.",
+        }),
+      });
     } catch (error) {
       console.error("Password reset email delivery failed", error);
     }

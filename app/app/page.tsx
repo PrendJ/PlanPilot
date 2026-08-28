@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { Topbar } from "@/components/Topbar";
-import { PLANS, planKey } from "@/lib/plans";
+import { getOrganizationLimits, PLANS } from "@/lib/plans";
 import { ensureDefaultOrganization } from "@/lib/default-organization";
 
 const limit = (value:number) => Number.isFinite(value) ? String(value) : "Illimitati";
@@ -19,7 +19,7 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
   ]);
   const primary = organizations.find(item=>item.organizationId===defaultOrganization.id);
   const recentWorkspaces = memberships.slice(0, 6);
-  const plan = primary ? PLANS[planKey(primary.organization.plan)] : PLANS.TRIAL;
+  const plan = primary ? getOrganizationLimits(primary.organization) : PLANS.TRIAL;
   const renewal = primary?.organization.subscription?.currentPeriodEnd || primary?.organization.accessExpiresAt || primary?.organization.trialEndsAt;
 
   return <div className="shell"><Topbar loggedIn/><main className="grid-page dashboard-page">

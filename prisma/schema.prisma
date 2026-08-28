@@ -33,6 +33,7 @@ model User {
   name                    String
   passwordHash            String
   emailVerifiedAt         DateTime?
+  verificationReminderSentAt DateTime?
   locale                  String               @default("it")
   platformRole            PlatformRole         @default(USER)
   lifecycleStatus         LifecycleStatus      @default(ACTIVE)
@@ -82,6 +83,9 @@ model Organization {
   slug           String               @unique
   legalType      String               @default("BUSINESS")
   plan           String               @default("TRIAL")
+  memberLimitOverride Int?
+  workspaceLimitOverride Int?
+  aiBudgetUsdOverride Float?
   accessExpiresAt DateTime?
   licenseSource  LicenseSource        @default(TRIAL)
   lifecycleStatus LifecycleStatus     @default(ACTIVE)
@@ -89,6 +93,7 @@ model Organization {
   archivedAt     DateTime?
   locale         String               @default("it")
   trialEndsAt    DateTime?
+  trialExpirationEmailSentAt DateTime?
   readOnlyAt     DateTime?
   deleteAfter    DateTime?
   createdById    String
