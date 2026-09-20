@@ -91,3 +91,17 @@ npm run membership:add -- --email persona@example.com --workspace progetto-clien
 ## AI model strategy
 
 The canonical plan remains relational data in PostgreSQL. The LLM returns a small schema-validated patch (`create`, `update`, `move`, `archive`), and the backend validates referenced IDs before applying it transactionally. Provider names, keys and monetary cost are not exposed in customer APIs.
+
+## Local verification and write safety
+
+Run `npm test`, `npm run typecheck` and `npm run build`. Unit/handler tests use synthetic data and mocked provider calls. PostgreSQL integration tests are skipped unless `BOARDCUE_TEST_DATABASE_URL` points to a disposable local `boardcue_test_*` database with the existing migrations applied; see [acceptance coverage and setup](docs/AI_ACCEPTANCE_2026-09-19.md).
+
+Board mutations must call `assertRevision` with the current actor **inside the same transaction** as the writes and `bumpRevision`. The guard locks the board and access rows until commit and rechecks membership, role and lifecycle. Never call it with the root Prisma client or bypass it in a new card/column mutation. AI batches are validated in full before writing; invalid targets fail the whole batch.
+
+The existing AI flow still applies on submission. Preview, explicit confirmation and idempotent receipts remain release requirements for the proposed new flow. Read the [19 September audit](docs/AUDIT_2026-09-19.md) for verified findings, remaining risks, tests and rollback; this increment is not a production release.
+
+## Installable app and optional project notifications
+
+The **App** button offers installation guidance, explicit app updates and opt-in project notifications. Build generates the service worker; it caches public assets and a generic offline page, never private pages or API responses. Project access still requires a connection. App updates are blocked while board drafts or edits are open.
+
+Web Push is disabled by default and requires VAPID configuration, the additive `0010_web_push` migration and a once-per-minute `node scripts/dispatch-notifications.mjs` job inside the app container. Logout removes subscriptions. See [configuration, verified tests, platform limits and rollback](docs/PWA_NOTIFICATIONS_2026-09-20.md) before enabling it. No deployment is performed by committing these changes.

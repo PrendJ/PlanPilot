@@ -2,7 +2,7 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache openssl
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 FROM node:22-alpine AS builder
 WORKDIR /app
@@ -47,7 +47,5 @@ USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-# Recover the one known failed pre-transaction migration, then apply all
-# versioned schema changes before starting the server. The recovery is a no-op
-# once 0006 is rolled back or successfully applied.
-CMD ["sh", "-c", "node scripts/recover-failed-0006.mjs && ./node_modules/.bin/prisma migrate deploy && exec node server.js"]
+# Failed migrations require operator review; never drop schema automatically on boot.
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && exec node server.js"]

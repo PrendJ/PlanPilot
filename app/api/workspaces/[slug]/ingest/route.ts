@@ -5,7 +5,8 @@ import { getWorkspaceApiKey } from "@/lib/workspace";
 import { planPatchFromText } from "@/lib/openrouter";
 import { getUsageStatus, recordUsage } from "@/lib/plans";
 import { rejectCrossOrigin, rateLimit } from "@/lib/security";
-import { assertRevision, bumpRevision, logActivity, workspaceForUser } from "@/lib/board";
+import { assertRevision, isBoardConflict, bumpRevision, logActivity, workspaceForUser, workspaceReadOnly } from "@/lib/board";
+import { InvalidAiPatchError, validateAiPatch } from "@/lib/ai-patch";
 import { z } from "zod";
 
 const schema = z.object({ text: z.string().trim().min(1).max(12000), source: z.enum(["text", "voice"]).default("text"), revision: z.number().int().nonnegative() });
@@ -22,6 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   const access = await workspaceForUser(slug, user.id);
   if (!access) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (workspaceReadOnly(access)) return NextResponse.json({ error: "Il workspace è in sola lettura" }, { status: 423 });
   const quota = await getUsageStatus(access.organizationId);
   if (!quota || quota.status === "PAUSED") return NextResponse.json({ error: "AI quota reached or subscription inactive" }, { status: 402 });
   const workspace = await prisma.workspace.findUnique({
@@ -50,27 +52,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   };
 
   try {
-    const { patch, usage, requestId } = await planPatchFromText({ apiKey, model: workspace.planModel, workspaceName: workspace.name, userText: text, plan: compactPlan });
+    const { patch: candidate, usage, requestId } = await planPatchFromText({ apiKey, model: workspace.planModel, workspaceName: workspace.name, userText: text, plan: compactPlan });
     const columnsById = new Map(workspace.columns.map((c) => [c.id, c]));
     const existingCards = new Map(workspace.columns.flatMap((c) => c.cards).map((c) => [c.id, c]));
+    const patch = validateAiPatch(candidate, { columnIds: new Set(columnsById.keys()), cardIds: new Set(existingCards.keys()) });
     const applied: typeof patch.actions = [];
 
     const batchId = crypto.randomUUID();
     const newRevision = await prisma.$transaction(async (tx) => {
-      if (!(await assertRevision(workspace.id, revision, tx))) throw new Error("STALE_REVISION");
+      if (!(await assertRevision(workspace.id, revision, tx, { userId: user.id }))) throw new Error("STALE_REVISION");
       for (const action of patch.actions) {
         if (action.action === "create") {
-          if (!action.title || !action.targetColumnId || !columnsById.has(action.targetColumnId)) continue;
-          const count = await tx.card.count({ where: { columnId: action.targetColumnId, archived: false } });
-          const created = await tx.card.create({ data: { workspaceId: workspace.id, columnId: action.targetColumnId, title: action.title.slice(0, 180), description: action.description || "", priority: action.priority || "NORMAL", dueDate: action.dueDate ? new Date(action.dueDate) : null, tags: action.tags || [], position: count } });
+          const count = await tx.card.count({ where: { workspaceId: workspace.id, columnId: action.targetColumnId!, archived: false } });
+          const created = await tx.card.create({ data: { workspaceId: workspace.id, columnId: action.targetColumnId!, title: action.title!, description: action.description || "", priority: action.priority || "NORMAL", dueDate: action.dueDate ? new Date(action.dueDate) : null, tags: action.tags || [], position: count } });
           await logActivity(tx, { organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, type: "AI_CARD_CREATED", entityType: "CARD", entityId: created.id, batchId, afterState: created as never, undoable: true });
           applied.push(action);
           continue;
         }
-        if (!action.cardId || !existingCards.has(action.cardId)) continue;
+        const cardId = action.cardId!;
         if (action.action === "archive") {
-          const changed = await tx.card.update({ where: { id: action.cardId }, data: { archived: true } });
-          await logActivity(tx, { organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, type: "AI_CARD_ARCHIVED", entityType: "CARD", entityId: action.cardId, batchId, beforeState: existingCards.get(action.cardId) as never, afterState: changed as never, undoable: true });
+          const changed = await tx.card.update({ where: { id: cardId, workspaceId: workspace.id }, data: { archived: true } });
+          await logActivity(tx, { organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, type: "AI_CARD_ARCHIVED", entityType: "CARD", entityId: cardId, batchId, beforeState: existingCards.get(cardId) as never, afterState: changed as never, undoable: true });
           applied.push(action);
           continue;
         }
@@ -85,8 +87,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
           if (action.targetColumnId && columnsById.has(action.targetColumnId)) data.columnId = action.targetColumnId;
         }
         if (Object.keys(data).length) {
-          const changed = await tx.card.update({ where: { id: action.cardId }, data });
-          await logActivity(tx, { organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, type: "AI_CARD_UPDATED", entityType: "CARD", entityId: action.cardId, batchId, beforeState: existingCards.get(action.cardId) as never, afterState: changed as never, undoable: true });
+          const changed = await tx.card.update({ where: { id: cardId, workspaceId: workspace.id }, data });
+          await logActivity(tx, { organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, type: "AI_CARD_UPDATED", entityType: "CARD", entityId: cardId, batchId, beforeState: existingCards.get(cardId) as never, afterState: changed as never, undoable: true });
           applied.push(action);
         }
       }
@@ -108,7 +110,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     await recordUsage({ organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, providerRequestId: requestId, category: "PLANNING", model: workspace.planModel, costUsd: usage?.cost, metadata: { source } });
     return NextResponse.json({ ok: true, summary: patch.summary, actions: applied, revision: newRevision });
   } catch (error) {
-    if (error instanceof Error && error.message === "STALE_REVISION") return NextResponse.json({ error: "Board changed. Reload and retry." }, { status: 409 });
-    return NextResponse.json({ error: error instanceof Error ? error.message : "AI update failed" }, { status: 502 });
+    if (isBoardConflict(error)) return NextResponse.json({ error: "Board o accesso modificati. Ricarica e riprova." }, { status: 409 });
+    return NextResponse.json({ error: error instanceof InvalidAiPatchError ? error.message : "Aggiornamento AI non riuscito. Il testo resta disponibile: verifica la board prima di riprovare." }, { status: 502 });
   }
 }

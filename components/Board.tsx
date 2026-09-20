@@ -1,5 +1,6 @@
 "use client";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useUpdateBlocker } from "./PwaProvider";
 
 type Person={id:string;name:string;email:string};
 type Card={id:string;title:string;description:string;priority:string;tags:unknown;dueDate:string|null;archived:boolean;assignees:{user:Person}[]};
@@ -17,6 +18,7 @@ export function Board({slug}:{slug:string}){
   async function send(){if(!text.trim()||!data)return;setBusy(true);setError("");setStatus("");try{const response=await fetch(`/api/workspaces/${slug}/ingest`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,source:"text",revision:data.workspace.revision})});const body=await response.json().catch(()=>({}));if(!response.ok){setError(body.error||"L’AI non è riuscita ad applicare l’aggiornamento.");if(response.status===409)load();return;}setStatus(body.summary);setText("");await load(true)}catch{setError("Connessione interrotta. Il testo è rimasto qui: puoi riprovare senza riscriverlo.")}finally{setBusy(false)}}
   async function saveCard(event:FormEvent<HTMLFormElement>){event.preventDefault();if(!data)return;const form=new FormData(event.currentTarget);const body={columnId:String(form.get("columnId")),title:String(form.get("title")),description:String(form.get("description")||""),priority:String(form.get("priority")||"NORMAL"),dueDate:form.get("dueDate")?new Date(String(form.get("dueDate"))).toISOString():null,tags:String(form.get("tags")||"").split(",").map(x=>x.trim()).filter(Boolean),assigneeIds:form.getAll("assigneeIds")};const result=editing==="new"?await mutate(`/api/workspaces/${slug}/cards`,"POST",body):await mutate(`/api/workspaces/${slug}/cards/${(editing as Card).id}`,"PATCH",body);if(result)setEditing(null)}
   async function toggleRecord(){if(!data?.workspace.dictationEnabled||busy)return;if(recording){recorder.current?.stop();return}try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});const media=new MediaRecorder(stream);recorder.current=media;chunks.current=[];media.ondataavailable=e=>{if(e.data.size)chunks.current.push(e.data)};media.onstop=async()=>{setRecording(false);stream.getTracks().forEach(t=>t.stop());setBusy(true);const form=new FormData();form.append("audio",new Blob(chunks.current,{type:media.mimeType||"audio/webm"}),"recording.webm");const response=await fetch(`/api/workspaces/${slug}/transcribe`,{method:"POST",body:form});const body=await response.json();setBusy(false);if(response.ok)setText(current=>current?`${current}\n${body.text}`:body.text);else setError(body.error||"Trascrizione non riuscita")};media.start();setRecording(true)}catch{setError("Microfono non disponibile o permesso negato")}}
+  useUpdateBlocker(`board:${slug}`, Boolean(text.trim()) || Boolean(editing) || busy || recording);
   if(!data)return <div className="board-loading">{error||"Caricamento board…"}</div>;
   const selected=editing&&editing!=="new"?editing:null;
   return <>

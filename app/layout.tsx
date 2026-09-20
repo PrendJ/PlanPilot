@@ -1,10 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { PwaProvider } from "@/components/PwaProvider";
 import "./globals.css";
 import "./draftapps-theme.css";
 import "./marketing.css";
+import "./pwa.css";
 import { CookieNotice } from "@/components/CookieNotice";
 
 export const metadata: Metadata = {
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "BoardCue", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
   metadataBase: new URL("https://boardcue.draftapps.it"),
   title: "BoardCue AI — Talk. Update. Repeat.",
   description: "AI-first voice-powered planning board. Tell BoardCue AI what changed and keep your work in sync.",
@@ -17,6 +22,7 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#101827" };
 
 const themeScript = `
 (function(){
@@ -34,8 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="it" data-theme="dark" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body>
-        {children}
-        <CookieNotice />
+        <PwaProvider>{children}<CookieNotice /></PwaProvider>
       </body>
     </html>
   );

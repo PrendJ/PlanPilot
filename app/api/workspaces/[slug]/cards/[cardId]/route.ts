@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { assertRevision, bumpRevision, logActivity, workspaceForUser, workspaceReadOnly } from "@/lib/board";
+import { assertRevision, isBoardConflict, bumpRevision, logActivity, workspaceForUser, workspaceReadOnly } from "@/lib/board";
 
 const cardPatch = z.object({ columnId: z.string().cuid().optional(), title: z.string().trim().min(1).max(180).optional(), description: z.string().max(10000).optional(), priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(), dueDate: z.string().datetime().nullable().optional(), tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(), assigneeIds: z.array(z.string().cuid()).max(16).optional(), archived: z.boolean().optional(), revision: z.number().int().nonnegative() });
 
@@ -22,7 +22,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   if (body.assigneeIds && await prisma.workspaceMember.count({ where: { workspaceId: workspace.id, userId: { in: body.assigneeIds } } }) !== new Set(body.assigneeIds).size) return NextResponse.json({ error: "Assignees must belong to this workspace" }, { status: 400 });
   try {
     const result = await prisma.$transaction(async (tx) => {
-      if (!(await assertRevision(workspace.id, body.revision, tx))) throw new Error("STALE_REVISION");
+      if (!(await assertRevision(workspace.id, body.revision, tx, { userId: user.id }))) throw new Error("STALE_REVISION");
       const data = { ...(body.columnId && { columnId: body.columnId }), ...(body.title && { title: body.title }), ...(body.description !== undefined && { description: body.description }), ...(body.priority && { priority: body.priority }), ...(body.dueDate !== undefined && { dueDate: body.dueDate ? new Date(body.dueDate) : null }), ...(body.tags && { tags: body.tags }), ...(body.archived !== undefined && { archived: body.archived }) };
       const updated = await tx.card.update({ where: { id: cardId }, data, include: { assignees: { include: { user: { select: { id: true, name: true, email: true } } } } } });
       if (body.assigneeIds) { await tx.cardAssignee.deleteMany({ where: { cardId } }); await tx.cardAssignee.createMany({ data: [...new Set(body.assigneeIds)].map((userId) => ({ cardId, userId })) }); }
@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
       return { card: updated, revision };
     });
     return NextResponse.json(result);
-  } catch (error) { if (error instanceof Error && error.message === "STALE_REVISION") return NextResponse.json({ error: "Board changed. Reload and retry." }, { status: 409 }); throw error; }
+  } catch (error) { if (isBoardConflict(error)) return NextResponse.json({ error: "Board changed. Reload and retry." }, { status: 409 }); throw error; }
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ slug: string; cardId: string }> }) {

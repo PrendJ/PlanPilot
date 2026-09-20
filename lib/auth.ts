@@ -40,7 +40,7 @@ export async function clearSession(allForUser = false) {
   jar.set(LEGACY_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", expires: new Date(0), path: "/" });
 }
 
-export async function getCurrentUser() {
+export async function getCurrentSession() {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value || jar.get(LEGACY_COOKIE)?.value;
   if (!token) return null;
@@ -49,7 +49,11 @@ export async function getCurrentUser() {
     if (session) await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
     return null;
   }
-  return session.user;
+  return session;
+}
+
+export async function getCurrentUser() {
+  return (await getCurrentSession())?.user ?? null;
 }
 
 export async function getWorkspaceAccess(userId: string, workspaceId: string) {

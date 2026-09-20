@@ -66,6 +66,7 @@ model User {
 }
 
 model Session {
+  pushSubscriptions PushSubscription[]
   id        String   @id @default(cuid())
   tokenHash String   @unique
   userId    String
@@ -258,6 +259,7 @@ model UpdateLog {
 }
 
 model ActivityEvent {
+  pushDeliveries PushDelivery[]
   id             String        @id @default(cuid())
   organizationId String
   workspaceId    String?
@@ -395,4 +397,34 @@ model ExchangeRateSetting {
   manualSetBy         User?    @relation("ExchangeRateOverrideActor", fields: [manualSetById], references: [id], onDelete: SetNull)
 
   @@index([manualSetById])
+}
+
+model PushSubscription {
+  id        String @id @default(cuid())
+  sessionId String
+  endpoint  String @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  deliveries PushDelivery[]
+
+  @@index([sessionId])
+}
+
+model PushDelivery {
+  id             String @id @default(cuid())
+  subscriptionId String
+  eventId        String
+  dedupKey       String
+  attempts       Int @default(0)
+  availableAt    DateTime @default(now())
+  leaseUntil     DateTime?
+  leaseToken     String?
+  createdAt      DateTime @default(now())
+  subscription PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  event ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, dedupKey])
+  @@index([availableAt, leaseUntil])
 }
