@@ -538,6 +538,7 @@ export const en: Messages = {
       newLine: "for a new line",
     },
     proposal: {
+      eyebrow: "System / AI proposal",
       label: "Changes proposed by the AI",
       title: "Proposed changes: {count}",
       noChanges: "No changes needed",

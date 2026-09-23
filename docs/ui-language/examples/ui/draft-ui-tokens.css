@@ -1,0 +1,82 @@
+/*
+  REFERENCE / FALLBACK PALETTE ONLY.
+  Do not import these color values over an existing product theme.
+  In target projects, preserve existing/agreed palette tokens and map the
+  Draft UI semantic roles to them. The values below exist so examples render
+  and so greenfield prototypes have defaults.
+*/
+:root {
+  color-scheme: dark light;
+
+  --draft-bg: #101010;
+  --draft-surface: #181818;
+  --draft-surface-raised: #202020;
+  --draft-surface-soft: #151515;
+
+  --draft-text: #F6F3EB;
+  --draft-text-muted: #B9B5AC;
+  --draft-text-subtle: #7D7972;
+
+  --draft-border: rgba(255,255,255,.16);
+  --draft-border-strong: rgba(255,255,255,.28);
+
+  --draft-primary: #6977FF;
+  --draft-cyan: #5FE6FF;
+  --draft-yellow: #E7F542;
+  --draft-pink: #FF5B92;
+
+  --draft-success: #5ED39A;
+  --draft-warning: #E9B949;
+  --draft-danger: #FF6B6B;
+  --draft-info: #5FC4FF;
+  --draft-focus: #5FE6FF;
+
+  --draft-radius-structural: 0px;
+  --draft-radius-xs: 2px;
+  --draft-radius-sm: 4px;
+  --draft-radius-md: 4px;
+  --draft-radius-lg: 6px;
+  --draft-radius-pill: 999px;
+
+  --draft-space-1: 4px;
+  --draft-space-2: 8px;
+  --draft-space-3: 12px;
+  --draft-space-4: 16px;
+  --draft-space-6: 24px;
+  --draft-space-8: 32px;
+  --draft-space-12: 48px;
+  --draft-space-16: 64px;
+  --draft-space-24: 96px;
+
+  --draft-content: 1180px;
+  --draft-wide: 1440px;
+  --draft-reading: 720px;
+
+  --draft-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --draft-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --draft-ease: cubic-bezier(.22,1,.36,1);
+  --draft-motion-fast: 120ms;
+  --draft-motion-base: 180ms;
+  --draft-motion-medium: 260ms;
+  --draft-motion-slow: 360ms;
+
+  --draft-shadow-raised: 0 14px 34px rgba(0,0,0,.22);
+  --draft-glass: rgba(24,24,24,.76);
+}
+
+[data-theme="light"] {
+  --draft-bg: #F2EFE7;
+  --draft-surface: #FFFDF6;
+  --draft-surface-raised: #FFFFFF;
+  --draft-surface-soft: #ECE8DE;
+
+  --draft-text: #171717;
+  --draft-text-muted: #625D56;
+  --draft-text-subtle: #858078;
+
+  --draft-border: rgba(16,16,16,.16);
+  --draft-border-strong: rgba(16,16,16,.28);
+  --draft-focus: #245DE8;
+  --draft-glass: rgba(255,253,246,.80);
+}

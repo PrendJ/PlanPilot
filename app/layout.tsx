@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
 import { PwaProvider } from "@/components/PwaProvider";
 import { CookieNotice } from "@/components/CookieNotice";
 import { I18nProvider } from "@/components/I18nProvider";
 import { FeedbackProvider } from "@/components/ui";
 import { getLocale, getTranslator } from "@/lib/i18n/server";
+import "@fontsource-variable/inter";
 import "./tokens.css";
 import "./ui.css";
 import "./board.css";
@@ -49,7 +48,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const locale = await getLocale();
   const { t } = await getTranslator();
   return (
-    <html lang={locale} className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

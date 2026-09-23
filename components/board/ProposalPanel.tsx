@@ -84,6 +84,7 @@ export function ProposalPanel({ proposal, busy, onApply, onDiscard, onClarify }:
           <Icon name="sparkles" />
         </span>
         <div>
+          <span className="eyebrow">{t("board.proposal.eyebrow")}</span>
           <strong>
             {proposal.clarification
               ? t("board.proposal.needsClarification")
