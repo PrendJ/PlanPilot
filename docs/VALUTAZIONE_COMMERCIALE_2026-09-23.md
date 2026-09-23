@@ -181,12 +181,12 @@ Osservazioni:
 | Piano | Prezzo | Include |
 |---|---|---|
 | **Prova Pro** | €0 per 14 giorni, senza carta | funzioni Pro, 1 persona, 150 aggiornamenti AI |
-| **Pro** | €7/mese (€70/anno); privati €8,50 IVA inclusa | 1 persona, board illimitate, 800 aggiornamenti/mese, dettatura, anteprima, viste, import/export, 2FA |
+| **Pro** | €7/mese (€69,60/anno); privati €8,50 IVA inclusa | 1 persona, board illimitate, 800 aggiornamenti/mese, dettatura, anteprima, viste, import/export, 2FA |
 | **Team** | €6 per posto/mese, minimo 2 (€60/anno); privati €7,30 | 600 aggiornamenti per posto condivisi, tempo reale, commenti, ospiti gratuiti, API e webhook |
-| **Business** | €10 per posto/mese, minimo 2 (€100/anno); privati €12,20 | 1.000 aggiornamenti per posto, 2FA obbligatoria per il team, export audit, supporto prioritario |
+| **Business** | €10 per posto/mese, minimo 2 (€99,60/anno); privati €12,20 | 1.000 aggiornamenti per posto, 2FA obbligatoria per il team, export audit, supporto prioritario |
 | **Enterprise** | su preventivo, da 25 posti | prezzo per volume, quote su misura, fatturazione annuale, onboarding |
 
-Pacchetto: +1.000 aggiornamenti a €6, non scadono. Chi non paga viene **congelato** (sola lettura ed export), mai cancellato. Prezzi privati: IVA inclusa arrotondata per difetto alla decina di centesimi. Stripe: prezzi creati in automatico sull'account esistente. Pareggio dei costi fissi stimati (€60/mese): 10–14 clienti Pro, circa 12 (con Pro a €12 erano 7). Dettagli in [PRICING_ECONOMICS.md](PRICING_ECONOMICS.md).
+Pacchetto: +1.000 aggiornamenti a €6, non scadono. Chi non paga viene **congelato** (sola lettura ed export), mai cancellato. Ogni prezzo mensile mostrato (privati IVA inclusa e mensile equivalente degli annuali) è arrotondato per difetto alla decina di centesimi. Stripe: prezzi creati in automatico sull'account esistente. Pareggio dei costi fissi stimati (€60/mese): 10–14 clienti Pro, circa 12 (con Pro a €12 erano 7). Dettagli in [PRICING_ECONOMICS.md](PRICING_ECONOMICS.md).
 
 ---|---|---|
 | **Free** (al posto del trial che scade) | €0 | 1 persona, 2 board, 30 aggiornamenti AI al mese, niente dettatura. Porta d'ingresso permanente |
