@@ -1,33 +1,76 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getUsageStatus, organizationReadOnly } from "@/lib/plans";
+import { getUsageStatus } from "@/lib/plans";
+import { boardContext, isResponse } from "@/lib/api-context";
+import { canManageRole, canWriteCards, cardInclude } from "@/lib/board";
+import { resolvePlanningModel } from "@/lib/ai-config";
 
-export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const url = new URL(_.url);
-  const archived = url.searchParams.get("archived") === "1";
-  const workspace = await prisma.workspace.findFirst({ where: { slug, members: { some: { userId: user.id } } }, include: { organization: true, members: { include: { user: { select: { id: true, name: true, email: true } } } }, columns: { orderBy: { position: "asc" }, include: { cards: { where: { archived }, orderBy: [{ position: "asc" }, { updatedAt: "desc" }], include: { assignees: { include: { user: { select: { id: true, name: true, email: true } } } } } } } }, updateLogs: { orderBy: { createdAt: "desc" }, take: 12 } } });
-  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const membership = workspace.members.find((member) => member.userId === user.id)!;
-  const usage = await getUsageStatus(workspace.organizationId);
+  const ctx = await boardContext(request, slug);
+  if (isResponse(ctx)) return ctx;
+  const archived = new URL(request.url).searchParams.get("archived") === "1";
+  const [columns, members, usage, pending] = await Promise.all([
+    prisma.boardColumn.findMany({
+      where: { workspaceId: ctx.workspace.id },
+      orderBy: { position: "asc" },
+      include: { cards: { where: { archived }, orderBy: [{ position: "asc" }, { updatedAt: "desc" }], include: cardInclude } },
+    }),
+    prisma.workspaceMember.findMany({
+      where: { workspaceId: ctx.workspace.id },
+      orderBy: { createdAt: "asc" },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    }),
+    getUsageStatus(ctx.workspace.organizationId),
+    prisma.aiProposal.findFirst({
+      where: { workspaceId: ctx.workspace.id, userId: ctx.user.id, status: "PENDING", expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }),
+  ]);
   return NextResponse.json({
     workspace: {
-      id: workspace.id,
-      name: workspace.name,
-      slug: workspace.slug,
-      dictationEnabled: workspace.dictationEnabled,
-      revision: workspace.revision,
-      locale: workspace.locale,
-      role: membership.role,
-      canManage: user.isAdmin || membership.role === "OWNER" || membership.role === "ADMIN",
-      readOnly: organizationReadOnly(workspace.organization),
+      id: ctx.workspace.id,
+      name: ctx.workspace.name,
+      slug: ctx.workspace.slug,
+      locale: ctx.workspace.locale,
+      dictationEnabled: ctx.workspace.dictationEnabled,
+      planModel: resolvePlanningModel(ctx.workspace.planModel),
+      revision: ctx.workspace.revision,
+      role: ctx.role,
+      canManage: canManageRole(ctx.role),
+      canWrite: canWriteCards(ctx.role) && !ctx.readOnly,
+      readOnly: ctx.readOnly,
+      organizationId: ctx.workspace.organizationId,
+      organizationName: ctx.workspace.organization.name,
+      plan: ctx.workspace.organization.plan,
     },
-    columns: workspace.columns,
-    members: workspace.members.map((member) => member.user),
-    logs: workspace.updateLogs.map(({ cost: _cost, model: _model, ...log }) => log),
-    quota: usage ? { percent: usage.percent, status: usage.status, resetsAt: usage.resetsAt } : null,
+    columns: columns.map(column => ({
+      id: column.id,
+      title: column.title,
+      description: column.description,
+      position: column.position,
+      cards: column.cards.map(({ _count, ...card }) => ({ ...card, commentCount: _count.comments })),
+    })),
+    members: members.map(member => ({ ...member.user, role: member.role })),
+    quota: usage
+      ? {
+          used: usage.used,
+          included: usage.included,
+          credits: usage.credits,
+          remaining: Number.isFinite(usage.remaining) ? usage.remaining : null,
+          percent: usage.percent,
+          status: usage.status,
+          resetsAt: usage.resetsAt,
+        }
+      : null,
+    me: {
+      id: ctx.user.id,
+      name: ctx.user.name,
+      autoApplyAi: ctx.user.autoApplyAi,
+      autoSendDictation: ctx.user.autoSendDictation,
+      verified: Boolean(ctx.user.emailVerifiedAt),
+    },
+    pendingProposalId: pending?.id || null,
   });
 }

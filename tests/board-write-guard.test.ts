@@ -18,7 +18,9 @@ describe("board write gate (SQL contract; not a PostgreSQL concurrency test)", (
     expect(sql.text).toContain('m."workspaceId" = w."id"');
     expect(sql.text).toContain('o."id" = w."organizationId"');
     for (const alias of ["w", "u", "o"]) expect(sql.text).toContain(`${alias}."lifecycleStatus" = 'ACTIVE'`);
-    expect(sql.text).toContain('u."emailVerifiedAt" IS NOT NULL');
+    // Unverified accounts may work on their boards (7-day grace); suspended/archived ones may not.
+    expect(sql.text).not.toContain("emailVerifiedAt");
+    expect(sql.text).toContain(`u."lifecycleStatus" = 'ACTIVE'`);
     expect(sql.values).toEqual(["workspace-a", "user-a", "OWNER", "ADMIN", "MEMBER"]);
     expect(sql.text).not.toContain("user-a");
   });
@@ -32,10 +34,15 @@ describe("board write gate (SQL contract; not a PostgreSQL concurrency test)", (
     expect(await assertRevision("workspace-a", revision, tx, { userId: "user-a" })).toBe(false);
     expect(query).not.toHaveBeenCalled();
   });
-  it.each([
-    [], [{ ...active, revision: 6 }], [{ ...active, readOnlyAt: new Date(0) }],
-    [{ ...active, accessExpiresAt: new Date(0) }], [{ ...active, plan: "TRIAL", trialEndsAt: new Date(0) }],
-  ].map(rows => ({ rows })))("denies missing access, stale or expired state %#", async ({ rows }) => {
+  it.each(
+    [
+      [],
+      [{ ...active, revision: 6 }],
+      [{ ...active, readOnlyAt: new Date(0) }],
+      [{ ...active, accessExpiresAt: new Date(0) }],
+      [{ ...active, plan: "TRIAL", trialEndsAt: new Date(0) }],
+    ].map(rows => ({ rows })),
+  )("denies missing access, stale or expired state %#", async ({ rows }) => {
     expect(await assertRevision("workspace-a", 5, transaction(rows).tx, { userId: "user-a" })).toBe(false);
   });
   it("maps serialization/deadlock aborts to a retryable conflict, not success", () => {

@@ -1,21 +1,118 @@
+import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PAID_PLAN_KEYS, PLANS, quotaIncreaseFromSolo } from "@/lib/plans";
+import { CREDIT_PACK, PLANS, SELLABLE_PLAN_KEYS, TRIAL_DAYS, creditPackPriceCents, planPriceCents } from "@/lib/plans";
+import { getTranslator } from "@/lib/i18n/server";
 import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
-import { CheckoutButton, EnterpriseForm } from "@/components/PricingActions";
+import { PricingTable } from "@/components/PricingTable";
+import { EnterpriseForm } from "@/components/PricingActions";
+import { Icon } from "@/components/Icon";
 
-const planDetails = {
-  SOLO: { members: "1 membro", workspaces: "6 workspace" },
-  TEAM: { members: "Fino a 10 membri", workspaces: "10 workspace" },
-  STUDIO: { members: "Fino a 24 membri", workspaces: "Workspace illimitati" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslator();
+  return { title: t("pricing.title"), description: t("pricing.subtitle", { days: TRIAL_DAYS }), alternates: { canonical: "/pricing" } };
+}
 
 export default async function Pricing({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
-  const checkout = Array.isArray(query.checkout) ? query.checkout[0] : query.checkout;
+  const value = (key: string) => (Array.isArray(query[key]) ? query[key]![0] : query[key]);
   const user = await getCurrentUser();
-  const org = user ? await prisma.organizationMember.findFirst({ where: { userId: user.id, role: "OWNER" }, select: { organizationId: true } }) : null;
-
-  return <div className="shell"><Topbar loggedIn={Boolean(user)} /><main className="grid-page wide"><div className="section-heading"><div className="pill">PREZZI</div><h1>Un piano semplice, senza sorprese.</h1><p>Prezzi mensili al netto dell’IVA. Prova gratuita di 7 giorni senza carta.</p></div>{checkout === "cancelled" && <div className="status error dashboard-notice" role="status">Checkout annullato: non è stato effettuato alcun addebito. Puoi riprendere quando vuoi.</div>}<div className="pricing-grid">{PAID_PLAN_KEYS.map(key => { const plan = PLANS[key]; const details = planDetails[key]; const increase = quotaIncreaseFromSolo(key); return <article className="pricing-card" key={key}><h2>{plan.label}</h2><strong>€{plan.priceEur}<small> + IVA / mese</small></strong><p>{details.members}<br />{details.workspaces}</p><ul><li>Board personalizzabili</li><li>{increase === null ? "Quota voce e AI inclusa" : `Quota voce e AI: +${increase}% rispetto a Solo`}</li><li>Export e attività</li></ul><CheckoutButton plan={key} organizationId={org?.organizationId} /></article>; })}<article className="pricing-card enterprise"><h2>Enterprise</h2><strong>Parliamone</strong><p>Da 25 membri o per requisiti personalizzati.</p><ul><li>Quote, SSO/SAML e SLA su misura</li><li>Onboarding e supporto prioritario</li><li>DPA, sicurezza e routing concordati</li></ul></article></div><section className="enterprise-section"><h2>Parla con noi</h2><p>Raccontaci la tua realtà: prepareremo insieme configurazione, contratto e onboarding.</p><EnterpriseForm /></section></main><PublicFooter /></div>;
+  const { t } = await getTranslator(user?.locale);
+  // Checkout applies to the team currently selected in the header (the default organization) when the user owns it.
+  const owned = user
+    ? ((await prisma.organizationMember.findFirst({
+        where: { userId: user.id, role: "OWNER", ...(user.defaultOrganizationId ? { organizationId: user.defaultOrganizationId } : {}) },
+        select: { organizationId: true },
+      })) ?? (await prisma.organizationMember.findFirst({ where: { userId: user.id, role: "OWNER" }, select: { organizationId: true } })))
+    : null;
+  const plans = SELLABLE_PLAN_KEYS.map(key => ({
+    key,
+    priceEur: PLANS[key].priceEur!,
+    priceEurYearly: PLANS[key].priceEurYearly!,
+    seatBased: PLANS[key].seatBased,
+    minSeats: PLANS[key].minSeats,
+    aiUpdates: PLANS[key].aiUpdates,
+    consumerPriceEur: planPriceCents(key, "month", "consumer") / 100,
+    consumerPriceEurYearly: planPriceCents(key, "year", "consumer") / 100,
+  }));
+  const highlight = SELLABLE_PLAN_KEYS.find(key => key === value("plan"));
+  const faqs = ["update", "trial", "frozen", "dictation", "privacy", "seats", "invoice", "cancel"] as const;
+  return (
+    <div className="shell">
+      <Topbar />
+      <main id="main" className="container marketing">
+        <section className="section-heading centered" style={{ paddingTop: 48 }}>
+          <span className="eyebrow">{t("nav.pricing")}</span>
+          <h1>{t("pricing.title")}</h1>
+          <p>{t("pricing.subtitle", { days: TRIAL_DAYS })}</p>
+        </section>
+        {value("checkout") === "cancelled" && (
+          <div className="notice warning" role="status" style={{ marginBottom: 16 }}>
+            <Icon name="info" />
+            <div className="notice-body">{t("pricing.cancelled")}</div>
+          </div>
+        )}
+        <PricingTable
+          plans={plans}
+          organizationId={owned?.organizationId ?? null}
+          highlight={highlight}
+          trialDays={TRIAL_DAYS}
+          verified={Boolean(user?.emailVerifiedAt)}
+        />
+        <section className="pricing-extra">
+          <div className="panel">
+            <h3>
+              <Icon name="zap" size={16} /> {t("pricing.packTitle")}
+            </h3>
+            <p className="subtle">
+              {t("pricing.packBody", {
+                units: CREDIT_PACK.units,
+                price: CREDIT_PACK.priceEur,
+                consumerPrice: (creditPackPriceCents("consumer") / 100).toFixed(2).replace(".", ","),
+              })}
+            </p>
+          </div>
+          <div className="panel">
+            <h3>
+              <Icon name="lock" size={16} /> {t("pricing.frozenTitle")}
+            </h3>
+            <p className="subtle">{t("pricing.frozenBody")}</p>
+          </div>
+          <div className="panel">
+            <h3>
+              <Icon name="globe" size={16} /> {t("pricing.euTitle")}
+            </h3>
+            <p className="subtle">{t("pricing.euBody")}</p>
+          </div>
+        </section>
+        <section className="enterprise-band" id="enterprise">
+          <div>
+            <span className="eyebrow">{t("plans.ENTERPRISE")}</span>
+            <h2>{t("pricing.enterprise.title")}</h2>
+            <p className="subtle">{t("pricing.enterprise.body")}</p>
+            <ul className="check-list">
+              {(["volume", "quotas", "invoice", "onboarding"] as const).map(key => (
+                <li key={key}>
+                  <Icon name="check" size={15} />
+                  {t(`pricing.enterprise.points.${key}`)}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <EnterpriseForm />
+        </section>
+        <section className="faq" aria-labelledby="faq-title">
+          <h2 id="faq-title">{t("faq.title")}</h2>
+          {faqs.map(key => (
+            <details key={key}>
+              <summary>{t(`faq.${key}.q`)}</summary>
+              <p>{t(`faq.${key}.a`, { days: TRIAL_DAYS })}</p>
+            </details>
+          ))}
+        </section>
+      </main>
+      <PublicFooter />
+    </div>
+  );
 }

@@ -1,36 +1,222 @@
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { Topbar } from "@/components/Topbar";
-import { getOrganizationLimits, PLANS } from "@/lib/plans";
+import { HomeBoards } from "@/components/HomeBoards";
 import { ensureDefaultOrganization } from "@/lib/default-organization";
+import { getOrganizationLimits, getUsageStatus, monthlyPrice } from "@/lib/plans";
+import { getTranslator } from "@/lib/i18n/server";
+import { usedSeats } from "@/lib/invites";
+import { Icon } from "@/components/Icon";
 
-const limit = (value:number) => Number.isFinite(value) ? String(value) : "Illimitati";
+export const metadata: Metadata = { title: "Home", robots: { index: false } };
 
 export default async function AppPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
   const query = await searchParams;
-  const checkout = Array.isArray(query.checkout) ? query.checkout[0] : query.checkout;
-  const defaultOrganization = await ensureDefaultOrganization(user.id);
-  const [memberships, organizations] = await Promise.all([
-    prisma.workspaceMember.findMany({ where:{userId:user.id,workspace:{lifecycleStatus:"ACTIVE"}}, include:{workspace:{include:{organization:{select:{name:true}}}}}, orderBy:{createdAt:"desc"} }),
-    prisma.organizationMember.findMany({ where:{userId:user.id}, include:{organization:{include:{subscription:true,_count:{select:{members:true,workspaces:true}}}}}, orderBy:{createdAt:"asc"} }),
+  const flag = (key: string) => (Array.isArray(query[key]) ? query[key]![0] : query[key]);
+  const { t, locale } = await getTranslator(user.locale);
+  const team = await ensureDefaultOrganization(user.id);
+  const [membership, memberships, seats, usage] = await Promise.all([
+    prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId: team.id, userId: user.id } },
+      select: { role: true },
+    }),
+    prisma.workspaceMember.findMany({
+      where: { userId: user.id },
+      include: {
+        workspace: {
+          include: {
+            organization: { select: { id: true, name: true } },
+            _count: { select: { cards: { where: { archived: false } }, members: true } },
+            columns: { orderBy: { position: "asc" }, select: { _count: { select: { cards: { where: { archived: false } } } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    usedSeats(team.id),
+    getUsageStatus(team.id),
   ]);
-  const primary = organizations.find(item=>item.organizationId===defaultOrganization.id);
-  const recentWorkspaces = memberships.slice(0, 6);
-  const plan = primary ? getOrganizationLimits(primary.organization) : PLANS.TRIAL;
-  const renewal = primary?.organization.subscription?.currentPeriodEnd || primary?.organization.accessExpiresAt || primary?.organization.trialEndsAt;
-
-  return <div className="shell"><Topbar loggedIn/><main className="grid-page dashboard-page">
-    <div className="dashboard-head"><div><div className="pill">HOME</div><h1>Ciao, {user.name}.</h1><p className="muted-copy">Il punto di partenza per i tuoi workspace, le organizzazioni e l’abbonamento.</p></div>{user.isAdmin&&<a className="btn accent" href="/admin">Apri il backoffice</a>}</div>
-    {checkout === "success" && <div className="status dashboard-notice" role="status">Abbonamento confermato. Potrebbero servire pochi secondi per aggiornare piano e limiti.</div>}
-    {!memberships.length && <section className="first-run"><div><span className="eyebrow">PRIMO ACCESSO</span><h2>Cominciamo dalla tua prima board.</h2><p>Non devi configurare tutto subito: scegli un nome e un modello. Colonne e dettagli restano modificabili in seguito.</p><a className="btn accent" href="/workspaces#new-workspace">Crea la prima board</a></div><ol><li><strong>1</strong><span><b>Crea lo spazio di lavoro</b><small>È la board dedicata a un progetto o team.</small></span></li><li><strong>2</strong><span><b>Aggiungi o descrivi il lavoro</b><small>Puoi scrivere, parlare oppure creare card a mano.</small></span></li><li><strong>3</strong><span><b>Invita il team quando vuoi</b><small>Puoi iniziare anche da solo.</small></span></li></ol></section>}
-    <section className="dashboard-grid">
-      <article className="dashboard-card subscription-summary"><span className="eyebrow">ORGANIZZAZIONE PREDEFINITA</span>{primary?<><div className="dashboard-card-head"><div><h2>{primary.organization.name}</h2><small>{primary.organization.legalType==="PERSONAL"?"Personale":"Business"} · {primary.role}</small></div><span className={`plan-badge plan-${primary.organization.plan}`}>{plan.label}</span></div><strong className="dashboard-price">{plan.priceEur===null?"Su misura":plan.priceEur===0?"€0":`€${plan.priceEur}`}<small>{typeof plan.priceEur==="number"&&plan.priceEur>0?" + IVA / mese":""}</small></strong><p>{primary.organization.lifecycleStatus!=="ACTIVE"?"Organizzazione archiviata":primary.organization.subscription?.status?`Stato: ${primary.organization.subscription.status}`:primary.organization.readOnlyAt?"Accesso in sola lettura":"Accesso attivo"} · Licenza {primary.organization.licenseSource}</p>{renewal&&<p>{primary.organization.subscription?.currentPeriodEnd?"Prossimo rinnovo":"Scadenza"}: <strong>{new Date(renewal).toLocaleDateString("it-IT")}</strong></p>}<div className="usage-summary"><span>Workspace <strong>{primary.organization._count.workspaces} / {limit(plan.workspaceLimit)}</strong></span><span>Membri <strong>{primary.organization._count.members} / {limit(plan.memberLimit)}</strong></span></div><div className="dashboard-actions"><a className="btn" href="/account">Gestisci account</a><a className="btn ghost" href="/pricing">Confronta piani</a></div></>:<><h2>Provisioning non disponibile</h2><p>Non è stato possibile risolvere l’organizzazione predefinita.</p></>}</article>
-      <article className="dashboard-card workspace-summary"><span className="eyebrow">WORKSPACE ATTIVI</span><strong className="dashboard-count">{memberships.length}</strong><p>La creazione parte sempre da <strong>{defaultOrganization.name}</strong>.</p><a className="btn accent" href="/workspaces">Crea o gestisci workspace</a></article>
-    </section>
-    <section className="dashboard-section organization-overview"><div className="settings-head"><div><h2>Le tue organizzazioni</h2><p>Quella predefinita è il tuo contesto di lavoro; le altre possono essere condivise.</p></div><a className="btn ghost" href="/account">Dettagli e abbonamenti</a></div><div className="organization-list">{organizations.map(({role,organization})=><div key={organization.id}><div><strong>{organization.name}</strong><small>{organization.id===defaultOrganization.id?"Predefinita":role==="OWNER"||role==="ADMIN"?"Gestita":"Condivisa"} · {role}</small></div><span className={`plan-badge plan-${organization.plan}`}>{organization.plan}</span></div>)}</div></section>
-    <section className="dashboard-section"><div className="settings-head"><div><h2>Workspace recenti</h2><p>Riprendi rapidamente il lavoro sulle tue board.</p></div><a className="btn ghost" href="/workspaces">Vedi tutti</a></div><div className="workspace-grid compact">{recentWorkspaces.map(({role,workspace})=><a className="workspace-tile" href={`/app/${workspace.slug}`} key={workspace.id}><span className="pill">{role}</span><h3>{workspace.name}</h3><p>{workspace.organization.name}</p></a>)}{!memberships.length&&<div className="empty-state"><h3>Nessun workspace attivo</h3><p>Puoi creare subito il primo workspace nella tua organizzazione predefinita.</p><a className="btn accent" href="/workspaces">Crea workspace</a></div>}</div></section>
-  </main></div>;
+  const organization = await prisma.organization.findUniqueOrThrow({ where: { id: team.id } });
+  const limits = getOrganizationLimits(organization);
+  const price = monthlyPrice(organization);
+  const boards = memberships.map(({ role, workspace }) => ({
+    id: workspace.id,
+    name: workspace.name,
+    slug: workspace.slug,
+    role,
+    organizationId: workspace.organization.id,
+    organizationName: workspace.organization.name,
+    lifecycleStatus: workspace.lifecycleStatus,
+    cards: workspace._count.cards,
+    members: workspace._count.members,
+    lanes: workspace.columns.map(column => column._count.cards),
+    updatedAt: workspace.updatedAt.toISOString(),
+  }));
+  const steps = [
+    { done: Boolean(organization.firstBoardAt), label: t("home.checklist.board") },
+    { done: Boolean(organization.firstAiUpdateAt), label: t("home.checklist.ai") },
+    { done: Boolean(organization.firstVoiceAt), label: t("home.checklist.voice") },
+    { done: Boolean(organization.firstInviteAt), label: t("home.checklist.invite") },
+    { done: Boolean(organization.firstCardMovedAt), label: t("home.checklist.move") },
+  ];
+  const completed = steps.filter(step => step.done).length;
+  const renewal = organization.trialEndsAt && organization.plan === "TRIAL" ? organization.trialEndsAt : null;
+  const trialDaysLeft = renewal ? Math.max(0, Math.ceil((renewal.getTime() - Date.now()) / 86400000)) : null;
+  return (
+    <div className="shell">
+      <Topbar />
+      <main id="main" className="grid-page wide">
+        <div className="page-head">
+          <div>
+            <span className="eyebrow">{organization.name}</span>
+            <h1>{t("home.greeting", { name: user.name.split(" ")[0] })}</h1>
+            <p>{t("home.subtitle")}</p>
+          </div>
+        </div>
+        {flag("checkout") === "success" && (
+          <div className="notice" role="status" style={{ marginBottom: 16 }}>
+            <Icon name="checkCircle" />
+            <div className="notice-body">{t("home.checkoutSuccess")}</div>
+          </div>
+        )}
+        {flag("verified") === "1" && (
+          <div className="notice" role="status" style={{ marginBottom: 16 }}>
+            <Icon name="checkCircle" />
+            <div className="notice-body">{t("home.verified")}</div>
+          </div>
+        )}
+        {usage?.readOnly && (
+          <div className="notice warning" style={{ marginBottom: 16 }}>
+            <Icon name="lock" />
+            <div className="notice-body">
+              <strong>{t("board.readOnly.title")}</strong> {t("home.frozen")}
+            </div>
+            <Link className="btn sm primary" href="/pricing">
+              {t("board.readOnly.cta")}
+            </Link>
+          </div>
+        )}
+        <div className="home-grid">
+          <HomeBoards
+            boards={boards}
+            teams={[
+              {
+                id: organization.id,
+                name: organization.name,
+                locale: organization.locale,
+                canCreate: membership?.role !== "GUEST" && !usage?.readOnly,
+              },
+            ]}
+            defaultTeamId={organization.id}
+            defaultLocale={locale === "en" ? "en" : organization.locale}
+          />
+          <aside className="stack">
+            {completed < steps.length && (
+              <section className="panel checklist-card" aria-labelledby="checklist-title">
+                <div className="row">
+                  <h2 id="checklist-title" style={{ fontSize: 16 }}>
+                    {t("home.checklist.title")}
+                  </h2>
+                  <span className="spacer" />
+                  <span className="subtle">
+                    {completed}/{steps.length}
+                  </span>
+                </div>
+                <div className="meter" style={{ marginTop: 10 }}>
+                  <i style={{ width: `${(completed / steps.length) * 100}%` }} />
+                </div>
+                <ol>
+                  {steps.map(step => (
+                    <li key={step.label} className={step.done ? "done" : ""}>
+                      <span className="check-dot">
+                        <Icon name="check" size={12} strokeWidth={3} />
+                      </span>
+                      <span>{step.label}</span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+            <section className="panel" aria-labelledby="plan-title">
+              <div className="row">
+                <h2 id="plan-title" style={{ fontSize: 16 }}>
+                  {t("home.plan.title")}
+                </h2>
+                <span className="spacer" />
+                <span className={`plan-badge plan-${limits.key}`}>{t(`plans.${limits.key}`)}</span>
+              </div>
+              {trialDaysLeft !== null && (
+                <p className="subtle" style={{ marginTop: 6 }}>
+                  {trialDaysLeft > 0 ? t("home.plan.trialLeft", { days: trialDaysLeft }) : t("home.plan.trialOver")}
+                </p>
+              )}
+              {usage && (
+                <div style={{ marginTop: 14 }}>
+                  <div className="row">
+                    <span className="subtle">{t("home.plan.aiUpdates")}</span>
+                    <span className="spacer" />
+                    <strong>{Number.isFinite(usage.included) ? `${usage.used} / ${usage.included}` : "∞"}</strong>
+                  </div>
+                  <div className={`meter ${usage.percent >= 90 ? "crit" : usage.percent >= 75 ? "warn" : ""}`} style={{ marginTop: 6 }}>
+                    <i style={{ width: `${usage.percent}%` }} />
+                  </div>
+                  {usage.credits > 0 && (
+                    <p className="subtle" style={{ marginTop: 6 }}>
+                      {t("home.plan.credits", { count: usage.credits })}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="stat-list">
+                <div>
+                  <span>{t("home.plan.seats")}</span>
+                  <strong>
+                    {seats} / {Number.isFinite(limits.memberLimit) ? limits.memberLimit : "∞"}
+                  </strong>
+                </div>
+                <div>
+                  <span>{t("home.plan.boards")}</span>
+                  <strong>
+                    {boards.filter(board => board.organizationId === organization.id && board.lifecycleStatus === "ACTIVE").length}
+                  </strong>
+                </div>
+                {price !== null && price > 0 && (
+                  <div>
+                    <span>{t("home.plan.price")}</span>
+                    <strong>
+                      €{price.toFixed(2).replace(".00", "")} {t("pricing.perMonth")}
+                    </strong>
+                  </div>
+                )}
+              </div>
+              <div className="row" style={{ marginTop: 16 }}>
+                <Link className="btn sm" href="/account#teams">
+                  {t("home.plan.manage")}
+                </Link>
+                {(limits.key === "TRIAL" || usage?.readOnly) && (
+                  <Link className="btn sm primary" href="/pricing">
+                    {t("home.plan.choose")}
+                  </Link>
+                )}
+              </div>
+            </section>
+            <section className="panel">
+              <h2 style={{ fontSize: 16 }}>{t("home.tips.title")}</h2>
+              <ul className="subtle" style={{ paddingLeft: 18, margin: "10px 0 0", display: "grid", gap: 6 }}>
+                <li>{t("home.tips.voice")}</li>
+                <li>{t("home.tips.shortcuts")}</li>
+                <li>{t("home.tips.guests")}</li>
+              </ul>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  );
 }

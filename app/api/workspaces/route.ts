@@ -1,35 +1,60 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { createWorkspace } from "@/lib/workspace";
-import { getOrganizationAccess } from "@/lib/auth";
-import { getOrganizationLimits, organizationReadOnly } from "@/lib/plans";
 import { z } from "zod";
+import { getCurrentUser, getOrganizationAccess } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { createWorkspace, SUPPORTED_LOCALES } from "@/lib/workspace";
+import { getOrganizationLimits, organizationReadOnly } from "@/lib/plans";
 import { canCreateWorkspaceInOrganization, ensureDefaultOrganization } from "@/lib/default-organization";
+import { rejectCrossOrigin } from "@/lib/security";
+import { apiError } from "@/lib/errors";
 
-const schema = z.object({ organizationId: z.string().cuid(), name: z.string().trim().min(1).max(100), presetKey: z.enum(["GENERAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"]), locale: z.enum(["it", "en", "de", "fr", "es", "ru", "pl"]) });
+const schema = z.object({
+  organizationId: z.string().cuid(),
+  name: z.string().trim().min(1).max(100),
+  presetKey: z.enum(["GENERAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"]).default("GENERAL"),
+  locale: z.enum(SUPPORTED_LOCALES).default("it"),
+});
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Accedi per vedere le tue board" }, { status: 401 });
-  const memberships = await prisma.workspaceMember.findMany({ where: { userId: user.id }, include: { workspace: true }, orderBy: { createdAt: "asc" } });
-  return NextResponse.json({ workspaces: memberships.map((m) => ({ id: m.workspace.id, name: m.workspace.name, slug: m.workspace.slug, organizationId: m.workspace.organizationId, role: m.role })) });
+  if (!user) return apiError(request, "UNAUTHORIZED", 401);
+  const memberships = await prisma.workspaceMember.findMany({
+    where: { userId: user.id, workspace: { lifecycleStatus: "ACTIVE" } },
+    include: { workspace: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return NextResponse.json({
+    workspaces: memberships.map(m => ({
+      id: m.workspace.id,
+      name: m.workspace.name,
+      slug: m.workspace.slug,
+      organizationId: m.workspace.organizationId,
+      role: m.role,
+    })),
+  });
 }
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Accedi per creare una board" }, { status: 401 });
+  if (!user) return apiError(request, "UNAUTHORIZED", 401);
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   const parsed = schema.safeParse(await request.json().catch(() => ({})));
-  if (!parsed.success) return NextResponse.json({ error: "Controlla nome, modello e lingua della board" }, { status: 400 });
+  if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const body = parsed.data;
   const defaultOrganization = user.defaultOrganizationId ? null : await ensureDefaultOrganization(user.id);
   const membership = await getOrganizationAccess(user.id, body.organizationId);
   const defaultOrganizationId = user.defaultOrganizationId || defaultOrganization?.id || null;
-  if (!membership || !canCreateWorkspaceInOrganization(defaultOrganizationId, body.organizationId, membership.role)) return NextResponse.json({ error: "Non hai i permessi per creare una board in questa organizzazione" }, { status: 403 });
-  if (organizationReadOnly(membership.organization)) return NextResponse.json({ error: "Questa organizzazione è in sola lettura" }, { status: 423 });
+  if (
+    !membership ||
+    membership.role === "GUEST" ||
+    !canCreateWorkspaceInOrganization(defaultOrganizationId, body.organizationId, membership.role)
+  )
+    return apiError(request, "FORBIDDEN", 403);
+  if (organizationReadOnly(membership.organization)) return apiError(request, "READ_ONLY", 423);
   const config = getOrganizationLimits(membership.organization);
-  const count = await prisma.workspace.count({ where: { organizationId: body.organizationId } });
-  if (count >= config.workspaceLimit) return NextResponse.json({ error: `Il piano ${config.label} ha raggiunto il limite di workspace` }, { status: 402 });
+  const count = await prisma.workspace.count({ where: { organizationId: body.organizationId, lifecycleStatus: "ACTIVE" } });
+  if (count >= config.workspaceLimit) return apiError(request, "WORKSPACE_LIMIT", 402);
   try {
     const workspace = await createWorkspace({
       name: body.name,
@@ -38,9 +63,9 @@ export async function POST(request: Request) {
       presetKey: body.presetKey,
       locale: body.locale,
     });
-    return NextResponse.json({ workspace });
+    return NextResponse.json({ workspace }, { status: 201 });
   } catch (error) {
     console.error("Workspace creation failed", error);
-    return NextResponse.json({ error: "Non è stato possibile creare la board. Riprova tra poco." }, { status: 400 });
+    return apiError(request, "SERVER_ERROR", 500);
   }
 }

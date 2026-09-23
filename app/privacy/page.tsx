@@ -1,26 +1,190 @@
+import type { Metadata } from "next";
 import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
+import { TRIAL_DAYS } from "@/lib/plans";
 
-const CONTACT_URL = "https://draftapps.it/#contatti";
+export const metadata: Metadata = { title: "Privacy Policy" };
 
 export default function PrivacyPage() {
+  const controller = process.env.LEGAL_ENTITY_NAME || "Lorenzo Prandi – Draftapps";
+  const contact = process.env.PRIVACY_EMAIL || process.env.CONTACT_EMAIL;
+  const contactLink = contact ? (
+    <a href={`mailto:${contact}`}>{contact}</a>
+  ) : (
+    <a href="https://draftapps.it/#contatti" target="_blank" rel="noreferrer">
+      sezione contatti di Draftapps
+    </a>
+  );
   return (
     <div className="shell">
       <Topbar />
-      <main className="legal-page">
-        <div className="pill">PRIVACY POLICY</div>
-        <h1>Privacy Policy di BoardCue AI</h1>
-        <p className="legal-updated">Ultimo aggiornamento: 18 agosto 2026 · revisione professionale richiesta prima del lancio commerciale</p>
-        <section><h2>1. Titolare del trattamento</h2><p>Il titolare del trattamento è <strong>Lorenzo Prandi – Draftapps</strong>. Per richieste relative alla privacy o per esercitare i diritti previsti dal GDPR utilizza la <a href={CONTACT_URL} target="_blank" rel="noreferrer">sezione contatti di Draftapps</a>.</p><p>BoardCue AI è un progetto Draftapps accessibile su <strong>boardcue.draftapps.it</strong>.</p></section>
-        <section><h2>2. Quali dati trattiamo</h2><h3>Sito pubblico e demo</h3><p>La home e la demo pubblica non richiedono un account. Le interazioni della demo vengono simulate nel browser e non vengono inviate a modelli AI. Possono comunque essere generati log tecnici di rete e sicurezza dall’infrastruttura che ospita il servizio.</p><h3>Account e autenticazione</h3><p>Per gli utenti abilitati trattiamo nome, indirizzo email, hash della password, ruoli, permessi, membership ai workspace, data di creazione e dati di sessione. Le password non vengono memorizzate in chiaro.</p><h3>Workspace e board</h3><p>Nei workspace vengono conservati nomi, colonne, titoli e descrizioni dei task, priorità, scadenze, tag, stato di archiviazione e membership.</p><h3>Aggiornamenti AI e audit log</h3><p>Quando invii un aggiornamento, BoardCue AI può memorizzare testo dell’input, sorgente testo/voce, sintesi, azioni applicate, modello usato, costo restituito dal provider quando disponibile, utente e data/ora.</p><h3>Voce</h3><p>Se la dettatura è attiva, l’audio registrato dal browser viene inviato al servizio di trascrizione tramite OpenRouter. BoardCue AI non salva il file audio nel proprio database: usa il file per ottenere la trascrizione e restituisce il testo al browser.</p></section>
-        <section><h2>3. Finalità e basi giuridiche</h2><div className="legal-grid"><div className="legal-card"><h3>Erogazione del servizio</h3><p>Gestire account, workspace, board, esportazioni, dettatura e aggiornamenti AI. Base giuridica: esecuzione del servizio richiesto e, ove applicabile, art. 6(1)(b) GDPR.</p></div><div className="legal-card"><h3>Sicurezza e amministrazione</h3><p>Autenticazione, controllo accessi, prevenzione abusi e diagnosi. Base giuridica: legittimo interesse, art. 6(1)(f) GDPR.</p></div><div className="legal-card"><h3>Obblighi di legge</h3><p>Trattamenti necessari per obblighi normativi o richieste legittime delle autorità. Base giuridica: art. 6(1)(c) GDPR.</p></div></div></section>
-        <section><h2>4. Intelligenza artificiale, OpenRouter e model provider</h2><p>Per le funzioni AI, il server invia a <strong>OpenRouter</strong> il testo dell’aggiornamento e una rappresentazione compatta della board. Per la dettatura invia il file audio necessario alla trascrizione.</p><p>Le richieste impongono assenza di raccolta dati e Zero Data Retention, senza fallback verso endpoint meno protettivi. Se non è disponibile un endpoint compatibile, la richiesta viene interrotta. BoardCue non promette residenza UE nei piani standard.</p><p>Riferimenti: <a href="https://openrouter.ai/privacy/" target="_blank" rel="noreferrer">Privacy Policy OpenRouter</a>{" · "}<a href="https://openrouter.ai/docs/guides/privacy/data-collection" target="_blank" rel="noreferrer">Data Collection</a>{" · "}<a href="https://openrouter.ai/docs/guides/privacy/provider-logging/" target="_blank" rel="noreferrer">Provider Logging</a>.</p></section>
-        <section><h2>5. Destinatari e trasferimenti</h2><p>I dati possono essere trattati da fornitori tecnici necessari all’erogazione del servizio, inclusi hosting/server, database e servizi AI. OpenRouter e i model provider possono operare anche fuori dallo Spazio Economico Europeo.</p></section>
-        <section><h2>6. Tempi di conservazione</h2><ul><li><strong>Sessione autenticata:</strong> fino a 30 giorni, salvo logout anticipato.</li><li><strong>Account, workspace e board attivi:</strong> finché necessari al servizio.</li><li><strong>Archiviazione:</strong> blocca subito accesso e modifiche; dopo 30 giorni i contenuti operativi della board e del workspace vengono eliminati e gli account sono anonimizzati.</li><li><strong>Audit e record economici:</strong> prima della rimozione operativa viene conservato un archivio immutabile per un massimo di 10 anni, quando necessario per obblighi contabili, difesa di diritti o audit. Il periodo e le eccezioni saranno riesaminati con consulenza legale e fiscale.</li><li><strong>File audio:</strong> non viene conservato nel database di BoardCue AI dopo la richiesta di trascrizione.</li><li><strong>Log infrastrutturali:</strong> per il tempo necessario a sicurezza e funzionamento.</li></ul><p>Puoi richiedere export o cancellazione; l'eventuale conservazione residua sarà limitata ai soli dati soggetti a un obbligo o eccezione applicabile.</p></section>
-        <section><h2>7. Cookie e strumenti locali</h2><p>BoardCue AI utilizza soltanto strumenti tecnici necessari o funzionali al servizio: cookie di sessione e localStorage per preferenze tecniche. Non sono attualmente presenti cookie pubblicitari, di profilazione o strumenti analytics.</p><p><a href="/cookies">Leggi la Cookie Policy completa →</a></p></section>
-        <section><h2>8. Dati particolari e informazioni riservate</h2><p>BoardCue AI non è progettato per raccogliere categorie particolari di dati personali ai sensi dell’art. 9 GDPR. Evita di inserire informazioni altamente sensibili salvo adeguata base giuridica e misure di protezione.</p></section>
-        <section><h2>9. Diritti degli interessati</h2><p>Nei casi previsti dal GDPR puoi chiedere accesso, rettifica, cancellazione, limitazione, portabilità e opposizione, e puoi proporre reclamo al Garante per la protezione dei dati personali.</p><p>Per esercitare i tuoi diritti utilizza la <a href={CONTACT_URL} target="_blank" rel="noreferrer">sezione contatti di Draftapps</a>.</p></section>
-        <section><h2>10. Modifiche a questa informativa</h2><p>La presente informativa può essere aggiornata quando cambiano funzionalità, fornitori o modalità di trattamento.</p></section>
+      <main id="main" className="legal-page">
+        <span className="eyebrow">Privacy Policy</span>
+        <h1>Privacy Policy di BoardCue</h1>
+        <p className="legal-updated">
+          Ultimo aggiornamento: 23 settembre 2026 · bozza operativa da sottoporre a revisione legale professionale prima del lancio
+          commerciale
+        </p>
+        <section>
+          <h2>1. Titolare del trattamento</h2>
+          <p>
+            Il titolare è <strong>{controller}</strong>
+            {process.env.LEGAL_VAT_NUMBER ? <> (P.IVA {process.env.LEGAL_VAT_NUMBER})</> : null}. Per richieste sulla privacy o per
+            esercitare i diritti previsti dal GDPR scrivi a: {contactLink}.
+          </p>
+          <p>
+            Per i dati che i clienti inseriscono nelle proprie board (ad esempio attività e nomi di colleghi o clienti), il cliente agisce
+            di norma come titolare e BoardCue come responsabile del trattamento secondo le condizioni del servizio.
+          </p>
+        </section>
+        <section>
+          <h2>2. Quali dati trattiamo</h2>
+          <h3>Sito pubblico e demo</h3>
+          <p>
+            La home e la demo non richiedono un account. La demo funziona interamente nel browser: nulla viene inviato a modelli AI.
+            L’infrastruttura può generare log tecnici di rete e sicurezza.
+          </p>
+          <h3>Account e sicurezza</h3>
+          <p>
+            Nome, email, hash della password, lingua, preferenze, ruoli, appartenenza a team e board, dati di sessione. Se attivi la
+            verifica in due passaggi conserviamo il segreto TOTP cifrato (AES-256-GCM) e l’impronta (hash) dei codici di recupero, mai i
+            codici in chiaro.
+          </p>
+          <h3>Board</h3>
+          <p>
+            Colonne, card (titolo, descrizione, priorità, scadenze, tag, checklist), assegnatari, commenti e menzioni, notifiche, cronologia
+            delle modifiche.
+          </p>
+          <h3>Aggiornamenti AI</h3>
+          <p>
+            Testo dell’aggiornamento, proposta generata (azioni e riepilogo), azioni applicate, modello usato, costo tecnico, autore e data.
+            Le proposte non applicate scadono dopo 15 minuti e vengono cancellate entro 30 giorni.
+          </p>
+          <h3>Voce</h3>
+          <p>
+            Con la dettatura l’audio viene inviato al servizio di trascrizione e subito scartato: BoardCue non salva file audio. Il testo
+            trascritto torna nel browser, modificabile prima dell’invio.
+          </p>
+          <h3>Fatturazione</h3>
+          <p>
+            Per i piani a pagamento Stripe tratta i dati di pagamento; noi riceviamo e conserviamo ragione sociale, indirizzo di
+            fatturazione, P.IVA, codice fiscale, codice SDI e PEC necessari alla fattura elettronica, oltre allo stato dell’abbonamento.
+          </p>
+          <h3>Statistiche di prodotto</h3>
+          <p>
+            Contiamo solo eventi aggregati per giorno (es. “aggiornamenti AI applicati”), senza collegarli a persone, organizzazioni,
+            indirizzi IP o contenuti, e registriamo sull’organizzazione le date dei primi passi di attivazione (prima board, primo
+            aggiornamento AI, primo invito).
+          </p>
+        </section>
+        <section>
+          <h2>3. Finalità e basi giuridiche</h2>
+          <ul>
+            <li>
+              <strong>Erogazione del servizio</strong> (account, board, AI, dettatura, notifiche, export): esecuzione del contratto, art.
+              6(1)(b) GDPR.
+            </li>
+            <li>
+              <strong>Sicurezza</strong> (autenticazione, 2FA, limiti di frequenza, prevenzione abusi): legittimo interesse, art. 6(1)(f).
+            </li>
+            <li>
+              <strong>Fatturazione e obblighi fiscali</strong>: obbligo di legge, art. 6(1)(c).
+            </li>
+            <li>
+              <strong>Email di servizio</strong> (verifica, inviti, promemoria della prova, riepilogo giornaliero disattivabile): esecuzione
+              del contratto e legittimo interesse.
+            </li>
+          </ul>
+        </section>
+        <section>
+          <h2>4. Intelligenza artificiale: provider senza conservazione</h2>
+          <p>
+            Per le funzioni AI il server invia il testo dell’aggiornamento e un contesto ridotto della board (solo card attive e pertinenti,
+            descrizioni troncate). Le richieste passano da <strong>OpenRouter</strong> (instradamento), che le inoltra solo a endpoint di
+            provider di modelli (ad esempio Google Cloud, Microsoft Azure o Mistral AI) classificati “Zero Data Retention”: il provider non
+            conserva né usa i dati per addestrare modelli.
+          </p>
+          <p>
+            Ogni richiesta impone zero data retention e raccolta dati negata. Se un endpoint non risponde, OpenRouter può passare solo a un
+            altro endpoint con gli stessi requisiti; se nessuno è disponibile la richiesta fallisce.
+          </p>
+          <p>
+            OpenRouter e alcuni provider di modelli hanno sede negli Stati Uniti e le richieste possono essere elaborate fuori dallo SEE, in
+            transito e senza conservazione. Il trasferimento è regolato dalle clausole contrattuali standard o dal Data Privacy Framework,
+            ove applicabili.
+          </p>
+          <p>
+            Riferimenti:{" "}
+            <a href="https://openrouter.ai/privacy/" target="_blank" rel="noreferrer">
+              Privacy OpenRouter
+            </a>{" "}
+            ·{" "}
+            <a href="https://openrouter.ai/docs/guides/features/zdr" target="_blank" rel="noreferrer">
+              Zero Data Retention
+            </a>{" "}
+            .
+          </p>
+        </section>
+        <section>
+          <h2>5. Destinatari e trasferimenti</h2>
+          <p>
+            Trattano dati per nostro conto i fornitori elencati nella pagina <a href="/subprocessors">Subprocessori</a>. Eventuali
+            trasferimenti extra-SEE avvengono sulla base di decisioni di adeguatezza (es. EU-US Data Privacy Framework) o clausole
+            contrattuali standard.
+          </p>
+        </section>
+        <section>
+          <h2>6. Tempi di conservazione</h2>
+          <ul>
+            <li>
+              <strong>Sessioni:</strong> fino a 30 giorni o fino al logout.
+            </li>
+            <li>
+              <strong>Account non confermati:</strong> eliminati dopo 7 giorni se l’email non viene verificata.
+            </li>
+            <li>
+              <strong>Prova gratuita ({TRIAL_DAYS} giorni) e abbonamenti scaduti:</strong> le board vengono <em>congelate</em> in sola
+              lettura e restano consultabili ed esportabili; non le cancelliamo per mancato pagamento.
+            </li>
+            <li>
+              <strong>Eliminazione richiesta</strong> (di un account o di un team): accesso bloccato subito; dopo 30 giorni i contenuti
+              vengono eliminati e l’account anonimizzato.
+            </li>
+            <li>
+              <strong>Registri contabili e di audit essenziali:</strong> fino a 10 anni quando richiesto dalla legge; periodo da confermare
+              con consulenza fiscale.
+            </li>
+            <li>
+              <strong>Notifiche lette:</strong> 90 giorni. <strong>Audio:</strong> mai conservato.
+            </li>
+          </ul>
+          <p>Puoi esportare i dati in qualsiasi momento (CSV, JSON, Markdown) ed eliminare l’account dalle impostazioni.</p>
+        </section>
+        <section>
+          <h2>7. Cookie e archiviazione locale</h2>
+          <p>
+            Solo strumenti tecnici o di preferenza, nessun cookie pubblicitario o di profilazione. Dettagli nella{" "}
+            <a href="/cookies">Cookie Policy</a>.
+          </p>
+        </section>
+        <section>
+          <h2>8. Dati particolari</h2>
+          <p>
+            BoardCue non è progettato per categorie particolari di dati (art. 9 GDPR) né per valutare le persone: non inserirli senza una
+            base giuridica e misure adeguate.
+          </p>
+        </section>
+        <section>
+          <h2>9. Diritti</h2>
+          <p>
+            Puoi chiedere accesso, rettifica, cancellazione, limitazione, portabilità e opposizione, e proporre reclamo al Garante per la
+            protezione dei dati personali. Scrivi a: {contactLink}.
+          </p>
+        </section>
+        <section>
+          <h2>10. Modifiche</h2>
+          <p>Aggiorneremo questa informativa quando cambiano funzioni, fornitori o trattamenti, indicando la data in alto.</p>
+        </section>
       </main>
       <PublicFooter />
     </div>

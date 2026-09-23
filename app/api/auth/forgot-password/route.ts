@@ -6,8 +6,10 @@ import { appUrl, escapeHtml, renderEmail, sendEmail } from "@/lib/email";
 import { clientIp, rateLimit, rejectCrossOrigin } from "@/lib/security";
 
 export async function POST(request: Request) {
-  const originError = rejectCrossOrigin(request); if (originError) return originError;
-  const limited = rateLimit(`reset:${clientIp(request)}`, 5, 60 * 60_000); if (limited) return limited;
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
+  const limited = await rateLimit(`reset:${clientIp(request)}`, 5, 60 * 60_000, request);
+  if (limited) return limited;
   const parsed = z.object({ email: z.string().email().max(254) }).safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ ok: true });
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
@@ -15,7 +17,9 @@ export async function POST(request: Request) {
     const token = createOpaqueToken();
     await prisma.$transaction([
       prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } }),
-      prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 60 * 60_000) } }),
+      prisma.passwordResetToken.create({
+        data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 60 * 60_000) },
+      }),
     ]);
     const resetUrl = appUrl(`/reset-password?token=${encodeURIComponent(token)}`, request);
     try {
@@ -25,7 +29,10 @@ export async function POST(request: Request) {
         html: renderEmail({
           title: "Reimposta la password",
           preheader: "Hai richiesto di scegliere una nuova password per BoardCue.",
-          paragraphs: [`Ciao ${escapeHtml(user.name)},`, "Abbiamo ricevuto una richiesta per reimpostare la password del tuo account BoardCue."],
+          paragraphs: [
+            `Ciao ${escapeHtml(user.name)},`,
+            "Abbiamo ricevuto una richiesta per reimpostare la password del tuo account BoardCue.",
+          ],
           action: { label: "Scegli una nuova password", href: resetUrl },
           note: "Il link è valido per un’ora. Se non hai richiesto tu questa modifica, puoi ignorare questo messaggio.",
         }),

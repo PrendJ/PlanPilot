@@ -1,48 +1,80 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import { useI18n } from "./I18nProvider";
+import { api } from "./ui";
 
-export function CheckoutButton({ plan, organizationId }: { plan: "SOLO" | "TEAM" | "STUDIO"; organizationId?: string }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  async function click() {
-    if (!organizationId) { location.href = "/register"; return; }
-    setBusy(true); setError("");
-    try {
-      const response = await fetch("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, organizationId }) });
-      const body = await response.json().catch(() => ({}));
-      if (response.ok && body.url) location.href = body.url;
-      else setError(body.error || "Il checkout non è disponibile. Riprova tra poco.");
-    } catch {
-      setError("Connessione interrotta. Nessun acquisto è stato avviato.");
-    } finally {
-      setBusy(false);
-    }
-  }
-  return <><button className="btn accent" onClick={click} disabled={busy}>{busy ? "Apro il checkout…" : "Scegli questo piano"}</button>{error && <div className="form-error" role="alert">{error}</div>}</>;
-}
-
+/** Enterprise contact form (from 25 people). */
 export function EnterpriseForm() {
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [bookingUrl, setBookingUrl] = useState("");
+  const { t } = useI18n();
+  const [state, setState] = useState<{ ok?: string; error?: string; bookingUrl?: string }>({});
   const [busy, setBusy] = useState(false);
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    setBusy(true); setMessage(""); setError(""); setBookingUrl("");
-    try {
-      const response = await fetch("/api/sales/enterprise", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(form).entries())) });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) { setError(body.error || "Invio non riuscito. Controlla i dati e riprova."); return; }
-      setMessage("Richiesta inviata. Ti ricontatterò personalmente.");
-      setBookingUrl(body.bookingUrl || "");
-      form.reset();
-    } catch {
-      setError("Connessione interrotta. La richiesta non è stata inviata.");
-    } finally {
-      setBusy(false);
+    setBusy(true);
+    setState({});
+    const response = await api<{ bookingUrl?: string }>("/api/sales/enterprise", {
+      method: "POST",
+      json: Object.fromEntries(new FormData(form).entries()),
+    });
+    setBusy(false);
+    if (!response.ok) {
+      setState({ error: response.data.error || t("errors.SERVER_ERROR") });
+      return;
     }
+    setState({ ok: t("pricing.enterprise.sent"), bookingUrl: response.data.bookingUrl });
+    form.reset();
   }
-  return <form className="enterprise-form" onSubmit={submit}><div className="form-grid"><label>Nome<input name="name" autoComplete="name" required/></label><label>Email<input name="email" type="email" inputMode="email" autoComplete="email" required/></label><label>Azienda<input name="company" autoComplete="organization" required/></label><label>Dimensione team<input name="teamSize" type="number" min="25" required/></label><label>Lingua<select name="locale" defaultValue="it"><option value="it">Italiano</option><option value="en">English</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="es">Español</option><option value="ru">Русский</option><option value="pl">Polski</option></select></label></div><label>Di cosa hai bisogno?<textarea name="needs" minLength={10} placeholder="Es. SSO, onboarding per 40 persone, requisiti di sicurezza…" required/></label><button className="btn accent" disabled={busy}>{busy ? "Invio…" : "Richiedi una call con noi"}</button>{message&&<div className="status" role="status">{message}{bookingUrl&&<> <a href={bookingUrl} target="_blank" rel="noreferrer">Prenota ora un orario →</a></>}</div>}{error&&<div className="status error" role="alert">{error}</div>}</form>;
+  return (
+    <form className="panel stack" onSubmit={submit}>
+      <div className="form-grid">
+        <div className="field">
+          <label htmlFor="ent-name">{t("pricing.enterprise.name")}</label>
+          <input id="ent-name" name="name" autoComplete="name" required />
+        </div>
+        <div className="field">
+          <label htmlFor="ent-email">{t("auth.email")}</label>
+          <input id="ent-email" name="email" type="email" autoComplete="email" required />
+        </div>
+        <div className="field">
+          <label htmlFor="ent-company">{t("pricing.enterprise.company")}</label>
+          <input id="ent-company" name="company" autoComplete="organization" required />
+        </div>
+        <div className="field">
+          <label htmlFor="ent-size">{t("pricing.enterprise.teamSize")}</label>
+          <input id="ent-size" name="teamSize" type="number" min={25} required />
+        </div>
+      </div>
+      <input type="hidden" name="locale" value="it" />
+      <div className="field">
+        <label htmlFor="ent-needs">{t("pricing.enterprise.needs")}</label>
+        <textarea id="ent-needs" name="needs" minLength={10} required placeholder={t("pricing.enterprise.needsPlaceholder")} />
+      </div>
+      <button className="btn primary" disabled={busy}>
+        {busy ? <span className="spinner" /> : null}
+        {t("pricing.enterprise.submit")}
+      </button>
+      {state.ok && (
+        <div className="notice" role="status">
+          <div className="notice-body">
+            {state.ok}
+            {state.bookingUrl && (
+              <>
+                {" "}
+                <a href={state.bookingUrl} target="_blank" rel="noreferrer">
+                  {t("pricing.enterprise.book")}
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {state.error && (
+        <div className="notice error" role="alert">
+          <div className="notice-body">{state.error}</div>
+        </div>
+      )}
+    </form>
+  );
 }

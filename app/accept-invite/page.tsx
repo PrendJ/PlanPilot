@@ -1,11 +1,42 @@
-import { Brand } from "@/components/Brand";
-import { AcceptInvite } from "@/components/AcceptInvite";
+import type { Metadata } from "next";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { getTranslator } from "@/lib/i18n/server";
+import { AuthShell } from "@/components/AuthShell";
+import { AcceptInvite } from "@/components/AuthForms";
+
+export const metadata: Metadata = { robots: { index: false } };
 
 export default async function AcceptInvitePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
   const token = String(Array.isArray(query.token) ? query.token[0] : query.token || "");
   const user = await getCurrentUser();
+  const { t } = await getTranslator(user?.locale);
   const next = `/accept-invite?token=${encodeURIComponent(token)}`;
-  return <main className="auth-page"><div className="auth-card"><Brand/>{!token ? <div className="auth-state error-state"><span className="auth-state-icon">!</span><h1>Invito non valido</h1><p>Il link è incompleto. Chiedi a chi ti ha invitato di inviarne uno nuovo.</p><a className="btn" href="/">Torna alla home</a></div> : user ? <><div className="auth-step">ULTIMO PASSAGGIO</div><h1>Unisciti al workspace.</h1><p>Sei connesso come <strong>{user.email}</strong>. Accetta per aggiungere il workspace al tuo account.</p><AcceptInvite token={token}/></> : <><div className="auth-step">INVITO RICEVUTO</div><h1>Prima, accedi.</h1><p>L’invito resta pronto: dopo l’accesso tornerai qui automaticamente.</p><div className="auth-state-actions vertical"><a className="btn accent" href={`/login?next=${encodeURIComponent(next)}`}>Accedi e continua</a><a className="btn" href={`/register?next=${encodeURIComponent(next)}`}>Non hai un account? Crealo</a></div></>}</div></main>;
+  if (!token)
+    return (
+      <AuthShell title={t("invite.invalidTitle")} subtitle={t("invite.invalidBody")}>
+        <Link className="btn" href="/">
+          {t("nav.home")}
+        </Link>
+      </AuthShell>
+    );
+  if (user)
+    return (
+      <AuthShell title={t("invite.joinTitle")} subtitle={t("invite.signedInAs", { email: user.email })}>
+        <AcceptInvite token={token} />
+      </AuthShell>
+    );
+  return (
+    <AuthShell title={t("invite.receivedTitle")} subtitle={t("invite.receivedBody")}>
+      <div className="stack">
+        <Link className="btn primary auth-submit" href={`/register?next=${encodeURIComponent(next)}`}>
+          {t("invite.createAccount")}
+        </Link>
+        <Link className="btn auth-submit" href={`/login?next=${encodeURIComponent(next)}`}>
+          {t("invite.signIn")}
+        </Link>
+      </div>
+    </AuthShell>
+  );
 }

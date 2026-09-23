@@ -1,15 +1,72 @@
-"use client";
+import Link from "next/link";
+import { getCurrentUser, isVerified } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { getTranslator } from "@/lib/i18n/server";
 import { Brand } from "./Brand";
 import { InstallAppButton } from "./PwaProvider";
-import { ThemeToggle } from "./ThemeToggle";
-import { useRouter } from "next/navigation";
+import { LanguageSwitch, NotificationsBell, SearchButton, TeamSwitcher, ThemeMenu, UserMenu, VerifyBanner } from "./TopbarClient";
 
-export function Topbar({ loggedIn = false }: { loggedIn?: boolean }) {
-  const router = useRouter();
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/");
-    router.refresh();
+/** Server component: resolves the session once and renders the public or the app header. */
+export async function Topbar() {
+  const user = await getCurrentUser();
+  const { t } = await getTranslator(user?.locale);
+  if (!user) {
+    return (
+      <header className="topbar">
+        <Link href="/" className="topbar-brand" aria-label={t("nav.home")}>
+          <Brand />
+        </Link>
+        <nav className="topbar-nav" aria-label={t("nav.main")}>
+          <Link href="/#come-funziona">{t("nav.product")}</Link>
+          <Link href="/demo">{t("nav.demo")}</Link>
+          <Link href="/pricing">{t("nav.pricing")}</Link>
+        </nav>
+        <div className="topbar-actions">
+          <span className="hide-mobile">
+            <LanguageSwitch />
+          </span>
+          <ThemeMenu />
+          <InstallAppButton />
+          <Link className="btn ghost hide-mobile" href="/login">
+            {t("nav.login")}
+          </Link>
+          <Link className="btn primary" href="/register">
+            {t("nav.tryFree")}
+          </Link>
+        </div>
+      </header>
+    );
   }
-  return <header className={`topbar ${loggedIn ? "authenticated" : "public"}`}><a href={loggedIn ? "/app" : "/"} aria-label="BoardCue AI, home"><Brand/></a><nav className="top-actions" aria-label={loggedIn ? "Navigazione account" : "Navigazione principale"}><ThemeToggle/><InstallAppButton/>{loggedIn ? <><button className="btn ghost nav-home" onClick={() => router.push("/app")}>Home</button><button className="btn ghost" onClick={() => router.push("/workspaces")}>Board</button><button className="btn ghost" onClick={()=>router.push("/account")}>Account</button><button className="btn" onClick={logout}>Esci</button></> : <><button className="btn ghost" onClick={()=>router.push("/pricing")}>Prezzi</button><button className="btn ghost" onClick={() => router.push("/login")}>Accedi</button><button className="btn accent" onClick={() => router.push("/register")}>Prova gratis</button></>}</nav></header>;
+  const organizations = await prisma.organizationMember.findMany({
+    where: { userId: user.id, organization: { lifecycleStatus: { not: "ARCHIVED" } } },
+    orderBy: { createdAt: "asc" },
+    select: { role: true, organization: { select: { id: true, name: true, plan: true } } },
+  });
+  return (
+    <>
+      <header className="topbar">
+        <Link href="/app" className="topbar-brand" aria-label={t("nav.home")}>
+          <Brand />
+        </Link>
+        <TeamSwitcher
+          current={user.defaultOrganizationId}
+          teams={organizations.map(item => ({
+            id: item.organization.id,
+            name: item.organization.name,
+            plan: item.organization.plan,
+            role: item.role,
+          }))}
+        />
+        <div className="topbar-actions">
+          <SearchButton />
+          <NotificationsBell />
+          <span className="hide-mobile">
+            <InstallAppButton />
+          </span>
+          <UserMenu name={user.name} email={user.email} isAdmin={user.isAdmin || user.platformRole !== "USER"} />
+        </div>
+      </header>
+      {!isVerified(user) && <VerifyBanner email={user.email} />}
+    </>
+  );
 }

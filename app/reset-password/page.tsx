@@ -1,2 +1,17 @@
-import { Suspense } from "react"; import { Brand } from "@/components/Brand"; import { AccountForm } from "@/components/AccountForm";
-export default function ResetPage(){return <main className="auth-page"><div className="auth-card"><Brand/><h1>Scegli una nuova password.</h1><p>Per proteggerti, al termine disconnetteremo le altre sessioni attive.</p><Suspense fallback={<div className="auth-state">Controllo del link…</div>}><AccountForm mode="reset"/></Suspense></div></main>}
+import type { Metadata } from "next";
+import { getTranslator } from "@/lib/i18n/server";
+import { AuthShell } from "@/components/AuthShell";
+import { ResetForm } from "@/components/AuthForms";
+
+export const metadata: Metadata = { robots: { index: false } };
+
+export default async function ResetPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const query = await searchParams;
+  const token = String(Array.isArray(query.token) ? query.token[0] : query.token || "");
+  const { t } = await getTranslator();
+  return (
+    <AuthShell title={t("auth.reset.title")} subtitle={t("auth.reset.subtitle")}>
+      <ResetForm token={token} />
+    </AuthShell>
+  );
+}

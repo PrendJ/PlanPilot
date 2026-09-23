@@ -1,116 +1,75 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { getWorkspaceApiKey } from "@/lib/workspace";
-import { planPatchFromText } from "@/lib/openrouter";
-import { getUsageStatus, recordUsage } from "@/lib/plans";
-import { rejectCrossOrigin, rateLimit } from "@/lib/security";
-import { assertRevision, isBoardConflict, bumpRevision, logActivity, workspaceForUser, workspaceReadOnly } from "@/lib/board";
-import { InvalidAiPatchError, validateAiPatch } from "@/lib/ai-patch";
 import { z } from "zod";
+import { rateLimit } from "@/lib/security";
+import { boardContext, isResponse } from "@/lib/api-context";
+import { apiError } from "@/lib/errors";
+import { InvalidAiPatchError } from "@/lib/ai-patch";
+import { AiProviderError } from "@/lib/openrouter";
+import { QuotaExceededError } from "@/lib/plans";
+import { applyProposal, createProposal, ProposalError } from "@/lib/ai-proposals";
+import { isBoardConflict } from "@/lib/board";
+import { trackEvent } from "@/lib/product-events";
 
-const schema = z.object({ text: z.string().trim().min(1).max(12000), source: z.enum(["text", "voice"]).default("text"), revision: z.number().int().nonnegative() });
+const schema = z.object({
+  text: z.string().trim().min(1).max(12000),
+  source: z.enum(["text", "voice"]).default("text"),
+  timeZone: z.string().max(64).optional(),
+  autoApply: z.boolean().optional(),
+});
 
-export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const originError = rejectCrossOrigin(request); if (originError) return originError;
-  const limited = rateLimit(`ai:${user.id}`, 20, 60_000); if (limited) return limited;
-  const { slug } = await params;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid update" }, { status: 400 });
-  const { text, source, revision } = parsed.data;
-
-  const access = await workspaceForUser(slug, user.id);
-  if (!access) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (workspaceReadOnly(access)) return NextResponse.json({ error: "Il workspace è in sola lettura" }, { status: 423 });
-  const quota = await getUsageStatus(access.organizationId);
-  if (!quota || quota.status === "PAUSED") return NextResponse.json({ error: "AI quota reached or subscription inactive" }, { status: 402 });
-  const workspace = await prisma.workspace.findUnique({
-    where: { id: access.id },
-    include: { columns: { orderBy: { position: "asc" }, include: { cards: { where: { archived: false }, orderBy: { position: "asc" } } } } },
-  });
-  if (!workspace) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (workspace.revision !== revision) return NextResponse.json({ error: "Board changed. Reload and retry." }, { status: 409 });
-  const apiKey = getWorkspaceApiKey(workspace);
-  if (!apiKey) return NextResponse.json({ error: "AI service is not configured" }, { status: 503 });
-
-  const compactPlan = {
-    columns: workspace.columns.map((c) => ({
-      id: c.id,
-      title: c.title,
-      description: c.description,
-      cards: c.cards.map((card) => ({
-        id: card.id,
-        title: card.title,
-        description: card.description,
-        priority: card.priority,
-        dueDate: card.dueDate?.toISOString() || null,
-        tags: card.tags,
-      })),
-    })),
-  };
-
+function validTimeZone(value?: string) {
+  if (!value) return "Europe/Rome";
   try {
-    const { patch: candidate, usage, requestId } = await planPatchFromText({ apiKey, model: workspace.planModel, workspaceName: workspace.name, userText: text, plan: compactPlan });
-    const columnsById = new Map(workspace.columns.map((c) => [c.id, c]));
-    const existingCards = new Map(workspace.columns.flatMap((c) => c.cards).map((c) => [c.id, c]));
-    const patch = validateAiPatch(candidate, { columnIds: new Set(columnsById.keys()), cardIds: new Set(existingCards.keys()) });
-    const applied: typeof patch.actions = [];
+    new Intl.DateTimeFormat("en", { timeZone: value });
+    return value;
+  } catch {
+    return "Europe/Rome";
+  }
+}
 
-    const batchId = crypto.randomUUID();
-    const newRevision = await prisma.$transaction(async (tx) => {
-      if (!(await assertRevision(workspace.id, revision, tx, { userId: user.id }))) throw new Error("STALE_REVISION");
-      for (const action of patch.actions) {
-        if (action.action === "create") {
-          const count = await tx.card.count({ where: { workspaceId: workspace.id, columnId: action.targetColumnId!, archived: false } });
-          const created = await tx.card.create({ data: { workspaceId: workspace.id, columnId: action.targetColumnId!, title: action.title!, description: action.description || "", priority: action.priority || "NORMAL", dueDate: action.dueDate ? new Date(action.dueDate) : null, tags: action.tags || [], position: count } });
-          await logActivity(tx, { organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, type: "AI_CARD_CREATED", entityType: "CARD", entityId: created.id, batchId, afterState: created as never, undoable: true });
-          applied.push(action);
-          continue;
-        }
-        const cardId = action.cardId!;
-        if (action.action === "archive") {
-          const changed = await tx.card.update({ where: { id: cardId, workspaceId: workspace.id }, data: { archived: true } });
-          await logActivity(tx, { organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, type: "AI_CARD_ARCHIVED", entityType: "CARD", entityId: cardId, batchId, beforeState: existingCards.get(cardId) as never, afterState: changed as never, undoable: true });
-          applied.push(action);
-          continue;
-        }
-        const data: any = {};
-        if (action.action === "move" && action.targetColumnId && columnsById.has(action.targetColumnId)) data.columnId = action.targetColumnId;
-        if (action.action === "update") {
-          if (action.title) data.title = action.title.slice(0, 180);
-          if (action.description !== null) data.description = action.description;
-          if (action.priority) data.priority = action.priority;
-          if (action.dueDate !== null) data.dueDate = action.dueDate ? new Date(action.dueDate) : null;
-          if (action.tags !== null) data.tags = action.tags;
-          if (action.targetColumnId && columnsById.has(action.targetColumnId)) data.columnId = action.targetColumnId;
-        }
-        if (Object.keys(data).length) {
-          const changed = await tx.card.update({ where: { id: cardId, workspaceId: workspace.id }, data });
-          await logActivity(tx, { organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, type: "AI_CARD_UPDATED", entityType: "CARD", entityId: cardId, batchId, beforeState: existingCards.get(cardId) as never, afterState: changed as never, undoable: true });
-          applied.push(action);
-        }
-      }
-      await tx.updateLog.create({
-        data: {
-          workspaceId: workspace.id,
-          userId: user.id,
-          source,
-          inputText: text,
-          summary: patch.summary,
-          actions: applied,
-          beforeState: { batchId },
-          model: workspace.planModel,
-          cost: typeof usage?.cost === "number" ? usage.cost : null,
-        },
-      });
-      return (await bumpRevision(tx, workspace.id)).revision;
+/**
+ * Step 1 of the AI loop: returns a proposal (diff preview) without touching the board.
+ * People who opted into auto-apply get it applied immediately, unless the model asks a clarification.
+ */
+export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const ctx = await boardContext(request, slug, { write: true });
+  if (isResponse(ctx)) return ctx;
+  const limited = await rateLimit(`ai:${ctx.user.id}`, 20, 60_000, request);
+  if (limited) return limited;
+  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
+  const { text, source } = parsed.data;
+  try {
+    const proposal = await createProposal({
+      workspace: ctx.workspace,
+      userId: ctx.user.id,
+      text,
+      source,
+      timeZone: validTimeZone(parsed.data.timeZone),
     });
-    await recordUsage({ organizationId: access.organizationId, workspaceId: workspace.id, userId: user.id, providerRequestId: requestId, category: "PLANNING", model: workspace.planModel, costUsd: usage?.cost, metadata: { source } });
-    return NextResponse.json({ ok: true, summary: patch.summary, actions: applied, revision: newRevision });
+    const autoApply = (parsed.data.autoApply ?? ctx.user.autoApplyAi) && proposal.actions.length > 0 && !proposal.clarification;
+    if (!autoApply) return NextResponse.json({ proposal });
+    const { receipt } = await applyProposal({ proposalId: proposal.id, workspace: ctx.workspace, userId: ctx.user.id });
+    await trackEvent("ai_update_applied");
+    return NextResponse.json({ proposal: { ...proposal, status: "APPLIED" }, receipt });
   } catch (error) {
-    if (isBoardConflict(error)) return NextResponse.json({ error: "Board o accesso modificati. Ricarica e riprova." }, { status: 409 });
-    return NextResponse.json({ error: error instanceof InvalidAiPatchError ? error.message : "Aggiornamento AI non riuscito. Il testo resta disponibile: verifica la board prima di riprovare." }, { status: 502 });
+    if (error instanceof QuotaExceededError) return apiError(request, "QUOTA_EXHAUSTED", 402);
+    if (error instanceof InvalidAiPatchError || (error instanceof AiProviderError && error.message === "AI_INVALID_PATCH"))
+      return apiError(request, "AI_INVALID_PATCH", 422);
+    if (error instanceof AiProviderError) return apiError(request, "AI_UNAVAILABLE", 502);
+    if (error instanceof ProposalError)
+      return apiError(
+        request,
+        error.message === "AI_NOT_CONFIGURED"
+          ? "AI_NOT_CONFIGURED"
+          : error.message === "PROPOSAL_STALE"
+            ? "PROPOSAL_STALE"
+            : "PROPOSAL_EXPIRED",
+        error.message === "AI_NOT_CONFIGURED" ? 503 : 409,
+      );
+    if (isBoardConflict(error)) return apiError(request, "BOARD_CONFLICT", 409);
+    console.error("AI update failed", error);
+    return apiError(request, "AI_UNAVAILABLE", 502);
   }
 }
