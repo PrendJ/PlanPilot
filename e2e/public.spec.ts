@@ -1,9 +1,93 @@
-import { test,expect } from "@playwright/test";
-test("pricing exposes the exact plans and Enterprise call",async({page})=>{await page.goto("/pricing");await expect(page.getByText("€10")).toBeVisible();await expect(page.getByText("Fino a 10 membri")).toBeVisible();await expect(page.getByText("Fino a 24 membri")).toBeVisible();await expect(page.getByRole("button",{name:"Richiedi una call con noi"})).toBeVisible()});
-test("demo explains the service and offers a three-tier free trial",async({page})=>{await page.goto("/demo");await expect(page.getByRole("heading",{name:"Meno manutenzione della board. Più chiarezza sul lavoro."})).toBeVisible();await expect(page.getByText("Aggiornamenti naturali")).toBeVisible();await expect(page.getByRole("heading",{name:"Scegli il ritmo giusto. Parti gratis."})).toBeVisible();await expect(page.getByText("€10")).toBeVisible();await expect(page.getByText("€24")).toBeVisible();await expect(page.getByText("€59")).toBeVisible();await expect(page.getByText("Prova BoardCue AI per 7 giorni senza carta.")).toBeVisible();});
-test("registration is usable without horizontal overflow",async({page})=>{await page.goto("/register");await expect(page.getByRole("button",{name:"Crea account"})).toBeVisible();const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth);expect(overflow).toBe(false)});
-test("login returns to the public demo",async({page})=>{await page.goto("/login");const back=page.getByRole("link",{name:"Torna alla demo"});await expect(back).toHaveAttribute("href","/demo");await back.click();await expect(page).toHaveURL(/\/demo$/)});
-test("authentication outcomes are explained",async({page})=>{await page.goto("/login?verified=1");await expect(page.getByText("Email verificata. Ora puoi accedere.")).toBeVisible();await page.goto("/login?reset=1");await expect(page.getByText("Password aggiornata. Accedi con quella nuova.")).toBeVisible()});
-test("external post-login redirects are discarded",async({page})=>{await page.goto("/login?next=https://evil.example");await expect(page.getByRole("link",{name:"Crea account"})).toHaveAttribute("href","/register")});
-test("an incomplete reset link offers a recovery path",async({page})=>{await page.goto("/reset-password");await expect(page.getByRole("heading",{name:"Questo link non è più valido"})).toBeVisible();await expect(page.getByRole("link",{name:"Richiedi un nuovo link"})).toHaveAttribute("href","/forgot-password")});
-test("demo cards can be dragged between columns on desktop",async({page},testInfo)=>{test.skip(!["desktop-1440","chromium"].includes(testInfo.project.name),"Interazione mouse desktop");await page.goto("/demo");const example=page.getByRole("button",{name:"Ho finito la migrazione newsletter"});const input=page.getByPlaceholder(/Ho finito la migrazione newsletter/);await example.click();await expect(input).toHaveValue("Ho finito la migrazione newsletter");const card=page.locator('[data-demo-card="demo-newsletter"]');const done=page.locator('[data-demo-column="Done"]');await card.scrollIntoViewIfNeeded();await card.dragTo(done,{targetPosition:{x:100,y:80}});await expect(done.locator('[data-demo-card="demo-newsletter"]')).toBeVisible();await expect(page.getByText("Card spostata in “Done”.")).toBeVisible()});
+import { test, expect } from "@playwright/test";
+
+const noOverflow = () => document.documentElement.scrollWidth <= document.documentElement.clientWidth;
+
+test("landing explains the loop and leads to the Pro trial", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Racconta com’è andata");
+  await expect(page.getByRole("link", { name: /Prova Pro gratis 14 giorni/ }).first()).toHaveAttribute("href", "/register");
+  expect(await page.evaluate(noOverflow)).toBe(true);
+});
+
+test("pricing shows the agreed plans, seats and Enterprise without SSO/SLA promises", async ({ page }) => {
+  await page.goto("/pricing");
+  await expect(page.getByRole("heading", { name: "Pro", exact: true })).toBeVisible();
+  const price = (plan: string) =>
+    page
+      .locator(".pricing-card")
+      .filter({ has: page.getByRole("heading", { name: plan, exact: true }) })
+      .locator(".price strong");
+  await expect(price("Pro")).toHaveText("€7");
+  await expect(price("Team")).toHaveText("€6");
+  await expect(price("Business")).toHaveText("€10");
+  await expect(page.getByText("IVA esclusa, fatturazione mensile").first()).toBeVisible();
+  // Private customers see the VAT-inclusive price, rounded down to ten cents.
+  await page.getByRole("button", { name: "Privati", exact: true }).click();
+  await expect(price("Pro")).toHaveText("€8,50");
+  await expect(price("Team")).toHaveText("€7,30");
+  await expect(price("Business")).toHaveText("€12,20");
+  await expect(page.getByText("IVA inclusa, fatturazione mensile").first()).toBeVisible();
+  await page.getByRole("button", { name: "Aziende e professionisti", exact: true }).click();
+  await expect(page.getByText("Minimo 2 posti. Gli ospiti non occupano posti.").first()).toBeVisible();
+  await expect(page.getByText("Dettatura vocale inclusa")).toBeVisible();
+  await expect(page.getByText(/SSO|SLA|DPA/)).toHaveCount(0);
+  const team = page.locator(".pricing-card").filter({ hasText: "Team" }).first();
+  await team.getByRole("button", { name: "Un posto in più" }).click();
+  await expect(team.locator("output")).toHaveText("4");
+  expect(await page.evaluate(noOverflow)).toBe(true);
+});
+
+test("English pages are served under /en", async ({ page }) => {
+  await page.goto("/en/pricing");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Simple pricing");
+});
+
+test("the demo previews a change and moves the existing card instead of duplicating it", async ({ page }) => {
+  await page.goto("/demo");
+  await page.getByRole("button", { name: "Ho finito la newsletter di ottobre" }).click();
+  const proposal = page.getByRole("region", { name: "Modifiche proposte dall’AI" });
+  await expect(proposal).toContainText("Sposta “Newsletter di ottobre” in Fatto");
+  await proposal.getByRole("button", { name: "Applica tutto" }).click();
+  const done = page.locator("section.column").filter({ has: page.getByRole("heading", { name: "Fatto" }) });
+  await expect(done.getByText("Newsletter di ottobre")).toBeVisible();
+  await expect(page.locator(".card-title", { hasText: "Newsletter di ottobre" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Non ho ancora iniziato le foto del catalogo" }).click();
+  await expect(page.getByText("Hai detto che non è ancora successo")).toBeVisible();
+});
+
+test("registration is usable without horizontal overflow", async ({ page }) => {
+  await page.goto("/register");
+  await expect(page.getByRole("button", { name: "Crea account e inizia" })).toBeVisible();
+  await expect(page.getByLabel("Nome del tuo team o progetto")).toHaveCount(0);
+  expect(await page.evaluate(noOverflow)).toBe(true);
+});
+
+test("authentication outcomes are explained", async ({ page }) => {
+  await page.goto("/login?verified=1");
+  await expect(page.getByText("Email confermata. Accedi per continuare.")).toBeVisible();
+  await page.goto("/login?reset=1");
+  await expect(page.getByText("Password aggiornata. Accedi con quella nuova.")).toBeVisible();
+});
+
+test("login offers a passwordless link", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Accedi con un link via email" }).click();
+  await expect(page.getByRole("button", { name: "Inviami il link" })).toBeVisible();
+});
+
+test("external post-login redirects are discarded", async ({ page }) => {
+  await page.goto("/login?next=https://evil.example");
+  await expect(page.getByRole("link", { name: "Crealo gratis" })).toHaveAttribute("href", "/register");
+});
+
+test("an incomplete reset link offers a recovery path", async ({ page }) => {
+  await page.goto("/reset-password");
+  await expect(page.getByRole("heading", { name: "Link non più valido" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Richiedi un nuovo link" })).toHaveAttribute("href", "/forgot-password");
+});
+
+test("private areas redirect to sign-in", async ({ page }) => {
+  await page.goto("/account");
+  await expect(page).toHaveURL(/\/login\?next=%2Faccount/);
+});

@@ -84,7 +84,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const dirty = (event: Event) => {
       const target = event.target as HTMLElement;
-      if (target.closest("form") && !target.closest("dialog,.modal-card")) block("page-form", true);
+      if (target.closest("form") && !target.closest("dialog,[role=\"dialog\"],.modal-card")) block("page-form", true);
     };
     document.addEventListener("input", dirty);
     return () => document.removeEventListener("input", dirty);

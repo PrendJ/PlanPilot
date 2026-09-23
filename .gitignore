@@ -9,3 +9,4 @@ debug.log
 .env
 .env.*
 !.env.example
+ai-eval-report.json

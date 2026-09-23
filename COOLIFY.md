@@ -1,10 +1,12 @@
-# Deploy BoardCue AI su Coolify
+# Deploy BoardCue su Coolify
+
+> Per il rilascio "commercial readiness" (settembre 2026) segui prima [docs/OPERATIONS.md](docs/OPERATIONS.md): nuove variabili (`APP_ENCRYPTION_KEY`, identità legale; i prezzi Stripe si creano da soli), job pianificati, backup e smoke test.
 
 Dominio canonico: `boardcue.draftapps.it`.
 
 ## Configurazione
 
-Usa il repository e la risorsa Docker Compose esistenti. Il brand e la configurazione sono BoardCue AI.
+Usa il repository e la risorsa Docker Compose esistenti. Il brand è BoardCue.
 
 Imposta almeno:
 

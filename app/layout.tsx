@@ -1,46 +1,70 @@
 import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { PwaProvider } from "@/components/PwaProvider";
-import "./globals.css";
-import "./draftapps-theme.css";
-import "./marketing.css";
-import "./pwa.css";
 import { CookieNotice } from "@/components/CookieNotice";
+import { I18nProvider } from "@/components/I18nProvider";
+import { FeedbackProvider } from "@/components/ui";
+import { getLocale, getTranslator } from "@/lib/i18n/server";
+import "./tokens.css";
+import "./ui.css";
+import "./board.css";
+import "./marketing.css";
+import "./admin.css";
 
-export const metadata: Metadata = {
-  manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "BoardCue", statusBarStyle: "default" },
-  icons: { apple: "/icons/apple-touch-icon.png" },
-  metadataBase: new URL("https://boardcue.draftapps.it"),
-  title: "BoardCue AI — Talk. Update. Repeat.",
-  description: "AI-first voice-powered planning board. Tell BoardCue AI what changed and keep your work in sync.",
-  alternates: { canonical: "/" },
-  openGraph: {
-    title: "BoardCue AI — Talk. Update. Repeat.",
-    description: "Parla o scrivi un aggiornamento: l’AI capisce cosa è cambiato e mantiene la board sincronizzata.",
-    url: "https://boardcue.draftapps.it",
-    siteName: "BoardCue AI",
-    type: "website",
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const { t, locale } = await getTranslator();
+  return {
+    manifest: "/manifest.webmanifest",
+    appleWebApp: { capable: true, title: "BoardCue", statusBarStyle: "default" },
+    icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+    metadataBase: new URL(process.env.APP_URL || "https://boardcue.draftapps.it"),
+    title: { default: t("meta.title"), template: "%s · BoardCue" },
+    description: t("meta.description"),
+    alternates: { canonical: "/", languages: { "it-IT": "/", "en-GB": "/en" } },
+    openGraph: {
+      title: t("meta.title"),
+      description: t("meta.description"),
+      siteName: "BoardCue",
+      type: "website",
+      locale: locale === "en" ? "en_GB" : "it_IT",
+    },
+  };
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F6F7F9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0D0F14" },
+  ],
 };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#101827" };
 
-const themeScript = `
-(function(){
-  try {
-    var saved = localStorage.getItem('theme');
-    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
-  } catch (e) {
-    document.documentElement.dataset.theme = 'dark';
-  }
-})();`;
+// Runs before paint: saved choice, otherwise the operating system preference.
+const themeScript = `(function(){try{var s=localStorage.getItem('theme');var d=s==='dark'||(s!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(e){if(!localStorage.getItem('theme'))document.documentElement.dataset.theme=e.matches?'dark':'light';});}catch(e){document.documentElement.dataset.theme='light';}})();`;
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
+  const { t } = await getTranslator();
   return (
-    <html lang="it" data-theme="dark" suppressHydrationWarning>
-      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
+    <html lang={locale} className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
-        <PwaProvider>{children}<CookieNotice /></PwaProvider>
+        <a className="skip-link" href="#main">
+          {t("common.skipToContent")}
+        </a>
+        <I18nProvider locale={locale}>
+          <FeedbackProvider>
+            <PwaProvider>
+              {children}
+              <CookieNotice />
+            </PwaProvider>
+          </FeedbackProvider>
+        </I18nProvider>
       </body>
     </html>
   );

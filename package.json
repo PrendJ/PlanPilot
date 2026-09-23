@@ -16,14 +16,20 @@
     "license:grant": "tsx scripts/grant-license.ts",
     "workspace:create": "tsx scripts/create-workspace.ts",
     "membership:add": "tsx scripts/add-membership.ts",
-    "organization:backfill-defaults": "tsx scripts/backfill-default-organizations.ts"
+    "organization:backfill-defaults": "tsx scripts/backfill-default-organizations.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check components/board components/ui.tsx lib/plans.ts lib/ai-proposals.ts lib/i18n app/tokens.css app/ui.css",
+    "ai:eval": "tsx scripts/ai-eval.ts",
+    "icons:build": "node scripts/build-icons.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.12.0",
     "bcryptjs": "2.4.3",
+    "geist": "1.5.1",
     "next": "15.5.25",
     "nodemailer": "9.1.1",
     "prisma": "6.12.0",
+    "qrcode": "1.5.4",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "stripe": "18.5.0",
@@ -36,9 +42,11 @@
     "@types/bcryptjs": "2.4.6",
     "@types/node": "22.15.3",
     "@types/nodemailer": "6.4.17",
+    "@types/qrcode": "1.5.6",
     "@types/react": "19.1.10",
     "@types/react-dom": "19.1.7",
     "@types/web-push": "3.6.4",
+    "prettier": "3.9.9",
     "typescript": "5.8.3",
     "vitest": "3.2.7"
   },

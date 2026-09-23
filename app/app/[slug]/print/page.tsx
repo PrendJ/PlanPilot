@@ -2,6 +2,7 @@ import { getCurrentUser, canAccessWorkspace } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { PrintActions } from "@/components/PrintActions";
+import { BrandMark } from "@/components/Brand";
 
 function formatDate(value: Date | null) {
   if (!value) return null;
@@ -48,7 +49,7 @@ export default async function PrintWorkspacePage({ params }: { params: Promise<{
         .print-back,.print-button{border:1px solid #cbd5e1;border-radius:999px;padding:10px 16px;font:inherit;font-weight:650;text-decoration:none;cursor:pointer}
         .print-back{background:#fff;color:#334155}.print-button{background:#172033;color:#fff;border-color:#172033}
         .print-header{display:flex;justify-content:space-between;gap:30px;align-items:flex-start;padding-bottom:22px;border-bottom:2px solid #e2e8f0}
-        .print-brand{display:flex;align-items:center;gap:14px}.print-mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#6ae0ff,#9b7cff);color:#0b0c10;font-weight:850;font-size:22px}
+        .print-brand{display:flex;align-items:center;gap:14px}.print-mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:#12151C;color:#F6F7F9;--logo-dot:#FF7A4D}
         .print-header h1{margin:0;font-size:28px;letter-spacing:-.04em}.print-subtitle{margin:5px 0 0;color:#64748b;font-size:13px}
         .print-meta{display:grid;grid-template-columns:auto auto;gap:6px 16px;font-size:12px;color:#64748b;text-align:right}.print-meta strong{color:#334155;font-weight:700}
         .print-summary{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 22px}.print-chip{padding:7px 10px;border:1px solid #dbe2ea;border-radius:999px;font-size:11px;color:#475569;background:#f8fafc}
@@ -70,16 +71,21 @@ export default async function PrintWorkspacePage({ params }: { params: Promise<{
       <section className="print-sheet">
         <header className="print-header">
           <div className="print-brand">
-            <div className="print-mark">B</div>
+            <div className="print-mark">
+              <BrandMark size={30} />
+            </div>
             <div>
               <h1>{workspace.name}</h1>
-              <p className="print-subtitle">BoardCue AI · Snapshot della board</p>
+              <p className="print-subtitle">BoardCue · Snapshot della board</p>
             </div>
           </div>
           <div className="print-meta">
-            <span>Esportato</span><strong>{exportedAt}</strong>
-            <span>Planning model</span><strong>{workspace.planModel}</strong>
-            <span>Voice model</span><strong>{workspace.dictationEnabled ? workspace.transcriptionModel : "Disattivato"}</strong>
+            <span>Esportato</span>
+            <strong>{exportedAt}</strong>
+            <span>Planning model</span>
+            <strong>{workspace.planModel}</strong>
+            <span>Voice model</span>
+            <strong>{workspace.dictationEnabled ? workspace.transcriptionModel : "Disattivato"}</strong>
           </div>
         </header>
 
@@ -90,11 +96,14 @@ export default async function PrintWorkspacePage({ params }: { params: Promise<{
         </div>
 
         <div className="print-board">
-          {workspace.columns.map((column) => (
+          {workspace.columns.map(column => (
             <section className="print-column" key={column.id}>
-              <div className="print-column-head"><span>{column.title}</span><span className="print-count">{column.cards.length}</span></div>
+              <div className="print-column-head">
+                <span>{column.title}</span>
+                <span className="print-count">{column.cards.length}</span>
+              </div>
               {column.cards.length === 0 && <div className="print-empty">Nessuna card</div>}
-              {column.cards.map((card) => {
+              {column.cards.map(card => {
                 const tags = readableTags(card.tags);
                 const due = formatDate(card.dueDate);
                 return (
@@ -104,7 +113,11 @@ export default async function PrintWorkspacePage({ params }: { params: Promise<{
                     {(card.priority !== "NORMAL" || tags.length > 0) && (
                       <div className="print-card-meta">
                         {card.priority !== "NORMAL" && <span className="print-tag print-priority">{card.priority.toLowerCase()}</span>}
-                        {tags.map((tag) => <span className="print-tag" key={tag}>{tag}</span>)}
+                        {tags.map(tag => (
+                          <span className="print-tag" key={tag}>
+                            {tag}
+                          </span>
+                        ))}
                       </div>
                     )}
                     {due && <div className="print-due">Scadenza: {due}</div>}
@@ -116,7 +129,7 @@ export default async function PrintWorkspacePage({ params }: { params: Promise<{
         </div>
 
         <footer className="print-footer">
-          <span>BoardCue AI · Talk. Update. Repeat.</span>
+          <span>BoardCue · Talk. Update. Repeat.</span>
           <span>Snapshot generato da boardcue.draftapps.it</span>
         </footer>
       </section>

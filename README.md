@@ -1,6 +1,6 @@
-# BoardCue AI
+# BoardCue
 
-AI-first, voice-powered Trello-style planning board. Users describe what changed in text or voice; the backend sends the current compact plan to OpenRouter and applies only validated structured mutations.
+Voice-first planning board. People dictate or type what changed; an AI reached through OpenRouter (zero data retention providers only) proposes a minimal, validated patch, shows it as a preview, and applies it only when confirmed. Every change is attributed, visible in the activity log and undoable.
 
 ## Public URL
 
@@ -10,20 +10,24 @@ Public demo: `https://boardcue.draftapps.it/demo`.
 
 ## What is included
 
-- public interactive demo
-- verified email/password accounts, reset and session revocation
-- organizations, explicit workspace memberships and OWNER/ADMIN/MEMBER roles
-- five copied presets in seven languages and 1–12 customizable shared columns
-- manual card CRUD, multi-assignees, due dates, priority, tags, filters, archive and restore
-- structured AI patches instead of full-plan rewrites
-- browser audio recording and OpenRouter transcription
-- manual drag & drop fallback
-- revision-based conflict protection, AI audit log and undo
-- ZDR/no-training AI routing with no privacy-degrading fallback
-- Stripe monthly plans, quotas, trial and Enterprise lead flow
-- superadmin control room with lifetime-free entitlements and economics drill-down
-- JSON and Markdown export
-- Docker Compose with PostgreSQL, ready for Coolify
+- landing (IT + `/en`), interactive public demo (same preview/apply loop, simulated locally), pricing with seats and annual billing
+- instant sign-up with a ready-made starter board; 7-day window to verify the email; magic-link sign-in
+- two-step verification (TOTP authenticator apps, recovery codes) on every plan; enforceable per team on Business
+- AI loop: immutable proposals with diff preview, partial apply, clarification questions, idempotent receipts, 15-minute expiry, undo
+- dictation in 7 languages with live level meter, timer, cancel and 2-minute limit (included in every plan)
+- real-time boards (Server-Sent Events) with per-card optimistic concurrency
+- cards with due dates, overdue states, checklists, assignees, comments and @mentions; kanban, list and calendar views
+- notifications (in-app bell, daily email digest, due-date reminders, optional Web Push)
+- invites with pending list, resend/revoke, free guest role (read + comment)
+- import from Trello JSON / CSV; export CSV, JSON, Markdown, print
+- personal API tokens (`/api/v1`) and signed outgoing webhooks (JSON or Slack/Teams text)
+- plans: Pro trial (14 days), Pro, Team and Business (per seat, minimum 2), Enterprise; AI updates quota with atomic reservation and credit packs; frozen (read-only) instead of deleted on non-payment
+- Italian e-invoicing data collection at checkout and fiscal CSV export for the back office
+- superadmin back office with economics per seat, activation KPIs (aggregate, privacy-preserving) and licensing
+- design system "Paper/Graphite" (WCAG AA), Geist fonts, BoardCue mark, installable PWA with quick-voice shortcut
+- Docker Compose with PostgreSQL, ready for Coolify; health endpoint, backup/restore scripts, smoke-test workflow
+
+See [the commercial assessment and implementation map](docs/VALUTAZIONE_COMMERCIALE_2026-09-23.md), [pricing and unit economics](docs/PRICING_ECONOMICS.md) and [operations](docs/OPERATIONS.md).
 
 ## Coolify
 
@@ -36,10 +40,14 @@ OPENROUTER_API_KEY=...
 OPENROUTER_WORKSPACE_KEYS={"workspace-slug":"sk-or-v1-..."}
 STRIPE_SECRET_KEY=...
 STRIPE_WEBHOOK_SECRET=...
-# Stripe Price IDs, e.g. price_1AbCdEfGhIjKlMnOp (not numeric amounts)
+# Current plans need no Price IDs (created automatically from lib/plans.ts).
+# Keep the previous flat prices only to recognise existing subscribers:
 STRIPE_PRICE_SOLO=...
 STRIPE_PRICE_TEAM=...
 STRIPE_PRICE_STUDIO=...
+APP_ENCRYPTION_KEY=...
+LEGAL_ENTITY_NAME=...
+LEGAL_VAT_NUMBER=...
 SMTP_HOST=...
 SMTP_USER=...
 SMTP_PASSWORD=...
@@ -74,7 +82,7 @@ Per assegnare un piano alla sua organizzazione, con scadenza facoltativa:
 npm run license:grant -- --email persona@example.com --plan TEAM --expires-at 2026-12-31 --actor superadmin@example.com
 ```
 
-Piani disponibili: `TRIAL`, `SOLO`, `TEAM`, `STUDIO`, `LIFETIME`, `ENTERPRISE`. Se la persona possiede più organizzazioni, aggiungi `--organization slug-organizzazione`. Le licenze manuali prevalgono su Stripe fino alla revoca o alla scadenza.
+Piani disponibili: `TRIAL`, `PRO`, `TEAM`, `BUSINESS`, `LIFETIME`, `ENTERPRISE` (più `SOLO`, `TEAM_LEGACY` e `STUDIO` storici). Se la persona possiede più organizzazioni, aggiungi `--organization slug-organizzazione`. Le licenze manuali prevalgono su Stripe fino alla revoca o alla scadenza.
 
 Per promuovere un account esistente a Superadmin, verificarne l'email e riattivarlo senza cambiare la password:
 
@@ -90,15 +98,15 @@ npm run membership:add -- --email persona@example.com --workspace progetto-clien
 
 ## AI model strategy
 
-The canonical plan remains relational data in PostgreSQL. The LLM returns a small schema-validated patch (`create`, `update`, `move`, `archive`), and the backend validates referenced IDs before applying it transactionally. Provider names, keys and monetary cost are not exposed in customer APIs.
+The canonical plan remains relational data in PostgreSQL. The LLM returns a small schema-validated patch (`create`, `update`, `move`, `archive`) or a clarification; the backend validates every referenced ID, stores it as a proposal and applies it transactionally only on confirmation, checking that the touched cards have not changed since. Requests go through OpenRouter to zero-retention provider endpoints only, with data collection denied; the default model is Gemini 2.5 Flash-Lite and dictation uses Voxtral Mini (`lib/ai-config.ts`). Provider names, keys and monetary cost are not exposed in customer APIs. Quality is measured with the 200-case evaluation set (`scripts/ai-eval.ts`).
 
 ## Local verification and write safety
 
 Run `npm test`, `npm run typecheck` and `npm run build`. Unit/handler tests use synthetic data and mocked provider calls. PostgreSQL integration tests are skipped unless `BOARDCUE_TEST_DATABASE_URL` points to a disposable local `boardcue_test_*` database with the existing migrations applied; see [acceptance coverage and setup](docs/AI_ACCEPTANCE_2026-09-19.md).
 
-Board mutations must call `assertRevision` with the current actor **inside the same transaction** as the writes and `bumpRevision`. The guard locks the board and access rows until commit and rechecks membership, role and lifecycle. Never call it with the root Prisma client or bypass it in a new card/column mutation. AI batches are validated in full before writing; invalid targets fail the whole batch.
+Board mutations must call `assertBoardAccess` (or `assertRevision` for board-wide batches) with the current actor **inside the same transaction** as the writes and `bumpRevision`; card edits also claim the card `version` (`claimCardVersion`). The guard locks the board and access rows until commit and rechecks membership, role and lifecycle. Never call it with the root Prisma client or bypass it in a new card/column mutation. AI batches are validated in full before writing; invalid targets fail the whole batch.
 
-The existing AI flow still applies on submission. Preview, explicit confirmation and idempotent receipts remain release requirements for the proposed new flow. Read the [19 September audit](docs/AUDIT_2026-09-19.md) for verified findings, remaining risks, tests and rollback; this increment is not a production release.
+The AI flow now previews every change and applies it only on confirmation, with idempotent receipts (see [the 23 September assessment](docs/VALUTAZIONE_COMMERCIALE_2026-09-23.md)). The [19 September audit](docs/AUDIT_2026-09-19.md) documents the earlier write safeguards.
 
 ## Installable app and optional project notifications
 

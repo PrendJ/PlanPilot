@@ -1,0 +1,26 @@
+name: Post-deploy smoke test
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Base URL to check"
+        required: true
+        default: "https://boardcue.draftapps.it"
+  schedule:
+    - cron: "*/30 * * * *"
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ github.event.inputs.url || 'https://boardcue.draftapps.it' }}
+    steps:
+      - name: Health endpoint answers ok (database reachable)
+        run: curl -fsS "$BASE_URL/api/health" | grep -q '"status":"ok"'
+      - name: Public pages render the product (not a login wall)
+        run: |
+          for path in / /demo /pricing /en /login /register; do
+            code=$(curl -s -o page.html -w '%{http_code}' "$BASE_URL$path"); echo "$path -> $code"; test "$code" = 200
+          done
+          curl -fsS "$BASE_URL/" | grep -q 'come-funziona'
+      - name: Private areas redirect to sign-in
+        run: test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/app")" = 307

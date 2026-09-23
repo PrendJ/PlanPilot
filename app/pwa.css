@@ -1,7 +1,0 @@
-.pwa-dialog{color:var(--da-text,#f6f7fb);background:var(--da-bg,#172033);border:1px solid #64748b;border-radius:20px;max-width:560px;width:calc(100% - 32px);max-height:85dvh;overflow:auto;padding:24px;box-sizing:border-box;line-height:1.5}
-.pwa-dialog::backdrop{background:#0009}.pwa-dialog header{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}.pwa-dialog h2{margin:0;font-size:1.3rem}.pwa-dialog h3{margin-top:24px}.pwa-dialog button,.pwa-status button{min-height:44px;white-space:normal}.pwa-dialog :focus-visible,.pwa-status :focus-visible{outline:3px solid #22d3ee;outline-offset:3px}
-.pwa-status{position:sticky;bottom:0;z-index:80;background:#101827;color:#f6f7fb;border-top:1px solid #64748b;padding:12px max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom));font-size:.9rem}.pwa-status p{margin:0}.pwa-update{display:flex;align-items:center;gap:16px}.pwa-update p{flex:1}.pwa-dialog .pwa-update{margin-bottom:12px}
-@media(max-width:480px){.pwa-dialog{padding:16px}.pwa-update{align-items:stretch;flex-direction:column;gap:8px}.pwa-dialog header{flex-wrap:wrap}}
-
-.topbar .top-actions .btn.pwa-install{display:inline-flex;min-height:44px}
-@media(max-width:420px){.topbar.authenticated{flex-wrap:wrap;gap:8px}.topbar.authenticated .top-actions{flex-wrap:wrap}}

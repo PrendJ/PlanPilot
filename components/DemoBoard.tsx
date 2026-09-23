@@ -1,73 +1,373 @@
 "use client";
 
-import { useState, type DragEvent } from "react";
+import { useMemo, useState } from "react";
+import { Icon } from "./Icon";
+import { useI18n } from "./I18nProvider";
+import { KanbanView } from "./board/KanbanView";
+import { ProposalPanel } from "./board/ProposalPanel";
+import type { Card, Column, PreviewAction, Proposal } from "./board/types";
+import { planDemoUpdate, type DemoCard, type DemoColumn, type DemoPlan } from "@/lib/demo-planner";
 
-type DemoCard = { id: string; title: string; desc: string; tags: string[] };
-type DemoColumn = { title: string; cards: DemoCard[] };
-type DemoLog = { input: string; result: string };
+type Seed = { columns: Array<DemoColumn & { description: string }>; cards: DemoCard[]; examples: string[] };
 
-const initialDemo: DemoColumn[] = [
-  { title: "Inbox", cards: [{ id: "demo-dashboard-costs", title: "Valutare dashboard query costi", desc: "Capire filtri e vista tipo Power BI semplice", tags: ["idea"] }] },
-  { title: "Next", cards: [{ id: "demo-newsletter", title: "Migrare flusso newsletter", desc: "Preparare test e limiti invio", tags: ["n8n"] }, { id: "demo-ai-workspace", title: "Allineamento workspace AI", desc: "Coinvolgere amministratori e costi", tags: ["AI"] }] },
-  { title: "In progress", cards: [{ id: "demo-zapier", title: "Migrazione Zapier → n8n", desc: "TLS 587 verificato, pronto per attivazione", tags: ["automation"] }] },
-  { title: "Waiting", cards: [{ id: "demo-drive", title: "Accesso Google Drive", desc: "Necessario per migrare i flussi successivi", tags: ["blocked"] }] },
-  { title: "Done", cards: [{ id: "demo-smtp", title: "Primo test SMTP", desc: "Configurazione validata", tags: ["done"] }] },
-  { title: "Parked", cards: [{ id: "demo-community", title: "Flussi community complessi", desc: "Da riprendere più avanti", tags: ["later"] }] },
-];
+function seed(locale: "it" | "en"): Seed {
+  const it = locale === "it";
+  const columns: Seed["columns"] = [
+    { id: "inbox", title: "Inbox", intent: "inbox", description: it ? "Idee e richieste" : "Ideas and requests" },
+    { id: "todo", title: it ? "Da fare" : "To do", intent: "todo", description: "" },
+    { id: "doing", title: it ? "In corso" : "In progress", intent: "doing", description: "" },
+    { id: "waiting", title: it ? "In attesa" : "Waiting", intent: "waiting", description: "" },
+    { id: "done", title: it ? "Fatto" : "Done", intent: "done", description: "" },
+  ];
+  const soon = (days: number) => new Date(Date.now() + days * 86400000).toISOString();
+  const cards: DemoCard[] = it
+    ? [
+        {
+          id: "c1",
+          title: "Newsletter di ottobre",
+          description: "Testi, immagini e invio alla lista clienti",
+          columnId: "doing",
+          priority: "NORMAL",
+          dueDate: soon(3),
+          tags: ["marketing"],
+        },
+        {
+          id: "c2",
+          title: "Preventivo per Studio Rossi",
+          description: "Sito vetrina + blog",
+          columnId: "todo",
+          priority: "HIGH",
+          dueDate: soon(1),
+          tags: ["cliente"],
+        },
+        {
+          id: "c3",
+          title: "Accessi al gestionale del cliente",
+          description: "Serve la password dell'amministratore",
+          columnId: "waiting",
+          priority: "NORMAL",
+          dueDate: null,
+          tags: ["bloccato"],
+        },
+        {
+          id: "c4",
+          title: "Foto del nuovo catalogo",
+          description: "Shooting in studio",
+          columnId: "todo",
+          priority: "NORMAL",
+          dueDate: null,
+          tags: ["contenuti"],
+        },
+        { id: "c5", title: "Report mensile analytics", description: "", columnId: "inbox", priority: "LOW", dueDate: null, tags: [] },
+        {
+          id: "c6",
+          title: "Test invio email SMTP",
+          description: "Configurazione validata",
+          columnId: "done",
+          priority: "NORMAL",
+          dueDate: null,
+          tags: [],
+        },
+      ]
+    : [
+        {
+          id: "c1",
+          title: "October newsletter",
+          description: "Copy, images and send to the customer list",
+          columnId: "doing",
+          priority: "NORMAL",
+          dueDate: soon(3),
+          tags: ["marketing"],
+        },
+        {
+          id: "c2",
+          title: "Quote for Rossi Studio",
+          description: "Brochure site + blog",
+          columnId: "todo",
+          priority: "HIGH",
+          dueDate: soon(1),
+          tags: ["client"],
+        },
+        {
+          id: "c3",
+          title: "Access to the client's CRM",
+          description: "We need the admin password",
+          columnId: "waiting",
+          priority: "NORMAL",
+          dueDate: null,
+          tags: ["blocked"],
+        },
+        {
+          id: "c4",
+          title: "Photos for the new catalogue",
+          description: "Studio shoot",
+          columnId: "todo",
+          priority: "NORMAL",
+          dueDate: null,
+          tags: ["content"],
+        },
+        { id: "c5", title: "Monthly analytics report", description: "", columnId: "inbox", priority: "LOW", dueDate: null, tags: [] },
+        {
+          id: "c6",
+          title: "SMTP email test",
+          description: "Configuration verified",
+          columnId: "done",
+          priority: "NORMAL",
+          dueDate: null,
+          tags: [],
+        },
+      ];
+  const examples = it
+    ? [
+        "Ho finito la newsletter di ottobre",
+        "Sono arrivati gli accessi al gestionale, ci sto lavorando",
+        "Il preventivo per Studio Rossi va consegnato venerdì, è urgente",
+        "Non ho ancora iniziato le foto del catalogo",
+      ]
+    : [
+        "I finished the October newsletter",
+        "We got access to the client's CRM, working on it now",
+        "The quote for Rossi Studio is due Friday, it's urgent",
+        "I haven't started the catalogue photos yet",
+      ];
+  return { columns, cards, examples };
+}
 
-const examples = ["Ho finito la migrazione newsletter", "Sto lavorando alla nuova dashboard economica", "Il test con Google Drive è bloccato in attesa degli accessi"];
+function toCard(card: DemoCard, index: number): Card {
+  return {
+    ...card,
+    archived: false,
+    position: index,
+    version: 1,
+    checklist: [],
+    updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    assignees: [],
+    commentCount: 0,
+  };
+}
 
-function cloneColumns(columns: DemoColumn[]) { return columns.map((column) => ({ ...column, cards: column.cards.map((card) => ({ ...card, tags: [...card.tags] })) })); }
-function targetColumn(text: string) { const value = text.toLowerCase(); if (/finito|finita|concluso|conclusa|completato|completata|fatto|fatta|done/.test(value)) return "Done"; if (/blocc|attesa|aspetto|waiting|dipend/.test(value)) return "Waiting"; if (/lavorando|iniziato|iniziata|in corso|sto facendo|started/.test(value)) return "In progress"; if (/prossim|next|da fare subito|priorit/.test(value)) return "Next"; if (/parchegg|più avanti|non priorit|later/.test(value)) return "Parked"; return "Inbox"; }
-function titleFromUpdate(text: string) { return text.replace(/^(ho|sto|stiamo|abbiamo|il|la|un|una)\s+/i, "").replace(/^(finito|finita|concluso|conclusa|completato|completata|iniziato|iniziata|lavorando a|lavorando alla|lavorando al)\s+/i, "").trim().replace(/[.!?]+$/, "").slice(0, 90) || "Nuovo aggiornamento"; }
-
+/** Public demo: same preview → apply → undo loop as the product, simulated locally (no AI call, no data sent). */
 export function DemoBoard() {
-  const [columns, setColumns] = useState<DemoColumn[]>(() => cloneColumns(initialDemo));
+  const { t, locale } = useI18n();
+  const initial = useMemo(() => seed(locale), [locale]);
+  const [cards, setCards] = useState<DemoCard[]>(initial.cards);
   const [text, setText] = useState("");
-  const [status, setStatus] = useState("");
-  const [logs, setLogs] = useState<DemoLog[]>([]);
-  const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [plan, setPlan] = useState<{ plan: DemoPlan; proposal: Proposal } | null>(null);
+  const [message, setMessage] = useState("");
+  const [history, setHistory] = useState<DemoCard[][]>([]);
+  const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
+  const columnTitle = (id: string | null) => initial.columns.find(column => column.id === id)?.title ?? null;
 
-  function applyUpdate() {
-    const input = text.trim(); if (!input) return;
-    const target = targetColumn(input);
-    const card: DemoCard = { id: crypto.randomUUID(), title: titleFromUpdate(input), desc: "Aggiornamento simulato dalla demo pubblica di BoardCue AI.", tags: ["demo"] };
-    setColumns((current) => current.map((column) => column.title === target ? { ...column, cards: [card, ...column.cards] } : column));
-    setLogs((current) => [{ input, result: `Creato in ${target}` }, ...current].slice(0, 4));
-    setStatus(`Demo: BoardCue AI ha interpretato l’aggiornamento e creato una card in “${target}”.`);
-    setText("");
-  }
-  function reset() { setColumns(cloneColumns(initialDemo)); setLogs([]); setStatus("Demo ripristinata."); setText(""); }
-  function startDrag(event: DragEvent<HTMLDivElement>, cardId: string) {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/card-id", cardId);
-    setDraggingCardId(cardId);
-  }
-  function dropCard(event: DragEvent<HTMLDivElement>, targetTitle: string) {
-    event.preventDefault();
-    const cardId = event.dataTransfer.getData("text/card-id") || draggingCardId;
-    setDragOverColumn(null);
-    setDraggingCardId(null);
-    if (!cardId) return;
-
-    const sourceColumn = columns.find((column) => column.cards.some((card) => card.id === cardId));
-    const movedCard = sourceColumn?.cards.find((card) => card.id === cardId);
-    if (!sourceColumn || !movedCard || sourceColumn.title === targetTitle) return;
-    setColumns((current) => {
-      return current.map((column) => {
-        if (column.title === sourceColumn.title) return { ...column, cards: column.cards.filter((card) => card.id !== cardId) };
-        if (column.title === targetTitle) return { ...column, cards: [movedCard, ...column.cards] };
-        return column;
-      });
+  function propose(value = text) {
+    const result = planDemoUpdate(value, cards, initial.columns, locale);
+    if (!result.actions.length) {
+      setMessage(result.summary);
+      setPlan(null);
+      return;
+    }
+    const actions: PreviewAction[] = result.actions.map((action, index) => {
+      const card = cards.find(item => item.id === action.cardId);
+      return {
+        index,
+        action: action.action,
+        cardId: action.cardId,
+        cardTitle: card?.title ?? null,
+        newTitle: action.action === "create" ? action.title : null,
+        fromColumn: card ? columnTitle(card.columnId) : null,
+        toColumn: action.targetColumnId && action.targetColumnId !== card?.columnId ? columnTitle(action.targetColumnId) : null,
+        changes: [
+          ...(action.priority ? [{ field: "priority" as const, from: card?.priority ?? null, to: action.priority }] : []),
+          ...(action.dueDate ? [{ field: "dueDate" as const, from: card?.dueDate ?? null, to: action.dueDate }] : []),
+        ],
+        reason: action.reason,
+      };
     });
-    setStatus(`Card spostata in “${targetTitle}”.`);
+    setMessage("");
+    setPlan({
+      plan: result,
+      proposal: {
+        id: "demo",
+        summary: result.summary,
+        clarification: null,
+        status: "PENDING",
+        expiresAt: "",
+        inputText: value,
+        source: "text",
+        actions,
+      },
+    });
   }
 
-  return <>
-    <div className="composer-wrap demo-composer-wrap"><div className="composer"><textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Prova: “Ho finito la migrazione newsletter” oppure “Sto lavorando alla dashboard economica”…" onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") applyUpdate(); }} /><div className="composer-tools"><button className="send-btn" disabled={!text.trim()} onClick={applyUpdate} title="Simula aggiornamento">↗</button></div></div><div className="composer-note">Demo locale · nessun login · nessuna chiamata AI · ⌘/Ctrl + Enter per provare</div><div className="demo-examples">{examples.map((example) => <button className="btn ghost" type="button" key={example} onClick={() => setText(example)}>{example}</button>)}<button className="btn" type="button" onClick={reset}>Reset demo</button></div></div>
-    {status && <div className="status demo-status">{status}</div>}
-    <div className="board-wrap"><div className="board demo-board">{columns.map((col) => <div className={`column ${dragOverColumn === col.title ? "drag-over" : ""}`} data-demo-column={col.title} key={col.title} onDragEnter={(event) => { event.preventDefault(); setDragOverColumn(col.title); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => dropCard(event, col.title)}><div className="column-head"><span>{col.title}</span><span className="count">{col.cards.length}</span></div>{col.cards.map((card) => <div className={`card ${draggingCardId === card.id ? "dragging" : ""}`} data-demo-card={card.id} draggable onDragStart={(event) => startDrag(event, card.id)} onDragEnd={() => { setDraggingCardId(null); setDragOverColumn(null); }} key={card.id}><div className="card-title">{card.title}</div><div className="card-desc">{card.desc}</div><div className="card-meta">{card.tags.map((tag) => <span className="tag" key={tag}>{tag}</span>)}</div></div>)}</div>)}</div></div>
-    {logs.length > 0 && <div className="history"><h3>Demo activity</h3>{logs.map((log, index) => <div className="log" key={`${log.input}-${index}`}><div className="log-main"><div className="log-input">{log.input}</div><div className="log-summary">{log.result}</div></div><div className="log-cost">$0 demo</div></div>)}</div>}
-  </>;
+  function apply(indexes: number[]) {
+    if (!plan) return;
+    setHistory(current => [...current, cards]);
+    let next = [...cards];
+    const touched: string[] = [];
+    plan.plan.actions.forEach((action, index) => {
+      if (!indexes.includes(index)) return;
+      if (action.action === "create") {
+        const id = `n${Date.now()}${index}`;
+        next = [
+          {
+            id,
+            title: action.title || "Card",
+            description: "",
+            columnId: action.targetColumnId || "inbox",
+            priority: action.priority || "NORMAL",
+            dueDate: action.dueDate,
+            tags: ["demo"],
+          },
+          ...next,
+        ];
+        touched.push(id);
+        return;
+      }
+      next = next.map(card =>
+        card.id === action.cardId
+          ? {
+              ...card,
+              columnId: action.targetColumnId || card.columnId,
+              priority: action.priority || card.priority,
+              dueDate: action.dueDate || card.dueDate,
+            }
+          : card,
+      );
+      if (action.cardId) touched.push(action.cardId);
+    });
+    // Moved cards go on top of their new column, like in the product.
+    next.sort((a, b) => Number(touched.includes(b.id)) - Number(touched.includes(a.id)));
+    setCards(next);
+    setPlan(null);
+    setText("");
+    setHighlighted(new Set(touched));
+    setTimeout(() => setHighlighted(new Set()), 6000);
+    setMessage(t("demo.applied"));
+  }
+
+  const columns: Column[] = initial.columns.map((column, position) => ({
+    id: column.id,
+    title: column.title,
+    description: column.description,
+    position,
+    cards: cards.filter(card => card.columnId === column.id).map(toCard),
+  }));
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      {plan ? (
+        <ProposalPanel proposal={plan.proposal} busy={false} onApply={apply} onDiscard={() => setPlan(null)} onClarify={() => undefined} />
+      ) : (
+        <div className="composer">
+          <div className="composer-row">
+            <label htmlFor="demo-input" className="sr-only">
+              {t("board.composer.label")}
+            </label>
+            <textarea
+              id="demo-input"
+              rows={1}
+              value={text}
+              onChange={event => setText(event.target.value)}
+              placeholder={t("demo.placeholder")}
+              onKeyDown={event => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  if (text.trim()) propose();
+                }
+              }}
+            />
+            <div className="composer-actions">
+              <button
+                type="button"
+                className="mic-btn"
+                aria-label={t("demo.micDisabled")}
+                title={t("demo.micDisabled")}
+                onClick={() => setMessage(t("demo.micDisabled"))}
+              >
+                <Icon name="mic" size={20} />
+              </button>
+              <button
+                type="button"
+                className="send-btn"
+                disabled={!text.trim()}
+                onClick={() => propose()}
+                aria-label={t("board.composer.send")}
+              >
+                <Icon name="send" size={20} />
+              </button>
+            </div>
+          </div>
+          <div className="composer-meta">
+            <span>
+              <Icon name="info" size={13} /> {t("demo.local")}
+            </span>
+          </div>
+          <div className="composer-examples">
+            {initial.examples.map(example => (
+              <button
+                key={example}
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setText(example);
+                  propose(example);
+                }}
+              >
+                <Icon name="sparkles" size={13} />
+                {example}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {message && (
+        <div className="notice info" role="status">
+          <Icon name="sparkles" />
+          <div className="notice-body">{message}</div>
+          {history.length > 0 && (
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => {
+                setCards(history[history.length - 1]);
+                setHistory(current => current.slice(0, -1));
+                setMessage(t("activity.undone"));
+              }}
+            >
+              <Icon name="undo" size={14} />
+              {t("activity.undo.cta")}
+            </button>
+          )}
+        </div>
+      )}
+      <KanbanView
+        columns={columns}
+        highlighted={highlighted}
+        canWrite
+        archivedView={false}
+        onOpen={() => setMessage(t("demo.openCard"))}
+        onMove={(card, columnId) => {
+          setHistory(current => [...current, cards]);
+          setCards(current => current.map(item => (item.id === card.id ? { ...item, columnId } : item)));
+        }}
+        onArchive={() => setMessage(t("demo.openCard"))}
+        onAdd={() => setMessage(t("demo.openCard"))}
+      />
+      <div className="row">
+        <span className="subtle">{t("demo.resetHint")}</span>
+        <button
+          type="button"
+          className="btn sm ghost"
+          onClick={() => {
+            setCards(initial.cards);
+            setHistory([]);
+            setPlan(null);
+            setMessage("");
+          }}
+        >
+          <Icon name="refresh" size={14} />
+          {t("demo.reset")}
+        </button>
+      </div>
+    </div>
+  );
 }

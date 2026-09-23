@@ -1,0 +1,76 @@
+{
+  "workspaceName": "Pixel & Co. – Web agency",
+  "columns": [
+    {
+      "id": "col_inbox",
+      "title": "Inbox",
+      "description": "Richieste appena arrivate, ancora da smistare e valutare.",
+      "cards": [
+        { "id": "card_preventivo_fitzone", "title": "Preventivo sito Palestra FitZone", "description": "Sito vetrina con orari corsi e iscrizione online. Preparare preventivo.", "priority": "NORMAL", "dueDate": null, "tags": ["commerciale", "preventivo", "fitzone"] },
+        { "id": "card_richiesta_ecommerce_colombo", "title": "Richiesta e-commerce Ferramenta Colombo", "description": "Il cliente vuole vendere online circa 800 articoli. Valutare WooCommerce vs Shopify.", "priority": "NORMAL", "dueDate": null, "tags": ["commerciale", "ecommerce", "colombo"] },
+        { "id": "card_bug_form_contatti", "title": "Bug form contatti Hotel Belvedere", "description": "Le email del form contatti non arrivano alla reception.", "priority": "HIGH", "dueDate": null, "tags": ["bug", "belvedere"] },
+        { "id": "card_logo_bianchi", "title": "Restyling logo Pasticceria Bianchi", "description": "Rinfrescare il logo mantenendo il colore storico.", "priority": "LOW", "dueDate": null, "tags": ["grafica", "bianchi"] }
+      ]
+    },
+    {
+      "id": "col_todo",
+      "title": "Da fare",
+      "description": "Attività pianificate ma non ancora iniziate.",
+      "cards": [
+        { "id": "card_newsletter_q3", "title": "Newsletter Q3", "description": "Newsletter trimestrale dell'agenzia con i progetti del trimestre.", "priority": "NORMAL", "dueDate": "2026-09-30T18:00:00+02:00", "tags": ["marketing", "newsletter"] },
+        { "id": "card_newsletter_premium", "title": "Newsletter clienti premium", "description": "Comunicazione dedicata ai clienti con contratto di manutenzione premium.", "priority": "NORMAL", "dueDate": "2026-10-05T18:00:00+02:00", "tags": ["marketing", "newsletter"] },
+        { "id": "card_sito_rossi_blog", "title": "Sito Rossi – blog", "description": "Sezione blog del sito Arredamenti Rossi, template articoli e categorie.", "priority": "NORMAL", "dueDate": "2026-10-09T18:00:00+02:00", "tags": ["rossi", "sito"] },
+        { "id": "card_seo_audit_verdi", "title": "Audit SEO Studio Verdi", "description": "Analisi tecnica e contenuti del sito dello Studio legale Verdi.", "priority": "NORMAL", "dueDate": "2026-10-02T18:00:00+02:00", "tags": ["seo", "verdi"] },
+        { "id": "card_backup_server", "title": "Configurare backup server", "description": "Backup notturni automatici del server di hosting clienti con test di ripristino.", "priority": "HIGH", "dueDate": "2026-09-25T18:00:00+02:00", "tags": ["interno", "infrastruttura"] },
+        { "id": "card_fattura_belvedere", "title": "Fattura acconto Hotel Belvedere", "description": "Emettere fattura del 30% di acconto per l'app prenotazioni.", "priority": "NORMAL", "dueDate": "2026-09-24T18:00:00+02:00", "tags": ["amministrazione", "belvedere"] },
+        { "id": "card_social_bianchi", "title": "Piano social ottobre Pasticceria Bianchi", "description": "Calendario editoriale Instagram e Facebook per ottobre.", "priority": "NORMAL", "dueDate": "2026-09-28T18:00:00+02:00", "tags": ["social", "bianchi"] },
+        { "id": "card_banner_black_friday", "title": "Banner Black Friday", "description": "Set di banner per campagne display e social del Black Friday.", "priority": "NORMAL", "dueDate": "2026-10-16T18:00:00+02:00", "tags": ["marketing", "grafica"] }
+      ]
+    },
+    {
+      "id": "col_doing",
+      "title": "In corso",
+      "description": "Lavori attualmente in lavorazione.",
+      "cards": [
+        { "id": "card_sito_rossi_home", "title": "Sito Rossi – home", "description": "Homepage del nuovo sito Arredamenti Rossi con slider prodotti.", "priority": "HIGH", "dueDate": "2026-09-29T18:00:00+02:00", "tags": ["rossi", "sito"] },
+        { "id": "card_app_prenotazioni_belvedere", "title": "App prenotazioni Hotel Belvedere", "description": "Web app per prenotazione camere con calendario disponibilità.", "priority": "HIGH", "dueDate": "2026-10-15T18:00:00+02:00", "tags": ["belvedere", "sviluppo"] },
+        { "id": "card_migrazione_wordpress_verdi", "title": "Migrazione WordPress Studio Verdi", "description": "Spostare il sito dal vecchio hosting a WordPress gestito.", "priority": "NORMAL", "dueDate": "2026-09-30T18:00:00+02:00", "tags": ["verdi", "wordpress"] },
+        { "id": "card_foto_prodotti_colombo", "title": "Shooting foto prodotti Colombo", "description": "Foto still life di 120 prodotti per il catalogo online.", "priority": "NORMAL", "dueDate": "2026-09-26T18:00:00+02:00", "tags": ["colombo", "foto"] },
+        { "id": "card_landing_black_friday", "title": "Landing page Black Friday", "description": "Landing con countdown e codici sconto per la campagna Black Friday.", "priority": "NORMAL", "dueDate": "2026-10-20T18:00:00+02:00", "tags": ["marketing", "landing"] }
+      ]
+    },
+    {
+      "id": "col_waiting",
+      "title": "In attesa cliente",
+      "description": "Bloccato: aspettiamo materiali, feedback o approvazioni dal cliente.",
+      "cards": [
+        { "id": "card_testi_chi_siamo_verdi", "title": "Testi pagina Chi siamo Studio Verdi", "description": "Lo studio deve fornire bio degli avvocati e storia dello studio.", "priority": "NORMAL", "dueDate": "2026-09-22T18:00:00+02:00", "tags": ["verdi", "contenuti"] },
+        { "id": "card_approvazione_menu_bianchi", "title": "Approvazione menu digitale Bianchi", "description": "Menu digitale con QR code in attesa di approvazione dei prezzi.", "priority": "NORMAL", "dueDate": null, "tags": ["bianchi", "contenuti"] },
+        { "id": "card_accesso_hosting_rossi", "title": "Credenziali hosting Rossi", "description": "Servono accessi FTP e pannello del vecchio provider.", "priority": "HIGH", "dueDate": "2026-09-24T18:00:00+02:00", "tags": ["rossi", "infrastruttura"] },
+        { "id": "card_foto_camere_belvedere", "title": "Foto camere Hotel Belvedere", "description": "L'hotel deve inviare le foto professionali delle camere.", "priority": "NORMAL", "dueDate": null, "tags": ["belvedere", "contenuti"] }
+      ]
+    },
+    {
+      "id": "col_review",
+      "title": "Revisione",
+      "description": "Pronto per revisione interna o QA prima della consegna.",
+      "cards": [
+        { "id": "card_privacy_policy", "title": "Privacy e cookie policy siti clienti", "description": "Aggiornamento informative e banner cookie secondo linee guida Garante.", "priority": "HIGH", "dueDate": "2026-09-25T18:00:00+02:00", "tags": ["legale", "gdpr"] },
+        { "id": "card_banner_autunno_bianchi", "title": "Banner autunno Pasticceria Bianchi", "description": "Banner stagionali per sito e vetrina.", "priority": "LOW", "dueDate": "2026-09-24T18:00:00+02:00", "tags": ["grafica", "bianchi"] },
+        { "id": "card_report_analytics_agosto", "title": "Report analytics agosto", "description": "Report mensile traffico e conversioni per i clienti in manutenzione.", "priority": "NORMAL", "dueDate": null, "tags": ["report", "analytics"] },
+        { "id": "card_test_mobile_belvedere", "title": "Test mobile sito Hotel Belvedere", "description": "Verifica responsive su iOS e Android.", "priority": "NORMAL", "dueDate": "2026-09-25T18:00:00+02:00", "tags": ["belvedere", "qa"] }
+      ]
+    },
+    {
+      "id": "col_done",
+      "title": "Completato",
+      "description": "Consegnato al cliente o chiuso.",
+      "cards": [
+        { "id": "card_report_analytics_luglio", "title": "Report analytics luglio", "description": "Report mensile traffico e conversioni di luglio.", "priority": "NORMAL", "dueDate": null, "tags": ["report", "analytics"] },
+        { "id": "card_dominio_colombo", "title": "Rinnovo dominio Colombo", "description": "Rinnovato per 2 anni.", "priority": "NORMAL", "dueDate": null, "tags": ["colombo", "amministrazione"] },
+        { "id": "card_kickoff_verdi", "title": "Kickoff Studio Verdi", "description": "Riunione iniziale di progetto.", "priority": "NORMAL", "dueDate": null, "tags": ["verdi"] },
+        { "id": "card_newsletter_agosto", "title": "Newsletter agosto", "description": "Newsletter estiva inviata il 20 agosto.", "priority": "NORMAL", "dueDate": null, "tags": ["marketing", "newsletter"] }
+      ]
+    }
+  ]
+}

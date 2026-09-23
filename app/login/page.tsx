@@ -1,26 +1,47 @@
-import { getCurrentUser } from "@/lib/auth";
+import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Brand } from "@/components/Brand";
-import { LoginForm } from "@/components/LoginForm";
-import { PublicFooter } from "@/components/PublicFooter";
+import { getCurrentUser } from "@/lib/auth";
 import { safeNextPath } from "@/lib/navigation";
+import { getTranslator } from "@/lib/i18n/server";
+import { pendingTwoFactor } from "@/lib/two-factor";
+import { AuthShell } from "@/components/AuthShell";
+import { LoginForm } from "@/components/AuthForms";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslator();
+  return { title: { absolute: t("auth.login.title") } };
+}
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  if (await getCurrentUser()) redirect("/app");
   const query = await searchParams;
-  const next = safeNextPath(Array.isArray(query.next) ? query.next[0] : query.next, "/app");
-  const verified = Array.isArray(query.verified) ? query.verified[0] : query.verified;
-  const reset = Array.isArray(query.reset) ? query.reset[0] : query.reset;
-  const registered = Array.isArray(query.registered) ? query.registered[0] : query.registered;
-  const notice = verified === "1"
-    ? { tone: "success" as const, message: "Email verificata. Ora puoi accedere." }
-    : verified === "invalid"
-      ? { tone: "error" as const, message: "Il link di verifica è scaduto o non è valido. Accedi per richiederne uno nuovo." }
-      : reset === "1"
-        ? { tone: "success" as const, message: "Password aggiornata. Accedi con quella nuova." }
-        : registered === "1"
-          ? { tone: "success" as const, message: "Registrazione completata. Controlla la tua email e verifica l’indirizzo prima di accedere." }
-        : undefined;
-
-  return <div className="shell auth-shell"><main className="auth-page"><div className="auth-card"><Brand/><h1>Bentornato.</h1><p>Accedi per riprendere il lavoro da dove l’hai lasciato.</p><LoginForm next={next} notice={notice}/><a className="auth-home-link" href="/demo">← Torna alla demo</a></div></main><PublicFooter/></div>;
+  const value = (key: string) => (Array.isArray(query[key]) ? query[key]![0] : query[key]);
+  const next = safeNextPath(value("next"), "/app");
+  if (await getCurrentUser()) redirect(next);
+  const { t } = await getTranslator();
+  const notice =
+    value("verified") === "1"
+      ? { tone: "success" as const, message: t("auth.notices.verified") }
+      : value("verified") === "invalid"
+        ? { tone: "error" as const, message: t("auth.notices.verifyInvalid") }
+        : value("reset") === "1"
+          ? { tone: "success" as const, message: t("auth.notices.reset") }
+          : value("magic") === "invalid"
+            ? { tone: "error" as const, message: t("auth.notices.magicInvalid") }
+            : undefined;
+  const twoFactor = value("twofactor") === "1" && (await pendingTwoFactor());
+  return (
+    <AuthShell
+      title={t("auth.login.title")}
+      subtitle={t("auth.login.subtitle")}
+      footer={
+        <>
+          {t("auth.login.noAccount")}{" "}
+          <Link href={`/register${next !== "/app" ? `?next=${encodeURIComponent(next)}` : ""}`}>{t("auth.login.createAccount")}</Link>
+        </>
+      }
+    >
+      <LoginForm next={next} notice={notice} twoFactorPending={twoFactor} />
+    </AuthShell>
+  );
 }

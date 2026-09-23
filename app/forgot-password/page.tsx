@@ -1,2 +1,20 @@
-import { Suspense } from "react"; import { Brand } from "@/components/Brand"; import { AccountForm } from "@/components/AccountForm";
-export default function ForgotPage(){return <main className="auth-page"><div className="auth-card"><Brand/><h1>Recupera l’accesso.</h1><p>Inserisci l’email usata per registrarti. Il link sarà valido per un’ora.</p><Suspense fallback={<div className="auth-state">Caricamento…</div>}><AccountForm mode="forgot"/></Suspense><a className="auth-home-link" href="/login">← Torna al login</a></div></main>}
+import type { Metadata } from "next";
+import Link from "next/link";
+import { getTranslator } from "@/lib/i18n/server";
+import { AuthShell } from "@/components/AuthShell";
+import { ForgotForm } from "@/components/AuthForms";
+
+export const metadata: Metadata = { robots: { index: false } };
+
+export default async function ForgotPage() {
+  const { t } = await getTranslator();
+  return (
+    <AuthShell
+      title={t("auth.forgot.title")}
+      subtitle={t("auth.forgot.subtitle")}
+      footer={<Link href="/login">{t("auth.backToLogin")}</Link>}
+    >
+      <ForgotForm />
+    </AuthShell>
+  );
+}

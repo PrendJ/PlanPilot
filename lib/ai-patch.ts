@@ -1,14 +1,13 @@
 import { aiPatchSchema, type AiPatch } from "@/lib/openrouter";
 
 export class InvalidAiPatchError extends Error {
-  constructor() { super("L’AI ha proposto modifiche non valide. Nessuna modifica applicata: rivedi il testo e riprova."); }
+  constructor() {
+    super("AI_INVALID_PATCH");
+  }
 }
 
 /** Validate the entire batch before the first write. Do not resolve foreign IDs. */
-export function validateAiPatch(
-  input: unknown,
-  scope: { columnIds: ReadonlySet<string>; cardIds: ReadonlySet<string> },
-): AiPatch {
+export function validateAiPatch(input: unknown, scope: { columnIds: ReadonlySet<string>; cardIds: ReadonlySet<string> }): AiPatch {
   const parsed = aiPatchSchema.safeParse(input);
   if (!parsed.success) throw new InvalidAiPatchError();
   const patch = parsed.data;
@@ -27,5 +26,13 @@ export function validateAiPatch(
     if (action.action === "archive" && (action.targetColumnId !== null || hasFields)) throw new InvalidAiPatchError();
     if (action.action === "update" && !hasFields && action.targetColumnId === null) throw new InvalidAiPatchError();
   }
-  return patch;
+  // A clarification only makes sense when nothing is proposed.
+  return patch.actions.length ? { ...patch, clarification: null } : patch;
+}
+
+/** Keeps only the actions the person selected in the preview, preserving order. */
+export function selectActions<T>(actions: T[], indexes?: number[]) {
+  if (!indexes) return actions;
+  const wanted = new Set(indexes.filter(index => Number.isInteger(index) && index >= 0 && index < actions.length));
+  return actions.filter((_, index) => wanted.has(index));
 }

@@ -28,86 +28,120 @@ enum LicenseSource {
 }
 
 model User {
-  id                      String               @id @default(cuid())
-  email                   String               @unique
-  name                    String
-  passwordHash            String
-  emailVerifiedAt         DateTime?
+  id                         String                      @id @default(cuid())
+  email                      String                      @unique
+  name                       String
+  passwordHash               String
+  emailVerifiedAt            DateTime?
   verificationReminderSentAt DateTime?
-  locale                  String               @default("it")
-  platformRole            PlatformRole         @default(USER)
-  lifecycleStatus         LifecycleStatus      @default(ACTIVE)
-  suspendedAt             DateTime?
-  archivedAt              DateTime?
-  deleteAfter             DateTime?
-  isAdmin                 Boolean              @default(false)
-  defaultOrganizationId   String?               @unique
-  lifetimeFree           Boolean              @default(false)
-  lifetimeFreeGrantedAt  DateTime?
-  lifetimeFreeGrantedBy  String?
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
-  sessions                Session[]
-  memberships             WorkspaceMember[]
-  organizationMemberships OrganizationMember[]
-  createdOrganizations    Organization[]       @relation("OrganizationCreator")
-  defaultOrganization     Organization?         @relation("DefaultOrganization", fields: [defaultOrganizationId], references: [id], onDelete: SetNull)
-  createdWorkspaces       Workspace[]          @relation("WorkspaceCreator")
-  updateLogs              UpdateLog[]
-  activityEvents          ActivityEvent[]
-  assignedCards           CardAssignee[]
-  sentInvites             WorkspaceInvite[]    @relation("InviteSender")
-  verificationTokens      VerificationToken[]
-  passwordResetTokens     PasswordResetToken[]
-  usageEvents             UsageEvent[]
-  adminAuditEvents        AdminAuditEvent[]    @relation("AdminAuditActor")
-  exchangeRateOverrides   ExchangeRateSetting[] @relation("ExchangeRateOverrideActor")
+  locale                     String                      @default("it")
+  platformRole               PlatformRole                @default(USER)
+  lifecycleStatus            LifecycleStatus             @default(ACTIVE)
+  suspendedAt                DateTime?
+  archivedAt                 DateTime?
+  deleteAfter                DateTime?
+  isAdmin                    Boolean                     @default(false)
+  defaultOrganizationId      String?                     @unique
+  lifetimeFree               Boolean                     @default(false)
+  lifetimeFreeGrantedAt      DateTime?
+  lifetimeFreeGrantedBy      String?
+  totpSecretEnc              String?
+  totpEnabledAt              DateTime?
+  totpLastStep               Int?
+  totpRecoveryCodes          Json?
+  autoApplyAi                Boolean                     @default(false)
+  autoSendDictation          Boolean                     @default(false)
+  emailDigest                Boolean                     @default(true)
+  lastDigestAt               DateTime?
+  referralCode               String?                     @unique
+  referredById               String?
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  sessions                   Session[]
+  comments                   CardComment[]
+  notifications              Notification[]              @relation("NotificationRecipient")
+  aiProposals                AiProposal[]
+  apiTokens                  ApiToken[]
+  loginTokens                LoginToken[]
+  twoFactorChallenges        TwoFactorChallenge[]
+  memberships                WorkspaceMember[]
+  organizationMemberships    OrganizationMember[]
+  createdOrganizations       Organization[]              @relation("OrganizationCreator")
+  defaultOrganization        Organization?               @relation("DefaultOrganization", fields: [defaultOrganizationId], references: [id], onDelete: SetNull)
+  createdWorkspaces          Workspace[]                 @relation("WorkspaceCreator")
+  updateLogs                 UpdateLog[]
+  activityEvents             ActivityEvent[]
+  assignedCards              CardAssignee[]
+  sentInvites                WorkspaceInvite[]           @relation("InviteSender")
+  verificationTokens         VerificationToken[]
+  passwordResetTokens        PasswordResetToken[]
+  usageEvents                UsageEvent[]
+  adminAuditEvents           AdminAuditEvent[]           @relation("AdminAuditActor")
+  exchangeRateOverrides      ExchangeRateSetting[]       @relation("ExchangeRateOverrideActor")
   complianceAcknowledgements ComplianceAcknowledgement[]
 }
 
 model Session {
   pushSubscriptions PushSubscription[]
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String             @id @default(cuid())
+  tokenHash         String             @unique
+  userId            String
+  expiresAt         DateTime
+  createdAt         DateTime           @default(now())
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model Organization {
-  id             String               @id @default(cuid())
-  name           String
-  slug           String               @unique
-  legalType      String               @default("BUSINESS")
-  plan           String               @default("TRIAL")
-  memberLimitOverride Int?
-  workspaceLimitOverride Int?
-  aiBudgetUsdOverride Float?
-  accessExpiresAt DateTime?
-  licenseSource  LicenseSource        @default(TRIAL)
-  lifecycleStatus LifecycleStatus     @default(ACTIVE)
-  suspendedAt    DateTime?
-  archivedAt     DateTime?
-  locale         String               @default("it")
-  trialEndsAt    DateTime?
+  id                         String               @id @default(cuid())
+  name                       String
+  slug                       String               @unique
+  legalType                  String               @default("BUSINESS")
+  plan                       String               @default("TRIAL")
+  memberLimitOverride        Int?
+  workspaceLimitOverride     Int?
+  aiBudgetUsdOverride        Float?
+  aiUpdatesOverride          Int?
+  accessExpiresAt            DateTime?
+  licenseSource              LicenseSource        @default(TRIAL)
+  lifecycleStatus            LifecycleStatus      @default(ACTIVE)
+  suspendedAt                DateTime?
+  archivedAt                 DateTime?
+  locale                     String               @default("it")
+  trialEndsAt                DateTime?
   trialExpirationEmailSentAt DateTime?
-  readOnlyAt     DateTime?
-  deleteAfter    DateTime?
-  createdById    String
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  createdBy      User                 @relation("OrganizationCreator", fields: [createdById], references: [id])
-  defaultForUser User?                @relation("DefaultOrganization")
-  members        OrganizationMember[]
-  workspaces     Workspace[]
-  invites        WorkspaceInvite[]
-  subscription   Subscription?
-  usageEvents    UsageEvent[]
-  activityEvents ActivityEvent[]
+  trialNudgesSent            Int                  @default(0)
+  readOnlyAt                 DateTime?
+  deleteAfter                DateTime?
+  seats                      Int?
+  billingInterval            String?
+  require2fa                 Boolean              @default(false)
+  billingName                String?
+  vatNumber                  String?
+  fiscalCode                 String?
+  sdiCode                    String?
+  pecEmail                   String?
+  billingAddress             Json?
+  firstBoardAt               DateTime?
+  firstAiUpdateAt            DateTime?
+  firstVoiceAt               DateTime?
+  firstInviteAt              DateTime?
+  firstCardMovedAt           DateTime?
+  paidAt                     DateTime?
+  createdById                String
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
+  creditGrants               CreditGrant[]
+  createdBy                  User                 @relation("OrganizationCreator", fields: [createdById], references: [id])
+  defaultForUser             User?                @relation("DefaultOrganization")
+  members                    OrganizationMember[]
+  workspaces                 Workspace[]
+  invites                    WorkspaceInvite[]
+  subscription               Subscription?
+  usageEvents                UsageEvent[]
+  activityEvents             ActivityEvent[]
 
   @@index([lifecycleStatus, deleteAfter])
 }
@@ -126,33 +160,37 @@ model OrganizationMember {
 }
 
 model Workspace {
-  id                   String            @id @default(cuid())
-  organizationId       String
-  name                 String
-  slug                 String            @unique
-  presetKey            String            @default("GENERAL")
-  locale               String            @default("it")
-  revision             Int               @default(0)
-  openrouterKeyEnv     String            @default("")
-  planModel            String            @default("openai/gpt-5-nano")
-  transcriptionModel   String            @default("openai/whisper-large-v3-turbo")
-  dictationEnabled     Boolean           @default(true)
-  lifecycleStatus      LifecycleStatus   @default(ACTIVE)
-  suspendedAt          DateTime?
-  archivedAt           DateTime?
-  deleteAfter          DateTime?
-  createdById          String
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-  organization         Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy            User              @relation("WorkspaceCreator", fields: [createdById], references: [id])
-  members              WorkspaceMember[]
-  columns              BoardColumn[]
-  cards                Card[]
-  updateLogs           UpdateLog[]
-  invites              WorkspaceInvite[]
-  usageEvents          UsageEvent[]
-  activityEvents       ActivityEvent[]
+  id                 String            @id @default(cuid())
+  organizationId     String
+  name               String
+  slug               String            @unique
+  presetKey          String            @default("GENERAL")
+  locale             String            @default("it")
+  revision           Int               @default(0)
+  openrouterKeyEnv   String            @default("")
+  planModel          String            @default("google/gemini-2.5-flash-lite")
+  transcriptionModel String            @default("mistralai/voxtral-mini-transcribe")
+  dictationEnabled   Boolean           @default(true)
+  lifecycleStatus    LifecycleStatus   @default(ACTIVE)
+  suspendedAt        DateTime?
+  archivedAt         DateTime?
+  deleteAfter        DateTime?
+  createdById        String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy          User              @relation("WorkspaceCreator", fields: [createdById], references: [id])
+  members            WorkspaceMember[]
+  columns            BoardColumn[]
+  cards              Card[]
+  updateLogs         UpdateLog[]
+  invites            WorkspaceInvite[]
+  usageEvents        UsageEvent[]
+  activityEvents     ActivityEvent[]
+  comments           CardComment[]
+  notifications      Notification[]
+  aiProposals        AiProposal[]
+  webhooks           Webhook[]
 
   @@index([organizationId])
   @@index([lifecycleStatus, deleteAfter])
@@ -172,20 +210,20 @@ model WorkspaceMember {
 }
 
 model WorkspaceInvite {
-  id             String        @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   workspaceId    String?
   invitedById    String
   email          String
-  role           String        @default("MEMBER")
-  tokenHash      String        @unique
+  role           String       @default("MEMBER")
+  tokenHash      String       @unique
   expiresAt      DateTime
   acceptedAt     DateTime?
   revokedAt      DateTime?
-  createdAt      DateTime      @default(now())
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  workspace      Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  invitedBy      User          @relation("InviteSender", fields: [invitedById], references: [id])
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace      Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy      User         @relation("InviteSender", fields: [invitedById], references: [id])
 
   @@index([email, expiresAt])
   @@index([organizationId])
@@ -207,21 +245,25 @@ model BoardColumn {
 }
 
 model Card {
-  id          String         @id @default(cuid())
-  workspaceId String
-  columnId    String
-  title       String
-  description String         @default("")
-  priority    String         @default("NORMAL")
-  dueDate     DateTime?
-  tags        Json           @default("[]")
-  position    Int            @default(0)
-  archived    Boolean        @default(false)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  column      BoardColumn    @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  assignees   CardAssignee[]
+  id                String         @id @default(cuid())
+  workspaceId       String
+  columnId          String
+  title             String
+  description       String         @default("")
+  priority          String         @default("NORMAL")
+  dueDate           DateTime?
+  tags              Json           @default("[]")
+  checklist         Json           @default("[]")
+  position          Int            @default(0)
+  version           Int            @default(1)
+  archived          Boolean        @default(false)
+  dueReminderSentAt DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  workspace         Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  column            BoardColumn    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  assignees         CardAssignee[]
+  comments          CardComment[]
 
   @@index([workspaceId, archived])
   @@index([columnId, position])
@@ -260,7 +302,7 @@ model UpdateLog {
 
 model ActivityEvent {
   pushDeliveries PushDelivery[]
-  id             String        @id @default(cuid())
+  id             String         @id @default(cuid())
   organizationId String
   workspaceId    String?
   userId         String
@@ -270,12 +312,12 @@ model ActivityEvent {
   batchId        String?
   beforeState    Json?
   afterState     Json?
-  undoable       Boolean       @default(false)
+  undoable       Boolean        @default(false)
   undoneAt       DateTime?
-  createdAt      DateTime      @default(now())
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  workspace      Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now())
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace      Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
   @@index([workspaceId, createdAt])
@@ -283,20 +325,22 @@ model ActivityEvent {
 }
 
 model UsageEvent {
-  id                String        @id @default(cuid())
+  id                String       @id @default(cuid())
   organizationId    String
   workspaceId       String?
   userId            String?
-  providerRequestId String?       @unique
+  providerRequestId String?      @unique
   category          String
   model             String
   costUsd           Float
+  units             Int          @default(0)
+  fromCredits       Boolean      @default(false)
   periodKey         String
   metadata          Json?
-  createdAt         DateTime      @default(now())
-  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  workspace         Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  user              User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt         DateTime     @default(now())
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace         Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, periodKey])
 }
@@ -307,6 +351,8 @@ model Subscription {
   stripeCustomerId     String?      @unique
   stripeSubscriptionId String?      @unique
   stripePriceId        String?
+  plan                 String?
+  customerType         String?
   status               String       @default("trialing")
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean      @default(false)
@@ -334,13 +380,13 @@ model VerificationToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
 }
@@ -373,58 +419,222 @@ model RetainedRecord {
 }
 
 model ComplianceAcknowledgement {
-  id        String   @id @default(cuid())
-  userId    String
-  policyKey String
-  version   String
+  id         String   @id @default(cuid())
+  userId     String
+  policyKey  String
+  version    String
   acceptedAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, policyKey, version])
 }
 
 model ExchangeRateSetting {
-  id                  String   @id
-  manualUsdToEur      Float?
-  manualSetAt         DateTime?
-  manualSetById       String?
-  latestUsdToEur      Float?
-  latestSource        String?
-  latestObservedAt    DateTime?
-  latestFetchedAt     DateTime?
-  lastFetchError      String?
-  updatedAt           DateTime @updatedAt
-  manualSetBy         User?    @relation("ExchangeRateOverrideActor", fields: [manualSetById], references: [id], onDelete: SetNull)
+  id               String    @id
+  manualUsdToEur   Float?
+  manualSetAt      DateTime?
+  manualSetById    String?
+  latestUsdToEur   Float?
+  latestSource     String?
+  latestObservedAt DateTime?
+  latestFetchedAt  DateTime?
+  lastFetchError   String?
+  updatedAt        DateTime  @updatedAt
+  manualSetBy      User?     @relation("ExchangeRateOverrideActor", fields: [manualSetById], references: [id], onDelete: SetNull)
 
   @@index([manualSetById])
 }
 
 model PushSubscription {
-  id        String @id @default(cuid())
-  sessionId String
-  endpoint  String @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now())
-  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id         String         @id @default(cuid())
+  sessionId  String
+  endpoint   String         @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime       @default(now())
+  session    Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   deliveries PushDelivery[]
 
   @@index([sessionId])
 }
 
 model PushDelivery {
-  id             String @id @default(cuid())
+  id             String           @id @default(cuid())
   subscriptionId String
   eventId        String
   dedupKey       String
-  attempts       Int @default(0)
-  availableAt    DateTime @default(now())
+  attempts       Int              @default(0)
+  availableAt    DateTime         @default(now())
   leaseUntil     DateTime?
   leaseToken     String?
-  createdAt      DateTime @default(now())
-  subscription PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  event ActivityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  subscription   PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  event          ActivityEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([subscriptionId, dedupKey])
   @@index([availableAt, leaseUntil])
+}
+
+model CardComment {
+  id          String    @id @default(cuid())
+  cardId      String
+  workspaceId String
+  userId      String
+  body        String    @db.Text
+  mentions    Json      @default("[]")
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  card        Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, createdAt])
+  @@index([workspaceId])
+}
+
+model Notification {
+  id          String     @id @default(cuid())
+  userId      String
+  workspaceId String?
+  cardId      String?
+  actorId     String?
+  type        String
+  payload     Json       @default("{}")
+  readAt      DateTime?
+  emailedAt   DateTime?
+  createdAt   DateTime   @default(now())
+  user        User       @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([emailedAt, createdAt])
+}
+
+model AiProposal {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  userId        String
+  source        String
+  inputText     String    @db.Text
+  summary       String    @default("")
+  actions       Json
+  clarification Json?
+  baseRevision  Int
+  cardVersions  Json      @default("{}")
+  model         String
+  cost          Float?
+  status        String    @default("PENDING")
+  expiresAt     DateTime
+  appliedAt     DateTime?
+  updateLogId   String?   @unique
+  receipt       Json?
+  createdAt     DateTime  @default(now())
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([status, expiresAt])
+}
+
+model CreditGrant {
+  id              String       @id @default(cuid())
+  organizationId  String
+  units           Int
+  remaining       Int
+  source          String
+  stripeSessionId String?      @unique
+  createdAt       DateTime     @default(now())
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, remaining])
+}
+
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+model ProductEvent {
+  id    String @id @default(cuid())
+  name  String
+  day   String
+  count Int    @default(0)
+
+  @@unique([name, day])
+}
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  prefix     String
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Webhook {
+  id          String            @id @default(cuid())
+  workspaceId String
+  url         String
+  format      String            @default("json")
+  secret      String
+  events      Json              @default("[]")
+  active      Boolean           @default(true)
+  createdById String
+  lastStatus  Int?
+  lastError   String?
+  createdAt   DateTime          @default(now())
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deliveries  WebhookDelivery[]
+
+  @@index([workspaceId])
+}
+
+model WebhookDelivery {
+  id          String    @id @default(cuid())
+  webhookId   String
+  eventType   String
+  payload     Json
+  attempts    Int       @default(0)
+  availableAt DateTime  @default(now())
+  leaseUntil  DateTime?
+  deliveredAt DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  webhook     Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([deliveredAt, availableAt])
+}
+
+model LoginToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model TwoFactorChallenge {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
