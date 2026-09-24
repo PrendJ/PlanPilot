@@ -1,8 +1,10 @@
 /*
- * BoardCue design tokens — single source of truth for colour, type, radius and elevation.
- * Palettes "Paper" (light) and "Graphite" (dark); every text/background pair used in the UI
- * meets WCAG AA (see docs/VALUTAZIONE_COMMERCIALE_2026-09-23.md §6). Components never use raw hex.
- * Signal (orange) is reserved for voice and AI activity; it never means success or error.
+ * BoardCue design tokens — single source of truth for colour, type, geometry, motion and elevation.
+ * Colour: the product palettes "Paper" (light) and "Graphite" (dark); every text/background pair used in
+ * the UI meets WCAG AA (see docs/VALUTAZIONE_COMMERCIALE_2026-09-23.md §6). Components never use raw hex.
+ * Everything else follows the Draft UI Language v1.2 (docs/UI_SYSTEM.md): square structural geometry,
+ * monospace technical labels, 1px borders, signal rails and rare offset accents, motion tied to state.
+ * Signal (orange) marks voice/AI activity and the signature offset accent; it never means success or error.
  */
 :root,
 [data-theme="light"] {
@@ -33,10 +35,13 @@
   --info: #1f66d1;
   --info-soft: #e8f0fc;
   --logo-dot: #f25a28;
+  --focus: #1f5fd6;
+  --glass: rgba(246, 247, 249, 0.82);
   --overlay: rgba(18, 21, 28, 0.45);
-  --shadow-1: 0 1px 2px rgba(18, 21, 28, 0.06), 0 1px 1px rgba(18, 21, 28, 0.04);
-  --shadow-2: 0 8px 24px rgba(18, 21, 28, 0.1), 0 2px 6px rgba(18, 21, 28, 0.06);
-  --shadow-3: 0 24px 64px rgba(18, 21, 28, 0.18), 0 4px 12px rgba(18, 21, 28, 0.08);
+  /* Panels carry no shadow; only raised surfaces (menus, dialogs, toasts) do. */
+  --shadow-1: none;
+  --shadow-2: 0 10px 28px rgba(18, 21, 28, 0.1);
+  --shadow-3: 0 14px 34px rgba(18, 21, 28, 0.16);
 }
 
 [data-theme="dark"] {
@@ -67,19 +72,28 @@
   --info: #6aa8ff;
   --info-soft: #172640;
   --logo-dot: #ff7a4d;
+  --focus: #7cc4ff;
+  --glass: rgba(13, 15, 20, 0.8);
   --overlay: rgba(0, 0, 0, 0.6);
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-3: 0 28px 72px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-1: none;
+  --shadow-2: 0 12px 30px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 14px 34px rgba(0, 0, 0, 0.5);
 }
 
 :root {
-  --font-sans: var(--font-geist-sans), "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --radius-control: 6px;
-  --radius-card: 10px;
-  --radius-panel: 14px;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  /* Geometry: structural surfaces, buttons and inputs are square. Pills only for chips, tags, switches, dots. */
+  --radius-structural: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px; /* compact overlays: menus, dialogs */
   --radius-pill: 999px;
+  --radius-control: var(--radius-structural);
+  --radius-card: var(--radius-structural);
+  --radius-panel: var(--radius-structural);
+  /* Signal rail (selected/important/AI) and the rare offset accent for special objects. */
+  --rail: 3px;
+  --offset: 4px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -88,6 +102,11 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 72px;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --topbar-height: 60px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-medium: 260ms;
+  --layout-content: 1180px;
+  --layout-reading: 720px;
+  --topbar-height: 64px;
 }

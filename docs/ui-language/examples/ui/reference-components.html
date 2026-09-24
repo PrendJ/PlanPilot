@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Draft UI — Component reference</title>
+<link rel="stylesheet" href="draft-ui-reference.css">
+</head>
+<body>
+<nav class="demo-chrome">
+  <div class="demo-brand">draft<em>.</em>ui</div>
+  <div class="demo-nav"><a aria-current="page" href="#">Components</a><a href="#">Patterns</a><a href="#">States</a></div>
+  <div class="demo-utils"><button class="icon-btn" id="theme">◐</button></div>
+</nav>
+<main class="demo-shell" style="padding:54px 0 100px">
+  <div class="eyebrow">REFERENCE / COMPONENTS</div>
+  <h1 class="page-title" style="max-width:850px">A product system with character, not a costume.</h1>
+  <p class="page-lead">The recognizable part is the relationship between type, borders, accent rails and states — not a pile of decorative effects.</p>
+
+  <section class="component-block">
+    <h2>Buttons</h2>
+    <div class="component-row">
+      <button class="btn btn-primary">Primary action</button>
+      <button class="btn btn-secondary">Secondary</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn btn-special">Signature action</button>
+      <button class="btn btn-danger">Delete</button>
+      <button class="icon-btn" aria-label="Settings">⚙</button>
+    </div>
+  </section>
+
+  <section class="component-block">
+    <h2>Filters & metadata</h2>
+    <div class="component-row">
+      <button class="filter active">Everything</button>
+      <button class="filter">Serious</button>
+      <button class="filter">Weird</button>
+      <span class="meta">SYSTEM / LIVE</span>
+      <span class="status">Ready</span>
+      <span class="status warn">Needs review</span>
+    </div>
+  </section>
+
+  <section class="component-block">
+    <h2>Form</h2>
+    <div class="form-grid">
+      <div class="field"><label>Scenario name</label><input value="Base case"></div>
+      <div class="field"><label>Period</label><select><option>Q4 2026</option></select></div>
+      <div class="field" style="grid-column:1/-1"><label>Notes</label><textarea>Use the current pipeline conversion as the baseline.</textarea></div>
+    </div>
+  </section>
+
+  <section class="component-block">
+    <h2>Panels</h2>
+    <div class="grid">
+      <article class="panel signal">
+        <div class="eyebrow">ACTIVE PANEL</div>
+        <h3>Signal rail</h3>
+        <p style="color:var(--draft-text-muted)">Use this to communicate focus without filling the whole card with color.</p>
+      </article>
+      <article class="panel">
+        <div class="eyebrow">STANDARD PANEL</div>
+        <h3>Quiet structure</h3>
+        <p style="color:var(--draft-text-muted)">Most content should remain calm.</p>
+      </article>
+      <article class="panel" style="box-shadow:5px 5px 0 var(--draft-pink)">
+        <div class="eyebrow">SPECIAL OBJECT</div>
+        <h3>Offset accent</h3>
+        <p style="color:var(--draft-text-muted)">Use rarely. It works because everything else is restrained.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="component-block">
+    <h2>Empty state</h2>
+    <div class="empty">
+      <div>
+        <div class="eyebrow">NO DATA / YET</div>
+        <h2>Nothing to compare.</h2>
+        <p>Add the first scenario and this space will become much less existential.</p>
+        <button class="btn btn-primary">Create scenario</button>
+      </div>
+      <div class="empty-glyph">∅</div>
+    </div>
+  </section>
+</main>
+<script>
+const root=document.documentElement;
+document.getElementById('theme').addEventListener('click',()=>{
+  root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+});
+</script>
+</body>
+</html>

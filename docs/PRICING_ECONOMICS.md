@@ -12,8 +12,8 @@
 - **Nessuna cancellazione per mancato pagamento**: a fine prova o abbonamento il team viene congelato in sola lettura, consultabile ed esportabile.
 - **2FA con app di autenticazione per tutti i piani**; nel Business il proprietario può renderla obbligatoria.
 - **AI via OpenRouter, endpoint standard** (niente piano Business): solo provider a zero conservazione che non addestrano sui dati; il provider non deve essere europeo. Fee OpenRouter 5,5%.
-- **Pro a €7/mese**, annuale con 2 mesi gratis (€70/anno). **Team e Business riscalati** in proporzione: €6 e €10 per posto.
-- **Privati: prezzo IVA inclusa arrotondato per difetto alla decina di centesimi** (Pro €7 × 1,22 = €8,54 → €8,50). L'annuale privati resta "2 mesi gratis" esatto: 10 × il mensile.
+- **Pro a €7/mese**, annuale con 2 mesi gratis (€69,60/anno, cioè €5,80 al mese). **Team e Business riscalati** in proporzione: €6 e €10 per posto.
+- **Arrotondamento: ogni prezzo mensile mostrato è arrotondato per difetto alla decina di centesimi** (8,33 → 8,30; 8,54 → 8,50). Vale per i privati (netto × 1,22) e per il mensile equivalente degli annuali (10/12 del mensile). L'importo annuale è esattamente 12 × il mensile equivalente, quindi la pagina mostra ciò che Stripe addebita; lo sconto risulta di poco superiore a 2 mesi.
 - **Compatibile con lo Stripe attuale**: nessun prezzo da creare a mano (vedi in fondo).
 
 ## Listino
@@ -21,9 +21,9 @@
 | Piano | Aziende e professionisti (IVA esclusa) | Privati (IVA inclusa) | Persone | Aggiornamenti AI/mese | Extra |
 |---|---|---|---|---|---|
 | **Prova Pro** | €0 per 14 giorni | €0 per 14 giorni | 1 | 150 in totale | tutte le funzioni Pro |
-| **Pro** | €7/mese · €70/anno | €8,50/mese · €85/anno | 1 | 800 | board illimitate, dettatura, anteprima, viste, import/export, 2FA |
-| **Team** | €6/posto/mese · €60/posto/anno (min. 2) | €7,30 · €73 | per posto | 600 per posto, condivisi | tempo reale, commenti e menzioni, ospiti gratuiti, API e webhook |
-| **Business** | €10/posto/mese · €100/posto/anno (min. 2) | €12,20 · €122 | per posto | 1.000 per posto, condivisi | 2FA obbligatoria per il team, export audit, supporto prioritario, call di onboarding |
+| **Pro** | €7/mese · €69,60/anno (€5,80/mese) | €8,50/mese · €84/anno (€7,00/mese) | 1 | 800 | board illimitate, dettatura, anteprima, viste, import/export, 2FA |
+| **Team** | €6/posto/mese · €60/posto/anno (€5,00/mese; min. 2) | €7,30 · €72 (€6,00/mese) | per posto | 600 per posto, condivisi | tempo reale, commenti e menzioni, ospiti gratuiti, API e webhook |
+| **Business** | €10/posto/mese · €99,60/posto/anno (€8,30/mese; min. 2) | €12,20 · €121,20 (€10,10/mese) | per posto | 1.000 per posto, condivisi | 2FA obbligatoria per il team, export audit, supporto prioritario, call di onboarding |
 | **Enterprise** | su preventivo (da 25 posti) | — | su misura | su misura | prezzo per volume, onboarding e formazione |
 | **Pacchetto** | €6 una tantum | €7,30 | — | +1.000, non scadono | usati dopo quelli inclusi nel mese |
 
@@ -69,7 +69,7 @@ Alternative a costo simile: GPT-5 nano ($0,05/$0,40, ragionamento minimo) ≈ $0
 |---|---|---|---|---|---|
 | Pro mensile, azienda | €7,00 | €1,12 (800) | €0,44 | €0,10 | **€5,34 (76%)** |
 | Pro mensile, privato (€8,50 IVA incl.) | €6,97 | €1,12 | €0,48 | €0,10 | **€5,27 (76%)** |
-| Pro annuale | €5,83 | €1,12 | €0,18 | €0,10 | **€4,43 (76%)** |
+| Pro annuale | €5,80 | €1,12 | €0,18 | €0,10 | **€4,40 (76%)** |
 | Team, 2 posti | €12,00 | €1,68 (1.200) | €0,57 | €0,10 | **€9,65 (80%)** |
 | Team, 5 posti | €30,00 | €4,20 (3.000) | €1,06 | €0,10 | **€24,64 (82%)** |
 | Business, 2 posti | €20,00 | €2,80 (2.000) | €0,79 | €0,10 | **€16,31 (82%)** |
@@ -85,8 +85,8 @@ L'arrotondamento per difetto dei prezzi privati costa al massimo €0,03 per pos
 |---|---|---|
 | Pro mensile, uso realistico (200 aggiornamenti) | €6,18 | **10** |
 | Pro mensile, caso peggiore (800) | €5,34 | **12** |
-| Pro annuale, uso realistico | €5,27 | **12** |
-| Pro annuale, caso peggiore | €4,43 | **14** |
+| Pro annuale, uso realistico | €5,24 | **12** |
+| Pro annuale, caso peggiore | €4,40 | **14** |
 | Team da 2 posti, caso peggiore | €9,65 | 7 |
 | Business da 2 posti, caso peggiore | €16,31 | 4 |
 

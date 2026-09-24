@@ -28,6 +28,12 @@ test("pricing shows the agreed plans, seats and Enterprise without SSO/SLA promi
   await expect(price("Business")).toHaveText("€12,20");
   await expect(page.getByText("IVA inclusa, fatturazione mensile").first()).toBeVisible();
   await page.getByRole("button", { name: "Aziende e professionisti", exact: true }).click();
+  // Annual: the monthly equivalent is rounded down to ten cents too (€100/12 = €8.33 → €8.30).
+  await page.getByRole("button", { name: /^Annuale/ }).click();
+  await expect(price("Pro")).toHaveText("€5,80");
+  await expect(price("Business")).toHaveText("€8,30");
+  await expect(page.getByText("€69,60 fatturati una volta l’anno, IVA esclusa")).toBeVisible();
+  await page.getByRole("button", { name: "Mensile", exact: true }).click();
   await expect(page.getByText("Minimo 2 posti. Gli ospiti non occupano posti.").first()).toBeVisible();
   await expect(page.getByText("Dettatura vocale inclusa")).toBeVisible();
   await expect(page.getByText(/SSO|SLA|DPA/)).toHaveCount(0);
@@ -90,4 +96,14 @@ test("an incomplete reset link offers a recovery path", async ({ page }) => {
 test("private areas redirect to sign-in", async ({ page }) => {
   await page.goto("/account");
   await expect(page).toHaveURL(/\/login\?next=%2Faccount/);
+});
+
+test("favicon and PWA icons are served, with cache-busting URLs", async ({ page, request }) => {
+  await page.goto("/");
+  const hrefs = await page.$$eval('link[rel*="icon"]', nodes => nodes.map(node => node.getAttribute("href")!));
+  expect(hrefs).toEqual(expect.arrayContaining([expect.stringMatching(/^\/icon\.svg\?v=/), expect.stringMatching(/^\/favicon\.ico\?v=/)]));
+  const manifest = await (await request.get("/manifest.webmanifest")).json();
+  const srcs = manifest.icons.map((icon: { src: string }) => icon.src);
+  expect(srcs.every((src: string) => src.includes("?v="))).toBe(true);
+  for (const url of ["/favicon.ico", ...hrefs, ...srcs]) expect((await request.get(url)).ok(), url).toBe(true);
 });

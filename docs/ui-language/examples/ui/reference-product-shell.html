@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Draft UI — Product shell reference</title>
+<link rel="stylesheet" href="draft-ui-reference.css">
+</head>
+<body>
+<nav class="demo-chrome">
+  <div class="demo-brand">draft<em>.</em>forecast</div>
+  <div class="demo-nav">
+    <a href="#" aria-current="page">Overview</a>
+    <a href="#">Scenarios</a>
+    <a href="#">Reports</a>
+  </div>
+  <div class="demo-utils">
+    <span class="meta">SYSTEM / LIVE</span>
+    <button class="icon-btn" id="theme" aria-label="Toggle theme">◐</button>
+  </div>
+</nav>
+
+<div class="demo-shell layout">
+  <aside class="sidebar">
+    <div class="side-group">
+      <div class="side-label">Workspace</div>
+      <a class="side-link active" href="#"><span>Forecast</span><span>12</span></a>
+      <a class="side-link" href="#"><span>Actuals</span><span>✓</span></a>
+      <a class="side-link" href="#"><span>Budget</span><span>4</span></a>
+    </div>
+    <div class="side-group">
+      <div class="side-label">Analysis</div>
+      <a class="side-link" href="#"><span>Drivers</span></a>
+      <a class="side-link" href="#"><span>Segments</span></a>
+      <a class="side-link" href="#"><span>Notes</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">WORKSPACE / Q4 FORECAST</div>
+        <h1 class="page-title">Outlook, without the spreadsheet archaeology.</h1>
+        <p class="page-lead">Compare actuals, budget and scenarios in one view. Strong hierarchy, quiet panels and one electric signal.</p>
+      </div>
+      <button class="btn btn-primary">Create scenario</button>
+    </header>
+
+    <div class="toolbar">
+      <button class="filter active">All segments</button>
+      <button class="filter">Enterprise</button>
+      <button class="filter">SMB</button>
+      <button class="filter">New business</button>
+    </div>
+
+    <section class="grid">
+      <article class="panel signal">
+        <div class="eyebrow">REVENUE</div>
+        <div class="metric">€1.82M</div>
+        <div class="delta">+8.2% vs budget</div>
+      </article>
+      <article class="panel">
+        <div class="eyebrow">GROSS MARGIN</div>
+        <div class="metric">64.8%</div>
+        <div class="meta">+1.4 pts</div>
+      </article>
+      <article class="panel">
+        <div class="eyebrow">RUNWAY</div>
+        <div class="metric">17 mo</div>
+        <div class="meta">base scenario</div>
+      </article>
+
+      <article class="panel table-panel span-8">
+        <div class="table-head">
+          <div>
+            <div class="eyebrow">SCENARIOS / ACTIVE</div>
+            <h3>Quarterly outlook</h3>
+          </div>
+          <button class="btn btn-secondary">Compare</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Scenario</th><th>Status</th><th class="num">Revenue</th><th class="num">Margin</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Base case</td><td><span class="status">Active</span></td><td class="num">€1.82M</td><td class="num">64.8%</td></tr>
+              <tr><td>Growth push</td><td><span class="status warn">Review</span></td><td class="num">€2.04M</td><td class="num">62.3%</td></tr>
+              <tr><td>Conservative</td><td><span class="status">Ready</span></td><td class="num">€1.61M</td><td class="num">66.1%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-4">
+        <div class="eyebrow">NEXT REVIEW</div>
+        <h3>Assumptions</h3>
+        <p style="color:var(--draft-text-muted)">Three inputs changed since the last approved scenario.</p>
+        <button class="btn btn-special" style="margin-top:18px">Review changes</button>
+      </article>
+    </section>
+
+    <section class="insight">
+      <div class="insight-icon">✦</div>
+      <div>
+        <div class="eyebrow">SYSTEM / AI SUGGESTION</div>
+        <strong>Demand may be underestimated in the Enterprise segment.</strong>
+        <p>Based on the last 12 weeks, pipeline conversion is running 6.4% above the assumption used in the base scenario.</p>
+      </div>
+      <button class="btn btn-ghost">Inspect</button>
+    </section>
+  </main>
+</div>
+
+<script>
+const root=document.documentElement;
+document.getElementById('theme').addEventListener('click',()=>{
+  root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+});
+</script>
+</body>
+</html>

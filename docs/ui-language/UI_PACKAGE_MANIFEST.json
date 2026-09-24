@@ -1,0 +1,26 @@
+{
+  "name": "Draft UI Language",
+  "purpose": "Standalone shared UI identity layer for future project template integration",
+  "scope": "UI only",
+  "expression_modes": [
+    "utility",
+    "signature",
+    "showcase"
+  ],
+  "reference_examples": [
+    "examples/ui/reference-product-shell.html",
+    "examples/ui/reference-components.html"
+  ],
+  "screenshots": [],
+  "version": "1.2",
+  "geometry": "sharp structural geometry: 0px default radius; pills only for semantic capsule controls",
+  "screenshot_note": "v1.0 PNG previews removed because they showed the superseded soft-radius geometry; render examples/ui HTML for current reference",
+  "color_policy": "adaptive: preserve existing/agreed project palette; derive context-appropriate palette only when absent; Draft colors are fallback/demo only",
+  "palette_authority": [
+    "existing project tokens",
+    "explicitly agreed brand/product palette",
+    "context-derived product palette",
+    "Draft reference fallback"
+  ],
+  "reference_palette_role": "examples and greenfield fallback only; never automatically overwrite target project colors"
+}

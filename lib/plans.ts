@@ -40,12 +40,12 @@ const base = {
 
 export const PLANS: Record<PlanKey, PlanConfig> = {
   TRIAL: { ...base, label: "Prova Pro", priceEur: 0, memberLimit: 1, aiUpdates: 150 },
-  PRO: { ...base, label: "Pro", priceEur: 7, priceEurYearly: 70, memberLimit: 1, aiUpdates: 800, sellable: true },
+  PRO: { ...base, label: "Pro", priceEur: 7, priceEurYearly: annualEur(7), memberLimit: 1, aiUpdates: 800, sellable: true },
   TEAM: {
     ...base,
     label: "Team",
     priceEur: 6,
-    priceEurYearly: 60,
+    priceEurYearly: annualEur(6),
     seatBased: true,
     minSeats: 2,
     memberLimit: 2,
@@ -57,7 +57,7 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
     ...base,
     label: "Business",
     priceEur: 10,
-    priceEurYearly: 100,
+    priceEurYearly: annualEur(10),
     seatBased: true,
     minSeats: 2,
     memberLimit: 2,
@@ -109,19 +109,32 @@ export type CustomerType = "business" | "consumer";
 export const CONSUMER_VAT_RATE = 0.22;
 
 /**
- * VAT-inclusive price for private customers, in cents: net × 1.22 rounded down to the lower ten cents
- * (Pro €7 → €8.50). The annual price keeps "2 months free" exact: 10 × the consumer monthly price.
+ * Pricing rule: every price shown per month is rounded DOWN to the lower ten cents (8.33 → 8.30, 8.54 → 8.50).
+ * Annual plans give 2 months free: the monthly equivalent is 10/12 of the monthly price, rounded down, and the
+ * annual amount is exactly 12 × that equivalent, so the page shows what Stripe charges.
  */
-export function consumerPriceCents(netMonthlyEur: number, months = 1) {
-  const monthly = Math.floor(Math.round(netMonthlyEur * 100 * (1 + CONSUMER_VAT_RATE)) / 10) * 10;
-  return monthly * months;
+export function floorToTenCents(cents: number) {
+  return Math.floor(Math.round(cents) / 10) * 10;
+}
+
+export function annualCents(monthlyCents: number) {
+  return 12 * floorToTenCents((monthlyCents * 10) / 12);
+}
+
+function annualEur(monthlyEur: number) {
+  return annualCents(monthlyEur * 100) / 100;
+}
+
+/** VAT-inclusive monthly price for private customers, in cents: net × 1.22 rounded down (Pro €7 → €8.50). */
+export function consumerPriceCents(netMonthlyEur: number) {
+  return floorToTenCents(netMonthlyEur * 100 * (1 + CONSUMER_VAT_RATE));
 }
 
 /** Amount charged by Stripe, in cents, for one unit (seat) of a plan. */
 export function planPriceCents(plan: SellablePlanKey, interval: "month" | "year", customerType: CustomerType) {
   const config = PLANS[plan];
-  if (customerType === "consumer") return consumerPriceCents(config.priceEur!, interval === "year" ? 10 : 1);
-  return Math.round((interval === "year" ? config.priceEurYearly! : config.priceEur!) * 100);
+  const monthly = customerType === "consumer" ? consumerPriceCents(config.priceEur!) : Math.round(config.priceEur! * 100);
+  return interval === "year" ? annualCents(monthly) : monthly;
 }
 
 export function creditPackPriceCents(customerType: CustomerType) {

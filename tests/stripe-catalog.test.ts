@@ -105,7 +105,7 @@ describe("self-provisioned Stripe catalogue", () => {
     await creditPackPrice("consumer");
     expect(store.prices.map(price => [price.lookup_key, price.unit_amount, price.tax_behavior])).toEqual([
       ["boardcue_pro_month_consumer_850", 850, "inclusive"],
-      ["boardcue_team_year_consumer_7300", 7300, "inclusive"],
+      ["boardcue_team_year_consumer_7200", 7200, "inclusive"],
       ["boardcue_credits_once_consumer_730", 730, "inclusive"],
     ]);
   });

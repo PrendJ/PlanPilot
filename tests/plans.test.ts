@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  annualCents,
   billableSeats,
   consumerPriceCents,
   creditPackPriceCents,
+  floorToTenCents,
   getOrganizationLimits,
   monthlyPrice,
   organizationAccessExpired,
@@ -40,11 +42,11 @@ describe("organization license expiry", () => {
 describe("commercial catalogue", () => {
   it("sells Pro, Team and Business only", () => expect([...SELLABLE_PLAN_KEYS]).toEqual(["PRO", "TEAM", "BUSINESS"]));
   it("uses the agreed prices, seats and updates", () => {
-    expect(PLANS.PRO).toMatchObject({ priceEur: 7, priceEurYearly: 70, memberLimit: 1, aiUpdates: 800, seatBased: false });
+    expect(PLANS.PRO).toMatchObject({ priceEur: 7, priceEurYearly: 69.6, memberLimit: 1, aiUpdates: 800, seatBased: false });
     expect(PLANS.TEAM).toMatchObject({ priceEur: 6, priceEurYearly: 60, seatBased: true, minSeats: 2, aiUpdates: 600 });
     expect(PLANS.BUSINESS).toMatchObject({
       priceEur: 10,
-      priceEurYearly: 100,
+      priceEurYearly: 99.6,
       seatBased: true,
       minSeats: 2,
       aiUpdates: 1000,
@@ -64,15 +66,30 @@ describe("commercial catalogue", () => {
     // The old flat Team (€24, 10 people) is not squeezed into the new 2-seat minimum.
     expect(getOrganizationLimits({ plan: "TEAM_LEGACY", seats: 1 })).toMatchObject({ memberLimit: 10, aiUpdates: 4000 });
   });
+  it("rounds every monthly amount down to the lower ten cents", () => {
+    expect(floorToTenCents(833.33)).toBe(830);
+    expect(floorToTenCents(854)).toBe(850);
+    expect(floorToTenCents(1220)).toBe(1220);
+    expect(annualCents(1000)).toBe(9960); // €100/12 = €8.33 → €8.30 per month, €99.60 a year
+  });
   it("charges private customers VAT included, rounded down to ten cents", () => {
     expect(consumerPriceCents(7)).toBe(850); // 8.54 → 8.50
     expect(consumerPriceCents(6)).toBe(730); // 7.32 → 7.30
     expect(consumerPriceCents(10)).toBe(1220);
     expect(planPriceCents("PRO", "month", "business")).toBe(700);
-    expect(planPriceCents("PRO", "year", "business")).toBe(7000);
-    expect(planPriceCents("PRO", "year", "consumer")).toBe(8500); // 2 months free on the consumer price
+    expect(planPriceCents("PRO", "year", "business")).toBe(6960); // 5.83 → 5.80 × 12
+    expect(planPriceCents("TEAM", "year", "business")).toBe(6000);
+    expect(planPriceCents("BUSINESS", "year", "business")).toBe(9960);
+    expect(planPriceCents("PRO", "year", "consumer")).toBe(8400); // 8.50 × 10/12 = 7.08 → 7.00 × 12
     expect(planPriceCents("TEAM", "month", "consumer")).toBe(730);
-    expect(planPriceCents("BUSINESS", "year", "consumer")).toBe(12200);
+    expect(planPriceCents("TEAM", "year", "consumer")).toBe(7200);
+    expect(planPriceCents("BUSINESS", "year", "consumer")).toBe(12120); // 10.16 → 10.10 × 12
+    for (const plan of ["PRO", "TEAM", "BUSINESS"] as const)
+      for (const customer of ["business", "consumer"] as const)
+        for (const interval of ["month", "year"] as const) {
+          const perMonth = planPriceCents(plan, interval, customer) / (interval === "year" ? 12 : 1);
+          expect(perMonth % 10).toBe(0);
+        }
     expect(creditPackPriceCents("business")).toBe(600);
     expect(creditPackPriceCents("consumer")).toBe(730);
   });
@@ -102,7 +119,7 @@ describe("seats and limits", () => {
   });
   it("computes the monthly amount, spreading annual plans", () => {
     expect(monthlyPrice({ plan: "TEAM", seats: 3 })).toBe(18);
-    expect(monthlyPrice({ plan: "PRO", billingInterval: "year" })).toBeCloseTo(5.83, 2);
+    expect(monthlyPrice({ plan: "PRO", billingInterval: "year" })).toBe(5.8);
     expect(monthlyPrice({ plan: "ENTERPRISE" })).toBeNull();
   });
 });

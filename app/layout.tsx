@@ -1,23 +1,32 @@
 import type { Metadata, Viewport } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
 import { PwaProvider } from "@/components/PwaProvider";
 import { CookieNotice } from "@/components/CookieNotice";
 import { I18nProvider } from "@/components/I18nProvider";
 import { FeedbackProvider } from "@/components/ui";
 import { getLocale, getTranslator } from "@/lib/i18n/server";
+import "@fontsource-variable/inter";
 import "./tokens.css";
 import "./ui.css";
 import "./board.css";
 import "./marketing.css";
 import "./admin.css";
 
+const ICON_VERSION = "2";
+
 export async function generateMetadata(): Promise<Metadata> {
   const { t, locale } = await getTranslator();
   return {
     manifest: "/manifest.webmanifest",
     appleWebApp: { capable: true, title: "BoardCue", statusBarStyle: "default" },
-    icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+    // ?v= busts browser and home-screen caches after a logo change; bump it with the next redesign.
+    icons: {
+      icon: [
+        { url: `/icon.svg?v=${ICON_VERSION}`, type: "image/svg+xml" },
+        { url: `/icons/favicon-32.png?v=${ICON_VERSION}`, sizes: "32x32", type: "image/png" },
+      ],
+      shortcut: `/favicon.ico?v=${ICON_VERSION}`,
+      apple: `/icons/apple-touch-icon.png?v=${ICON_VERSION}`,
+    },
     metadataBase: new URL(process.env.APP_URL || "https://boardcue.draftapps.it"),
     title: { default: t("meta.title"), template: "%s · BoardCue" },
     description: t("meta.description"),
@@ -49,7 +58,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const locale = await getLocale();
   const { t } = await getTranslator();
   return (
-    <html lang={locale} className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

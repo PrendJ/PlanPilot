@@ -548,6 +548,7 @@ export const it = {
       newLine: "per andare a capo",
     },
     proposal: {
+      eyebrow: "Sistema / proposta AI",
       label: "Modifiche proposte dall’AI",
       title: "Modifiche proposte: {count}",
       noChanges: "Nessuna modifica necessaria",
