@@ -11,12 +11,22 @@ import "./board.css";
 import "./marketing.css";
 import "./admin.css";
 
+const ICON_VERSION = "2";
+
 export async function generateMetadata(): Promise<Metadata> {
   const { t, locale } = await getTranslator();
   return {
     manifest: "/manifest.webmanifest",
     appleWebApp: { capable: true, title: "BoardCue", statusBarStyle: "default" },
-    icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+    // ?v= busts browser and home-screen caches after a logo change; bump it with the next redesign.
+    icons: {
+      icon: [
+        { url: `/icon.svg?v=${ICON_VERSION}`, type: "image/svg+xml" },
+        { url: `/icons/favicon-32.png?v=${ICON_VERSION}`, sizes: "32x32", type: "image/png" },
+      ],
+      shortcut: `/favicon.ico?v=${ICON_VERSION}`,
+      apple: `/icons/apple-touch-icon.png?v=${ICON_VERSION}`,
+    },
     metadataBase: new URL(process.env.APP_URL || "https://boardcue.draftapps.it"),
     title: { default: t("meta.title"), template: "%s · BoardCue" },
     description: t("meta.description"),

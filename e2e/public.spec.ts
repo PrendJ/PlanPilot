@@ -97,3 +97,13 @@ test("private areas redirect to sign-in", async ({ page }) => {
   await page.goto("/account");
   await expect(page).toHaveURL(/\/login\?next=%2Faccount/);
 });
+
+test("favicon and PWA icons are served, with cache-busting URLs", async ({ page, request }) => {
+  await page.goto("/");
+  const hrefs = await page.$$eval('link[rel*="icon"]', nodes => nodes.map(node => node.getAttribute("href")!));
+  expect(hrefs).toEqual(expect.arrayContaining([expect.stringMatching(/^\/icon\.svg\?v=/), expect.stringMatching(/^\/favicon\.ico\?v=/)]));
+  const manifest = await (await request.get("/manifest.webmanifest")).json();
+  const srcs = manifest.icons.map((icon: { src: string }) => icon.src);
+  expect(srcs.every((src: string) => src.includes("?v="))).toBe(true);
+  for (const url of ["/favicon.ico", ...hrefs, ...srcs]) expect((await request.get(url)).ok(), url).toBe(true);
+});

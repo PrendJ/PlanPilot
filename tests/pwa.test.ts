@@ -25,7 +25,7 @@ describe("PWA privacy, lifecycle and notification worker", () => {
     const manifest = JSON.parse(readFileSync("public/manifest.webmanifest", "utf8"));
     expect(manifest).toMatchObject({ id: "/", start_url: "/app", scope: "/", display: "standalone" });
     for (const icon of manifest.icons) {
-      const png = readFileSync(`public${icon.src}`); const [w, h] = icon.sizes.split("x").map(Number);
+      const png = readFileSync(`public${icon.src.split("?")[0]}`); const [w, h] = icon.sizes.split("x").map(Number);
       expect(png.readUInt32BE(16)).toBe(w); expect(png.readUInt32BE(20)).toBe(h); expect(png[25]).toBe(2);
     }
     const apple = readFileSync("public/icons/apple-touch-icon.png"); expect(apple.readUInt32BE(16)).toBe(180);
