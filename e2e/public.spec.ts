@@ -2,6 +2,16 @@ import { test, expect } from "@playwright/test";
 
 const noOverflow = () => document.documentElement.scrollWidth <= document.documentElement.clientWidth;
 
+test("visitors can explore the demo before choosing to log in", async ({ page }) => {
+  await page.goto("/app");
+  await expect(page).toHaveURL(/\/$/);
+  await page.locator(".hero-actions .primary").click();
+  await expect(page).toHaveURL(/\/demo$/);
+  await expect(page.getByRole("button", { name: "Ho finito la newsletter di ottobre" })).toBeVisible();
+  await page.locator('.topbar a[href="/login"]').click();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test("landing explains the loop and leads to the Pro trial", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Racconta com’è andata");

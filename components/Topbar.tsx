@@ -27,7 +27,7 @@ export async function Topbar() {
           </span>
           <ThemeMenu />
           <InstallAppButton />
-          <Link className="btn ghost hide-mobile" href="/login">
+          <Link className="btn ghost" href="/login">
             {t("nav.login")}
           </Link>
           <Link className="btn primary" href="/register">

@@ -74,12 +74,12 @@ export default async function Home() {
             <h1>{t("landing.title")}</h1>
             <p className="lead">{t("landing.lead")}</p>
             <div className="row hero-actions">
-              <Link className="btn primary lg" href={user ? "/app" : "/register"}>
-                {user ? t("landing.openBoards") : t("pricing.startTrial", { days: TRIAL_DAYS })}
+              <Link className="btn primary lg" href={user ? "/app" : "/demo"}>
+                {user ? t("landing.openBoards") : t("landing.tryDemo")}
               </Link>
-              <Link className="btn lg" href="/demo">
+              <Link className="btn lg" href={user ? "/demo" : "/register"}>
                 <Icon name="arrowRight" size={16} />
-                {t("landing.tryDemo")}
+                {user ? t("landing.tryDemo") : t("pricing.startTrial", { days: TRIAL_DAYS })}
               </Link>
             </div>
             <p className="subtle">{t("landing.fineprint")}</p>
@@ -211,11 +211,11 @@ export default async function Home() {
           <h2>{t("landing.final.title")}</h2>
           <p>{t("landing.final.body")}</p>
           <div className="row" style={{ justifyContent: "center" }}>
-            <Link className="btn primary lg" href={user ? "/app" : "/register"}>
-              {user ? t("landing.openBoards") : t("pricing.startTrial", { days: TRIAL_DAYS })}
+            <Link className="btn primary lg" href={user ? "/app" : "/demo"}>
+              {user ? t("landing.openBoards") : t("landing.tryDemo")}
             </Link>
-            <Link className="btn lg" href="/demo">
-              {t("landing.tryDemo")}
+            <Link className="btn lg" href={user ? "/demo" : "/register"}>
+              {user ? t("landing.tryDemo") : t("pricing.startTrial", { days: TRIAL_DAYS })}
             </Link>
           </div>
         </section>

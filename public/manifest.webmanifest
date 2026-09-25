@@ -4,7 +4,7 @@
   "short_name": "BoardCue",
   "description": "Racconta com'è andata: la board si aggiorna da sola.",
   "lang": "it",
-  "start_url": "/app",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0D0F14",

@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Home", robots: { index: false } };
 
 export default async function AppPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/");
   if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
   const query = await searchParams;
   const flag = (key: string) => (Array.isArray(query[key]) ? query[key]![0] : query[key]);
