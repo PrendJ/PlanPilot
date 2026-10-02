@@ -1,18 +1,20 @@
+# Build stages use /build, not /app: with the project at /app, Next.js compiled the root route ("/") from
+# app/app/page.tsx (the signed-in home), whose redirect("/") then looped forever for visitors.
 FROM node:22-alpine AS deps
-WORKDIR /app
+WORKDIR /build
 RUN apk add --no-cache openssl
 COPY package*.json ./
 RUN npm ci
 
 FROM node:22-alpine AS builder
-WORKDIR /app
+WORKDIR /build
 ENV NEXT_TELEMETRY_DISABLED=1
 # Prisma validates the datasource while generating the client during image build.
 # This build-only URL does not connect to a database; the real DATABASE_URL is
 # supplied by docker-compose at runtime.
 ENV DATABASE_URL="postgresql://boardcue:build-only@127.0.0.1:5432/boardcue?schema=public"
 RUN apk add --no-cache openssl
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /build/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
@@ -26,23 +28,23 @@ RUN npm prune --omit=dev
 # avoiding a second full copy of node_modules during layer export.
 FROM node:22-alpine AS runtime
 WORKDIR /runtime
-COPY --from=builder /app/.next/standalone ./
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /build/.next/standalone ./
+COPY --from=prod-deps /build/node_modules ./node_modules
+COPY --from=builder /build/node_modules/.prisma ./node_modules/.prisma
 
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN apk add --no-cache openssl && addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
-COPY --from=builder /app/public ./public
+COPY --from=builder /build/public ./public
 COPY --from=runtime --chown=nextjs:nodejs /runtime ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
-COPY --from=builder --chown=nextjs:nodejs /app/tsconfig.json ./tsconfig.json
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /build/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /build/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /build/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /build/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /build/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=nextjs:nodejs /build/package.json ./package.json
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000

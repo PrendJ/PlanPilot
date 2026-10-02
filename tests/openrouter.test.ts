@@ -100,4 +100,20 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     await planPatchFromText({ ...input, model: "openai/gpt-5-nano" });
     expect(JSON.parse(mocked.mock.calls[0][1].body).reasoning).toEqual({ effort: "minimal", exclude: true });
   });
+  it("never sends temperature to GPT-5 nano, which require_parameters would leave without endpoints", async () => {
+    const mocked = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({ summary: "ok", actions: [], clarification: null }) } }] }),
+    });
+    vi.stubGlobal("fetch", mocked);
+    await planPatchFromText({ ...input, model: "openai/gpt-5-nano" });
+    await planPatchFromText({ ...input, model: "google/gemini-2.5-flash-lite" });
+    expect(JSON.parse(mocked.mock.calls[0][1].body)).not.toHaveProperty("temperature");
+    expect(JSON.parse(mocked.mock.calls[1][1].body).temperature).toBe(0.1);
+  });
+  it("accepts structured output wrapped in a json code fence", async () => {
+    const content = "```json\n" + JSON.stringify({ summary: "ok", actions: [], clarification: null }) + "\n```";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content } }] }) }));
+    await expect(planPatchFromText(input)).resolves.toMatchObject({ patch: { summary: "ok", actions: [] } });
+  });
 });

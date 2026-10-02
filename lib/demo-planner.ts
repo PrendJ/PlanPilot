@@ -14,7 +14,7 @@ export type DemoCard = {
   dueDate: string | null;
   tags: string[];
 };
-export type DemoColumn = { id: string; title: string; intent: "inbox" | "todo" | "doing" | "waiting" | "done" };
+export type DemoColumn = { id: string; title: string; intent: "inbox" | "todo" | "later" | "doing" | "waiting" | "done" };
 export type DemoAction = {
   action: "create" | "update" | "move";
   cardId: string | null;
@@ -27,7 +27,10 @@ export type DemoAction = {
 export type DemoPlan = { summary: string; actions: DemoAction[]; noop?: "negation" | "question" | "empty" };
 
 const INTENTS: Array<[DemoColumn["intent"], RegExp]> = [
-  ["done", /\b(finit|complet|fatt[oa]|chius|consegnat|terminat|pubblicat|done|finished|completed|shipped)/],
+  [
+    "done",
+    /\b(finit|complet|fatt[oa]|chius|consegnat|terminat|pubblicat|pagat|comprat|prenotat|done|finished|completed|shipped|paid|bought|booked)/,
+  ],
   ["waiting", /\b(blocc|in attesa|aspett|serve (l|il|la|un)|waiting|blocked|stuck)/],
   ["doing", /\b(sto lavorando|lavorando|iniziat|comincia|in corso|sto facendo|started|working on|in progress)/],
   ["todo", /\b(da fare|prossim|next|to do|pianific)/],
@@ -123,6 +126,12 @@ export function planDemoUpdate(
     .trim()
     .replace(/^(ho|sto|devo|dobbiamo|bisogna|i|we|need to)\s+/i, "")
     .replace(/[.!?]+$/, "")
+    // The date goes into the due date, not the title ("Chiama la banca domani" → "Chiama la banca").
+    .replace(
+      /\s+(?:entro |per |by |on |this |next )?(?:domani|oggi|stasera|fine mese|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|tomorrow|today|tonight|end of (?:the )?month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i,
+      "",
+    )
+    .replace(/^(?:domani|oggi|sabato|domenica|tomorrow|today|on saturday|on sunday)\s+(?:devo\s+|i need to\s+)?/i, "")
     .slice(0, 90);
   const column = target || columns.find(entry => entry.intent === "todo") || columns[0];
   const clean = title.charAt(0).toUpperCase() + title.slice(1);

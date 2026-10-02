@@ -5,7 +5,15 @@
  * OPENROUTER_BASE_URL can point to https://eu.openrouter.ai/api/v1 for EU in-region routing, which needs the
  * OpenRouter Business plan.
  */
-export type ModelOption = { id: string; label: string; note: string; recommended?: boolean; reasoningEffort?: "minimal" | "low" };
+export type ModelOption = {
+  id: string;
+  label: string;
+  note: string;
+  recommended?: boolean;
+  reasoningEffort?: "minimal" | "low";
+  /** False when the model's zero-retention endpoints reject `temperature` (see samplingParams). */
+  temperature?: false;
+};
 
 export const PLANNING_MODELS: ModelOption[] = [
   {
@@ -19,6 +27,7 @@ export const PLANNING_MODELS: ModelOption[] = [
     label: "GPT-5 nano",
     note: "Il più economico per token; ragionamento minimo, adatto ad aggiornamenti semplici.",
     reasoningEffort: "minimal",
+    temperature: false,
   },
   {
     id: "mistralai/mistral-small-2603",
@@ -56,6 +65,33 @@ export const OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
 export function planningModelOption(id: string) {
   return PLANNING_MODELS.find(model => model.id === id);
+}
+
+/**
+ * Sampling and reasoning fields for a planning model. Requests use provider.require_parameters, so a field the
+ * model does not accept (temperature on GPT-5 nano) leaves OpenRouter with no eligible endpoint and every
+ * call fails as "AI unavailable".
+ */
+export function samplingParams(id: string, temperature: number) {
+  const option = planningModelOption(id);
+  return {
+    ...(option?.temperature === false ? {} : { temperature }),
+    ...(option?.reasoningEffort ? { reasoning: { effort: option.reasoningEffort, exclude: true } } : {}),
+  };
+}
+
+/** Message content as JSON. Some models wrap structured output in a ```json fence despite response_format. */
+export function parseJsonContent(content: unknown): unknown {
+  if (typeof content !== "string") return content;
+  const fenced = /^\s*```(?:json)?\s*([\s\S]*?)\s*```\s*$/i.exec(content);
+  return JSON.parse(fenced ? fenced[1] : content);
+}
+
+/** Server log line for a failed provider call: status and provider message only, never the user's text. */
+export function logProviderFailure(scope: string, status: number | string, raw: unknown) {
+  const error = (raw as { error?: { message?: unknown; code?: unknown } } | null)?.error;
+  const message = typeof error?.message === "string" ? error.message.slice(0, 300) : "";
+  console.error(`OpenRouter ${scope} failed`, { status, code: error?.code, message });
 }
 
 export function openRouterBaseUrl() {

@@ -728,3 +728,42 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Demo of the home: same capture panel and "today" list as the app, with the destination boards below. */
+.demo-examples {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.demo-examples .composer-examples {
+  margin: 0;
+}
+.demo-local {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 12px;
+  font-size: 12px;
+}
+.demo-boards {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.demo-boards-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+.demo-boards-head h2 {
+  font-size: 20px;
+  margin: 0;
+}
+.demo-boards-head p {
+  margin: 4px 0 0;
+}
+.demo-examples .chip {
+  padding: 6px 12px;
+  text-align: left;
+}

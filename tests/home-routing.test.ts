@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { validateRouting } from "@/lib/home-routing";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { routeHomeCapture, validateRouting } from "@/lib/home-routing";
 
 const boards = [
   { id: "home", name: "Casa" },
@@ -34,4 +34,18 @@ describe("home capture routing", () => {
     ])
       expect(validateRouting({ segments }, input, boards)).toEqual([{ text: input, workspaceId: null }]);
   });
+  it("routes with GPT-5 nano without sending temperature", async () => {
+    const mocked = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ segments: [{ text: "Paga la bolletta", workspaceId: "home" }] }) } }],
+      }),
+    });
+    vi.stubGlobal("fetch", mocked);
+    const result = await routeHomeCapture({ text: "Paga la bolletta", boards, apiKey: "synthetic-key", model: "openai/gpt-5-nano" });
+    expect(result.segments).toEqual([{ text: "Paga la bolletta", workspaceId: "home" }]);
+    expect(JSON.parse(mocked.mock.calls[0][1].body)).not.toHaveProperty("temperature");
+  });
 });
+
+afterEach(() => vi.unstubAllGlobals());

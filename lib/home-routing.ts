@@ -1,5 +1,13 @@
 import { z } from "zod";
-import { openRouterBaseUrl, openRouterHeaders, providerPolicy, resolvePlanningModel } from "@/lib/ai-config";
+import {
+  logProviderFailure,
+  openRouterBaseUrl,
+  openRouterHeaders,
+  parseJsonContent,
+  providerPolicy,
+  resolvePlanningModel,
+  samplingParams,
+} from "@/lib/ai-config";
 
 export type RouteBoard = { id: string; name: string; kind?: "personal" | "work"; team?: string };
 export type RoutedSegment = { text: string; workspaceId: string | null };
@@ -42,14 +50,15 @@ export async function routeHomeCapture(input: {
   if (boards.length === 1) return { segments: [{ text, workspaceId: boards[0].id }], cost: 0 };
   if (!apiKey) return { segments: [{ text, workspaceId: null }], cost: 0 };
   const fallback = { segments: [{ text, workspaceId: null }], cost: 0 };
+  const model = resolvePlanningModel(input.model);
   try {
     const response = await fetch(`${openRouterBaseUrl()}/chat/completions`, {
       method: "POST",
       signal: AbortSignal.timeout(20_000),
       headers: openRouterHeaders(apiKey),
       body: JSON.stringify({
-        model: resolvePlanningModel(input.model),
-        temperature: 0,
+        model,
+        ...samplingParams(model, 0),
         messages: [
           {
             role: "system",
@@ -91,15 +100,19 @@ export async function routeHomeCapture(input: {
       }),
     });
     const raw = await response.json().catch(() => null);
-    if (!response.ok || !raw) return fallback;
+    if (!response.ok || !raw) {
+      logProviderFailure("routing", response.status, raw);
+      return fallback;
+    }
     const content = raw?.choices?.[0]?.message?.content;
-    const parsed = typeof content === "string" ? JSON.parse(content) : content;
+    const parsed = parseJsonContent(content);
     return {
       segments: validateRouting(parsed, text, boards),
       cost: Math.max(0, Number(raw?.usage?.cost || 0)),
       requestId: typeof raw.id === "string" ? raw.id : undefined,
     };
-  } catch {
+  } catch (error) {
+    logProviderFailure("routing", error instanceof Error ? error.name : "network", null);
     return fallback;
   }
 }

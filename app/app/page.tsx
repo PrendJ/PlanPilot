@@ -20,7 +20,9 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
   const query = await searchParams;
   const flag = (key: string) => (Array.isArray(query[key]) ? query[key]![0] : query[key]);
   const user = await getCurrentUser();
-  if (!user) redirect(flag("shared") === "1" ? "/login?next=%2Fapp%3Fshared%3D1" : "/");
+  // A cookie without a valid session (expired or revoked) lands here: send it to sign-in, never to "/",
+  // so a misrouted root page can never redirect to itself.
+  if (!user) redirect(flag("shared") === "1" ? "/login?next=%2Fapp%3Fshared%3D1" : "/login");
   if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
   const { t, locale } = await getTranslator(user.locale);
   const team = await ensureDefaultOrganization(user.id);

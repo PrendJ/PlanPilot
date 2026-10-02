@@ -62,9 +62,10 @@ test("the demo previews a change and moves the existing card instead of duplicat
   await page.goto("/demo");
   await page.getByRole("button", { name: "Ho finito la newsletter di ottobre" }).click();
   const proposal = page.getByRole("region", { name: "Modifiche proposte dall’AI" });
-  await expect(proposal).toContainText("Sposta “Newsletter di ottobre” in Fatto");
+  await expect(proposal).toContainText("Sposta “Newsletter di ottobre” in Completato");
   await proposal.getByRole("button", { name: "Applica tutto" }).click();
-  const done = page.locator("section.column").filter({ has: page.getByRole("heading", { name: "Fatto" }) });
+  await page.getByRole("tab", { name: /Kanban/ }).click();
+  const done = page.locator("section.column").filter({ has: page.getByRole("heading", { name: "Completato" }) });
   await expect(done.getByText("Newsletter di ottobre")).toBeVisible();
   await expect(page.locator(".card-title", { hasText: "Newsletter di ottobre" })).toHaveCount(1);
   await page.getByRole("button", { name: "Non ho ancora iniziato le foto del catalogo" }).click();
@@ -115,4 +116,15 @@ test("favicon and PWA icons are served, with cache-busting URLs", async ({ page,
   const srcs = manifest.icons.map((icon: { src: string }) => icon.src);
   expect(srcs.every((src: string) => src.includes("?v="))).toBe(true);
   for (const url of ["/favicon.ico", ...hrefs, ...srcs]) expect((await request.get(url)).ok(), url).toBe(true);
+});
+
+test("the demo sorts one thought across the personal and the work board", async ({ page }) => {
+  await page.goto("/demo");
+  await page.getByRole("button", { name: "Chiama la banca domani e prepara il preventivo per Studio Rossi entro venerdì" }).click();
+  const proposals = page.getByRole("region", { name: "Modifiche proposte dall’AI" });
+  await expect(proposals).toHaveCount(2);
+  await expect(page.locator(".home-pending").filter({ hasText: "Casa e personale" })).toContainText("Chiama la banca");
+  await expect(page.locator(".home-pending").filter({ hasText: "Lavoro" })).toContainText("Preventivo per Studio Rossi");
+  await expect(page.getByRole("button", { name: "Devo organizzare la cena di fine anno" })).toBeDisabled();
+  expect(await page.evaluate(noOverflow)).toBe(true);
 });

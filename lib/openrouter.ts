@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { openRouterBaseUrl, openRouterHeaders, planningModelOption, providerPolicy } from "@/lib/ai-config";
+import {
+  logProviderFailure,
+  openRouterBaseUrl,
+  openRouterHeaders,
+  parseJsonContent,
+  providerPolicy,
+  samplingParams,
+} from "@/lib/ai-config";
 
 const explicitDate = z
   .string()
@@ -126,7 +133,6 @@ export async function planPatchFromText(input: {
 }) {
   const now = input.now || new Date();
   const timeZone = input.timeZone || "Europe/Rome";
-  const reasoningEffort = planningModelOption(input.model)?.reasoningEffort;
   let response: Response;
   try {
     response = await fetch(`${openRouterBaseUrl()}/chat/completions`, {
@@ -135,7 +141,7 @@ export async function planPatchFromText(input: {
       headers: openRouterHeaders(input.apiKey),
       body: JSON.stringify({
         model: input.model,
-        temperature: 0.1,
+        ...samplingParams(input.model, 0.1),
         messages: [
           { role: "system", content: systemPrompt({ now, timeZone, locale: input.locale || "it" }) },
           {
@@ -145,20 +151,26 @@ export async function planPatchFromText(input: {
         ],
         response_format: { type: "json_schema", json_schema: responseSchema },
         provider: providerPolicy({ requireParameters: true }),
-        ...(reasoningEffort ? { reasoning: { effort: reasoningEffort, exclude: true } } : {}),
         usage: { include: true },
       }),
     });
-  } catch {
+  } catch (error) {
+    logProviderFailure("planning", error instanceof Error ? error.name : "network", null);
     throw new AiProviderError();
   }
   const raw = await response.json().catch(() => null);
-  if (!response.ok || !raw) throw new AiProviderError();
+  if (!response.ok || !raw) {
+    logProviderFailure("planning", response.status, raw);
+    throw new AiProviderError();
+  }
   const content = raw?.choices?.[0]?.message?.content;
-  if (!content) throw new AiProviderError();
+  if (!content) {
+    logProviderFailure("planning", "empty", raw);
+    throw new AiProviderError();
+  }
   let parsed: unknown;
   try {
-    parsed = typeof content === "string" ? JSON.parse(content) : content;
+    parsed = parseJsonContent(content);
   } catch {
     throw new AiProviderError("AI_INVALID_PATCH");
   }
