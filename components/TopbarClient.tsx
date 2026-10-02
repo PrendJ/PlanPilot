@@ -157,6 +157,10 @@ export function SearchButton() {
   const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [shortcut, setShortcut] = useState("Ctrl K");
+  useEffect(() => {
+    if (/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) setShortcut("⌘K");
+  }, []);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -187,12 +191,14 @@ export function SearchButton() {
     <>
       <button
         type="button"
-        className="icon-btn"
+        className="topbar-search"
         aria-label={t("search.open")}
-        title={`${t("search.open")} (Ctrl+K)`}
+        title={`${t("search.open")} (${shortcut})`}
         onClick={() => setOpen(true)}
       >
         <Icon name="search" />
+        <span>{t("search.open")}</span>
+        <kbd>{shortcut}</kbd>
       </button>
       {open && (
         <Dialog

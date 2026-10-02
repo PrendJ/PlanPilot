@@ -2,6 +2,7 @@ import { createHmac, randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import net from "node:net";
 import { Prisma } from "@prisma/client";
+import { appUrl } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 /** Events a webhook can subscribe to. Activity types are grouped into public, stable names. */
@@ -117,11 +118,8 @@ export async function assertSafeWebhookUrl(raw: string) {
   return url;
 }
 
-function slackText(eventType: string, payload: Record<string, unknown>) {
-  const data = (payload.data || {}) as Record<string, unknown>;
-  const after = (data.after || {}) as Record<string, unknown>;
-  const title = typeof after.title === "string" ? `“${after.title}”` : "";
-  const labels: Record<string, string> = {
+const SLACK_COPY = {
+  it: {
     "card.created": "Nuova card",
     "card.updated": "Card aggiornata",
     "card.moved": "Card spostata",
@@ -129,8 +127,41 @@ function slackText(eventType: string, payload: Record<string, unknown>) {
     "comment.created": "Nuovo commento",
     "ai.update.applied": "Aggiornamento AI applicato",
     "ai.update.undone": "Aggiornamento AI annullato",
-  };
-  return `BoardCue · ${labels[eventType] || eventType} ${title}`.trim();
+    card: "Apri card",
+  },
+  en: {
+    "card.created": "New card",
+    "card.updated": "Card updated",
+    "card.moved": "Card moved",
+    "card.archived": "Card archived",
+    "comment.created": "New comment",
+    "ai.update.applied": "AI update applied",
+    "ai.update.undone": "AI update undone",
+    card: "Open card",
+  },
+} as const;
+
+/** Slack mrkdwn control characters; user text must never form links or mentions. */
+export function escapeSlack(value: string) {
+  return value.replace(/[&<>]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[character]!);
+}
+
+/** Incoming-webhook body: localized by board locale (it, otherwise en), linking the board and the card. */
+export function slackMessage(
+  eventType: string,
+  payload: Record<string, unknown>,
+  workspace: { slug: string; name: string; locale: string },
+  appOrigin: string,
+) {
+  const copy = SLACK_COPY[workspace.locale === "it" ? "it" : "en"];
+  const data = (payload.data || {}) as Record<string, unknown>;
+  const after = (data.after || {}) as Record<string, unknown>;
+  const board = `${appOrigin}/app/${encodeURIComponent(workspace.slug)}`;
+  const label = copy[eventType as keyof typeof copy] || escapeSlack(eventType);
+  const cardId = data.entityType === "CARD" && typeof data.entityId === "string" ? data.entityId : null;
+  const title = typeof after.title === "string" && after.title.trim() ? `“${escapeSlack(after.title.trim().slice(0, 200))}”` : copy.card;
+  const card = cardId ? `: <${board}?card=${encodeURIComponent(cardId)}|${title}>` : "";
+  return { text: `BoardCue · ${label}${card} · <${board}|${escapeSlack(workspace.name)}>` };
 }
 
 /** Bounded, leased outbox (same pattern as push). Retries with backoff, max 5 attempts. */
@@ -140,8 +171,9 @@ export async function dispatchWebhooks(limit = 25) {
     where: { deliveredAt: null, attempts: { lt: 5 }, availableAt: { lte: now }, OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] },
     orderBy: { createdAt: "asc" },
     take: Math.min(100, Math.max(1, limit)),
-    include: { webhook: true },
+    include: { webhook: { include: { workspace: { select: { slug: true, name: true, locale: true } } } } },
   });
+  const origin = new URL(appUrl("/")).origin;
   let sent = 0;
   let failed = 0;
   for (const job of jobs) {
@@ -151,7 +183,9 @@ export async function dispatchWebhooks(limit = 25) {
     });
     if (!claimed.count || !job.webhook.active) continue;
     const payload = job.payload as Record<string, unknown>;
-    const body = JSON.stringify(job.webhook.format === "slack" ? { text: slackText(job.eventType, payload) } : payload);
+    const body = JSON.stringify(
+      job.webhook.format === "slack" ? slackMessage(job.eventType, payload, job.webhook.workspace, origin) : payload,
+    );
     const timestamp = Math.floor(Date.now() / 1000);
     try {
       await assertSafeWebhookUrl(job.webhook.url);

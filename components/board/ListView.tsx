@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useI18n } from "../I18nProvider";
 import { Avatar } from "../ui";
-import { dueState, formatDue, isDoneColumn, type Card, type Column } from "./types";
+import { checklistOf, dueState, formatDue, isDoneColumn, type Card, type Column } from "./types";
 
 type SortKey = "title" | "column" | "priority" | "dueDate" | "updatedAt";
 const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 } as const;
@@ -67,15 +67,18 @@ export function ListView({ columns, onOpen }: { columns: Column[]; onOpen: (card
           {rows.map(({ card, column, done }) => {
             const due = dueState(card.dueDate, new Date(), done);
             return (
-              <tr
-                key={card.id}
-                onClick={() => onOpen(card)}
-                tabIndex={0}
-                onKeyDown={event => {
-                  if (event.key === "Enter") onOpen(card);
-                }}
-              >
-                <td className="title">{card.title}</td>
+              <tr key={card.id}>
+                <td className="title">
+                  <button type="button" className="list-card-open" onClick={() => onOpen(card)}>
+                    <strong>{card.title}</strong>
+                    {card.description && <span className="list-card-summary">{card.description}</span>}
+                    {checklistOf(card).length > 0 && (
+                      <small>
+                        {t("board.card.checklist")} {checklistOf(card).filter(item => item.done).length}/{checklistOf(card).length}
+                      </small>
+                    )}
+                  </button>
+                </td>
                 <td>{column.title}</td>
                 <td>
                   {card.priority !== "NORMAL" ? (

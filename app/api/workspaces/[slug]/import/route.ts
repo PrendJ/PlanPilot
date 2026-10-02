@@ -6,6 +6,7 @@ import { boardContext, isResponse } from "@/lib/api-context";
 import { apiError } from "@/lib/errors";
 import { MAX_IMPORT_CARDS, parseCsv, parseTrello, type ImportedBoard } from "@/lib/import-export";
 import { trackEvent } from "@/lib/product-events";
+import { inferSemanticKey } from "@/lib/board-state";
 
 const schema = z.object({ format: z.enum(["trello", "csv"]), content: z.string().min(2).max(15_000_000) });
 
@@ -43,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
                   workspaceId: workspace.id,
                   title: column.title,
                   description: "",
-                  semanticKey: "CUSTOM",
+                  semanticKey: inferSemanticKey(column.title),
                   position: existing.length + createdColumns,
                 },
               });

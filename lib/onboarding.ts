@@ -83,3 +83,17 @@ export async function createStarterBoard(input: { userId: string; organizationId
   }
   return workspace;
 }
+
+export const PERSONAL_BOARD_NAMES = { it: "Casa e personale", en: "Home and personal" } as const;
+
+/** A private-life board next to the work one, so dictated chores and reminders have a natural destination. */
+export async function createPersonalBoard(input: { userId: string; organizationId: string; locale: string }) {
+  const locale = normalizeLocale(input.locale);
+  return createWorkspace({
+    name: PERSONAL_BOARD_NAMES[locale === "it" ? "it" : "en"],
+    userId: input.userId,
+    organizationId: input.organizationId,
+    presetKey: "PERSONAL",
+    locale,
+  });
+}

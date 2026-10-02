@@ -22,6 +22,11 @@ export function middleware(request: NextRequest) {
   if (PROTECTED.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     if (!SESSION_COOKIES.some(name => request.cookies.get(name)?.value)) {
       const url = request.nextUrl.clone();
+      if (pathname === "/app" && request.nextUrl.searchParams.get("shared") === "1") {
+        url.pathname = "/login";
+        url.search = `?next=${encodeURIComponent("/app?shared=1")}`;
+        return NextResponse.redirect(url);
+      }
       // Old bookmarks and installed apps may still open the generic app entry.
       url.pathname = pathname === "/app" ? "/" : "/login";
       url.search = pathname === "/app" ? "" : `?next=${encodeURIComponent(`${pathname}${search}`)}`;

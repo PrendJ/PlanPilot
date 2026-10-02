@@ -6,7 +6,6 @@ import { prisma } from "@/lib/prisma";
 import { Topbar } from "@/components/Topbar";
 import { BoardSettings } from "@/components/BoardSettings";
 import { getOrganizationLimits } from "@/lib/plans";
-import { PLANNING_MODELS, resolvePlanningModel } from "@/lib/ai-config";
 import { getTranslator } from "@/lib/i18n/server";
 import { Icon } from "@/components/Icon";
 
@@ -50,9 +49,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
             name: workspace.name,
             locale: workspace.locale,
             dictationEnabled: workspace.dictationEnabled,
-            planModel: resolvePlanningModel(workspace.planModel),
           }}
-          models={PLANNING_MODELS}
           columns={workspace.columns.map(column => ({
             id: column.id,
             title: column.title,

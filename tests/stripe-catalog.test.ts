@@ -100,12 +100,12 @@ describe("self-provisioned Stripe catalogue", () => {
 
   it("uses VAT-inclusive consumer prices and per-seat amounts", async () => {
     const { planPrice, creditPackPrice } = await catalog();
-    await planPrice("PRO", "month", "consumer");
-    await planPrice("TEAM", "year", "consumer");
+    await planPrice("PERSONAL_PRO", "month", "consumer");
+    await planPrice("FAMILY", "year", "consumer");
     await creditPackPrice("consumer");
     expect(store.prices.map(price => [price.lookup_key, price.unit_amount, price.tax_behavior])).toEqual([
-      ["boardcue_pro_month_consumer_850", 850, "inclusive"],
-      ["boardcue_team_year_consumer_7200", 7200, "inclusive"],
+      ["boardcue_personal_pro_month_consumer_490", 490, "inclusive"],
+      ["boardcue_family_year_consumer_5000", 5000, "inclusive"],
       ["boardcue_credits_once_consumer_730", 730, "inclusive"],
     ]);
   });

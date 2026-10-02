@@ -11,7 +11,7 @@ import { apiError } from "@/lib/errors";
 const schema = z.object({
   organizationId: z.string().cuid(),
   name: z.string().trim().min(1).max(100),
-  presetKey: z.enum(["GENERAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"]).default("GENERAL"),
+  presetKey: z.enum(["GENERAL", "PERSONAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"]).default("GENERAL"),
   locale: z.enum(SUPPORTED_LOCALES).default("it"),
 });
 
@@ -63,7 +63,11 @@ export async function POST(request: Request) {
       presetKey: body.presetKey,
       locale: body.locale,
     });
-    return NextResponse.json({ workspace }, { status: 201 });
+    // Only what the client needs: model ids and key references stay on the server.
+    return NextResponse.json(
+      { workspace: { id: workspace.id, name: workspace.name, slug: workspace.slug, organizationId: workspace.organizationId } },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Workspace creation failed", error);
     return apiError(request, "SERVER_ERROR", 500);

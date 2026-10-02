@@ -38,6 +38,8 @@ export async function POST(request: Request) {
     where: { status: { in: ["EXPIRED", "DISCARDED"] }, createdAt: { lt: new Date(now.getTime() - 30 * 86400000) } },
   });
   await prisma.notification.deleteMany({ where: { readAt: { lt: new Date(now.getTime() - 90 * 86400000) } } });
+  await prisma.telegramLinkRequest.deleteMany({ where: { expiresAt: { lt: now } } });
+  await prisma.externalCapture.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 90 * 86400000) } } });
   await purgeRateLimits();
   const exchangeRate = await refreshUsdToEurRate();
   return NextResponse.json({ ...lifecycle, ...retention, reminders, digests, exchangeRate });

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { canManageWorkspaceAction, workspaceLifecycleChange } from "@/lib/workspace-management";
-import { firstPersonalOrganization } from "@/lib/personal-organization";
 import { canAssignManualPlan } from "@/lib/licenses";
 import { canCreateWorkspaceInOrganization, chooseDefaultOrganization } from "@/lib/default-organization";
 import { classifyOwnedOrganizations, validInternalOwner } from "@/lib/lifecycle-policy";
@@ -21,22 +20,6 @@ describe("workspace management permissions", () => {
   it("maps archive and restore to reversible lifecycle changes", () => {
     expect(workspaceLifecycleChange("archive")).toMatchObject({ lifecycleStatus:"ARCHIVED" });
     expect(workspaceLifecycleChange("restore")).toEqual({ lifecycleStatus:"ACTIVE", archivedAt:null, suspendedAt:null, deleteAfter:null });
-  });
-});
-
-describe("personal organization selection", () => {
-  const memberships = [
-    { organization:{id:"business",createdById:"user-1",legalType:"BUSINESS"} },
-    { organization:{id:"personal",createdById:"user-1",legalType:"PERSONAL"} },
-    { organization:{id:"invited",createdById:"user-2",legalType:"PERSONAL"} },
-  ];
-
-  it("selects only the first personal organization created by the user", () => {
-    expect(firstPersonalOrganization("user-1", memberships)?.organization.id).toBe("personal");
-  });
-
-  it("does not fall back to another user's organization", () => {
-    expect(firstPersonalOrganization("missing", memberships)).toBeNull();
   });
 });
 

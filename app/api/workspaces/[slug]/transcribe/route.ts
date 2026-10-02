@@ -4,17 +4,9 @@ import { rateLimit } from "@/lib/security";
 import { getWorkspaceApiKey } from "@/lib/workspace";
 import { boardContext, isResponse } from "@/lib/api-context";
 import { apiError } from "@/lib/errors";
-import { MAX_AUDIO_BYTES, openRouterBaseUrl, openRouterHeaders, providerPolicy, resolveTranscriptionModel } from "@/lib/ai-config";
+import { audioFormatFor, MAX_AUDIO_BYTES, openRouterBaseUrl, openRouterHeaders, providerPolicy } from "@/lib/ai-config";
+import { platformModels } from "@/lib/platform-ai";
 import { trackEvent } from "@/lib/product-events";
-
-function formatFromMime(mime: string) {
-  if (mime.includes("webm")) return "webm";
-  if (mime.includes("ogg")) return "ogg";
-  if (mime.includes("mp4") || mime.includes("m4a") || mime.includes("aac")) return "m4a";
-  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
-  if (mime.includes("wav")) return "wav";
-  return "webm";
-}
 
 /** Dictation is included in every plan; the transcript comes back as editable text and is never stored. */
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -33,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const audio = form?.get("audio");
   if (!(audio instanceof File) || audio.size === 0) return apiError(request, "AUDIO_REQUIRED", 400);
   if (audio.size > MAX_AUDIO_BYTES) return apiError(request, "AUDIO_TOO_LARGE", 413);
-  const model = resolveTranscriptionModel(workspace.transcriptionModel);
+  const { transcriptionModel: model } = await platformModels();
   const buffer = Buffer.from(await audio.arrayBuffer());
   try {
     const response = await fetch(`${openRouterBaseUrl()}/audio/transcriptions`, {
@@ -42,7 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       headers: openRouterHeaders(apiKey),
       body: JSON.stringify({
         model,
-        input_audio: { data: buffer.toString("base64"), format: formatFromMime(audio.type) },
+        input_audio: { data: buffer.toString("base64"), format: audioFormatFor(audio.type, audio.name) },
         language: workspace.locale,
         provider: providerPolicy(),
       }),

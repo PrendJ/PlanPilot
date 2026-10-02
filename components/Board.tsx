@@ -33,7 +33,7 @@ export function Board({ slug }: { slug: string }) {
   const [data, setData] = useState<BoardData | null>(null);
   const [loadError, setLoadError] = useState("");
   const [archived, setArchived] = useState(false);
-  const [view, setView] = useState<View>("kanban");
+  const [view, setView] = useState<View>("list");
   const [query, setQuery] = useState("");
   const [priority, setPriority] = useState("ALL");
   const [assignee, setAssignee] = useState("ALL");
@@ -360,7 +360,7 @@ export function Board({ slug }: { slug: string }) {
           {workspace.role === "GUEST" && <span className="badge outline">{t("roles.GUEST")}</span>}
         </div>
         <div className="segmented" role="tablist" aria-label={t("board.views.label")}>
-          {(["kanban", "list", "calendar"] as const).map(value => (
+          {(["list", "kanban", "calendar"] as const).map(value => (
             <button key={value} type="button" role="tab" aria-selected={view === value} onClick={() => setView(value)}>
               <Icon name={value === "kanban" ? "kanban" : value === "list" ? "list" : "calendar"} size={15} />
               <span className="hide-mobile"> {t(`board.views.${value}`)}</span>
@@ -591,6 +591,15 @@ export function Board({ slug }: { slug: string }) {
             flash([card.id]);
             void load();
           }}
+          onAskAi={
+            workspace.canWrite
+              ? prefix => {
+                  setEditing(null);
+                  if (search.get("card")) router.replace(`/app/${slug}`);
+                  setTimeout(() => composer.current?.setText(prefix), 50);
+                }
+              : undefined
+          }
         />
       )}
       {activityOpen && (

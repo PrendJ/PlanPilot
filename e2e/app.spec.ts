@@ -14,6 +14,8 @@ test("sign-up lands on a ready board; cards, settings and security work", async 
   await expect(page.getByText("Prova a raccontare com’è andata")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ho finito di aggiornare il sito web" })).toBeVisible();
   await expect(page.getByText("Conferma il tuo indirizzo")).toBeVisible();
+  // Boards open on the list view; the card menu used below lives in the Kanban view.
+  await page.getByRole("tab", { name: /Kanban/ }).click();
 
   await page.getByRole("button", { name: "Nuova card" }).click();
   const dialog = page.getByRole("dialog", { name: "Nuova card" });

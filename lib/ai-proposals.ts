@@ -1,11 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildCompactPlan } from "@/lib/ai-context";
-import { resolvePlanningModel } from "@/lib/ai-config";
 import { selectActions, validateAiPatch } from "@/lib/ai-patch";
 import { AiProviderError, planPatchFromText, type AiAction } from "@/lib/openrouter";
 import { recordUsage, refundAiUpdate, reserveAiUpdate } from "@/lib/plans";
 import { getWorkspaceApiKey } from "@/lib/workspace";
+import { platformModels } from "@/lib/platform-ai";
 import { assertBoardAccess, BoardAccessError, bumpRevision, logActivity, markMilestone, placeCard } from "@/lib/board";
 import { trackEvent } from "@/lib/product-events";
 
@@ -16,7 +16,6 @@ type Workspace = {
   name: string;
   slug: string;
   organizationId: string;
-  planModel: string;
   openrouterKeyEnv: string;
   locale: string;
 };
@@ -142,7 +141,7 @@ export async function createProposal(input: {
 }) {
   const apiKey = getWorkspaceApiKey(input.workspace);
   if (!apiKey) throw new ProposalError("AI_NOT_CONFIGURED");
-  const model = resolvePlanningModel(input.workspace.planModel);
+  const { planModel: model } = await platformModels();
   const reservation = await reserveAiUpdate({
     organizationId: input.workspace.organizationId,
     workspaceId: input.workspace.id,

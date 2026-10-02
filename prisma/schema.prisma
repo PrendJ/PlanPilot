@@ -79,6 +79,54 @@ model User {
   adminAuditEvents           AdminAuditEvent[]           @relation("AdminAuditActor")
   exchangeRateOverrides      ExchangeRateSetting[]       @relation("ExchangeRateOverrideActor")
   complianceAcknowledgements ComplianceAcknowledgement[]
+  telegramConnection         TelegramConnection?
+  telegramLinkRequest        TelegramLinkRequest?
+  externalCaptures           ExternalCapture[]
+  calendarFeed               CalendarFeed?
+}
+
+model TelegramConnection {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  chatId      String   @unique
+  connectedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TelegramLinkRequest {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model ExternalCapture {
+  id               String   @id @default(cuid())
+  userId           String
+  source           String
+  text             String   @default("") @db.Text
+  status           String   @default("READY")
+  telegramUpdateId String?  @unique
+  telegramFileId   String?
+  attempts         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+}
+
+model CalendarFeed {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  tokenHash String   @unique
+  timeZone  String   @default("Europe/Rome")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Session {
@@ -443,6 +491,15 @@ model ExchangeRateSetting {
   manualSetBy      User?     @relation("ExchangeRateOverrideActor", fields: [manualSetById], references: [id], onDelete: SetNull)
 
   @@index([manualSetById])
+}
+
+/// Platform-wide AI models chosen by the superadmin (single row, id "default"). Boards never choose a model.
+model PlatformAiSetting {
+  id                 String   @id
+  planModel          String
+  transcriptionModel String
+  updatedById        String?
+  updatedAt          DateTime @updatedAt
 }
 
 model PushSubscription {

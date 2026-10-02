@@ -15,7 +15,7 @@ async function syncSubscription(received: Stripe.Subscription) {
   // Subscriptions created by the previous checkout (no customerType) carry plan "TEAM" but bill the old flat price.
   const metadataPlan = current.metadata.plan === "TEAM" && !current.metadata.customerType ? "TEAM_LEGACY" : current.metadata.plan;
   const plan = mapped?.plan || metadataPlan;
-  if (!plan || !["PRO", "TEAM", "BUSINESS", "ENTERPRISE", "SOLO", "TEAM_LEGACY", "STUDIO"].includes(plan)) return;
+  if (!plan || !["PERSONAL_PRO", "FAMILY", "PRO", "TEAM", "BUSINESS", "ENTERPRISE", "SOLO", "TEAM_LEGACY", "STUDIO"].includes(plan)) return;
   const customerType = mapped?.customerType ?? (current.metadata.customerType === "consumer" ? "consumer" : null);
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },

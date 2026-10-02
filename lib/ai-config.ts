@@ -91,6 +91,35 @@ export function openRouterHeaders(apiKey: string) {
   };
 }
 
+export type AudioFormat = "webm" | "ogg" | "m4a" | "mp3" | "wav";
+
+const AUDIO_EXTENSIONS: Record<string, AudioFormat> = {
+  opus: "ogg",
+  ogg: "ogg",
+  oga: "ogg",
+  m4a: "m4a",
+  mp4: "m4a",
+  aac: "m4a",
+  mp3: "mp3",
+  wav: "wav",
+  webm: "webm",
+};
+
+/**
+ * Audio container for the transcription API. The MIME type wins; files shared from other apps (e.g. WhatsApp .opus
+ * through the PWA share target) often arrive with an empty type, so the file name extension is the fallback.
+ */
+export function audioFormatFor(mime?: string | null, fileName?: string | null): AudioFormat {
+  const type = (mime || "").toLowerCase();
+  if (type.includes("webm")) return "webm";
+  if (type.includes("ogg") || type.includes("opus")) return "ogg";
+  if (type.includes("mp4") || type.includes("m4a") || type.includes("aac")) return "m4a";
+  if (type.includes("mpeg") || type.includes("mp3")) return "mp3";
+  if (type.includes("wav")) return "wav";
+  const extension = /\.([a-z0-9]+)$/i.exec((fileName || "").trim())?.[1]?.toLowerCase();
+  return (extension && AUDIO_EXTENSIONS[extension]) || "webm";
+}
+
 /** Maximum dictation length accepted by the UI and the API. */
 export const MAX_DICTATION_SECONDS = 120;
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;

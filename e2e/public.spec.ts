@@ -14,38 +14,37 @@ test("visitors can explore the demo before choosing to log in", async ({ page })
 
 test("landing explains the loop and leads to the Pro trial", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Racconta com’è andata");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Hai troppe cose in testa?");
+  await expect(page.getByRole("heading", { name: /Un task manager ti chiede di organizzarti prima/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Prova Pro gratis 14 giorni/ }).first()).toHaveAttribute("href", "/register");
   expect(await page.evaluate(noOverflow)).toBe(true);
 });
 
 test("pricing shows the agreed plans, seats and Enterprise without SSO/SLA promises", async ({ page }) => {
   await page.goto("/pricing");
-  await expect(page.getByRole("heading", { name: "Pro", exact: true })).toBeVisible();
   const price = (plan: string) =>
     page
       .locator(".pricing-card")
       .filter({ has: page.getByRole("heading", { name: plan, exact: true }) })
       .locator(".price strong");
-  await expect(price("Pro")).toHaveText("€7");
-  await expect(price("Team")).toHaveText("€6");
-  await expect(price("Business")).toHaveText("€10");
-  await expect(page.getByText("IVA esclusa, fatturazione mensile").first()).toBeVisible();
-  // Private customers see the VAT-inclusive price, rounded down to ten cents.
-  await page.getByRole("button", { name: "Privati", exact: true }).click();
-  await expect(price("Pro")).toHaveText("€8,50");
-  await expect(price("Team")).toHaveText("€7,30");
-  await expect(price("Business")).toHaveText("€12,20");
+  // Private customers come first: Pro personale + Family, VAT included, never Business.
+  await expect(price("Pro personale")).toHaveText("€4,90");
+  await expect(price("Family")).toHaveText("€5,00");
+  await expect(page.getByRole("heading", { name: "Business", exact: true })).toHaveCount(0);
   await expect(page.getByText("IVA inclusa, fatturazione mensile").first()).toBeVisible();
   await page.getByRole("button", { name: "Aziende e professionisti", exact: true }).click();
-  // Annual: the monthly equivalent is rounded down to ten cents too (€100/12 = €8.33 → €8.30).
+  await expect(price("Pro")).toHaveText("€7,00");
+  await expect(price("Team")).toHaveText("€6,00");
+  await expect(price("Business")).toHaveText("€10,00");
+  await expect(page.getByText("IVA esclusa, fatturazione mensile").first()).toBeVisible();
+  // Annual: the yearly total is shown (10 months, rounded down to ten cents), with the saving spelled out.
   await page.getByRole("button", { name: /^Annuale/ }).click();
-  await expect(price("Pro")).toHaveText("€5,80");
-  await expect(price("Business")).toHaveText("€8,30");
-  await expect(page.getByText("€69,60 fatturati una volta l’anno, IVA esclusa")).toBeVisible();
+  await expect(price("Pro")).toHaveText("€70,00");
+  await expect(price("Business")).toHaveText("€100,00");
+  await expect(page.getByText(/Con il mensile pagheresti €84,00: risparmi €14,00/)).toBeVisible();
   await page.getByRole("button", { name: "Mensile", exact: true }).click();
   await expect(page.getByText("Minimo 2 posti. Gli ospiti non occupano posti.").first()).toBeVisible();
-  await expect(page.getByText("Dettatura vocale inclusa")).toBeVisible();
+  await expect(page.getByText("Dettatura vocale inclusa").first()).toBeVisible();
   await expect(page.getByText(/SSO|SLA|DPA/)).toHaveCount(0);
   const team = page.locator(".pricing-card").filter({ hasText: "Team" }).first();
   await team.getByRole("button", { name: "Un posto in più" }).click();

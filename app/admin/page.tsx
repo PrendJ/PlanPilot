@@ -5,13 +5,14 @@ import { Topbar } from "@/components/Topbar";
 import { AdminPanel } from "@/components/AdminPanel";
 import { getAdminAnalytics } from "@/lib/admin-analytics";
 import { hasPlatformCapability, platformRoleOf } from "@/lib/platform-access";
+import { platformModelOptions, platformModels } from "@/lib/platform-ai";
 
 export default async function AdminPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!hasPlatformCapability(user, "METADATA")) redirect("/app");
   const role = platformRoleOf(user);
-  const [users, workspaces, analytics] = await Promise.all([
+  const [users, workspaces, analytics, aiModels] = await Promise.all([
     prisma.user.findMany({
       orderBy: [{ name: "asc" }, { email: "asc" }],
       select: {
@@ -58,6 +59,7 @@ export default async function AdminPage() {
       },
     }),
     getAdminAnalytics(),
+    platformModels(),
   ]);
   return (
     <div className="shell">
@@ -66,7 +68,7 @@ export default async function AdminPage() {
         <div className="pill">{role}</div>
         <h1>BoardCue control room</h1>
         <p className="muted-copy">Metadati di piattaforma, licenze, consumo AI e stato billing. I contenuti delle board restano isolati.</p>
-        <AdminPanel initialUsers={users} workspaces={workspaces} initialAnalytics={analytics} actorRole={role} />
+        <AdminPanel initialUsers={users} workspaces={workspaces} initialAnalytics={analytics} initialAiModels={{ current: aiModels, options: platformModelOptions() }} actorRole={role} />
       </main>
     </div>
   );

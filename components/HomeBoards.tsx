@@ -22,7 +22,7 @@ type BoardSummary = {
 };
 type Team = { id: string; name: string; locale: string; canCreate: boolean };
 
-const PRESETS = ["GENERAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"] as const;
+const PRESETS = ["GENERAL", "PERSONAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"] as const;
 const LANGUAGES = [
   ["it", "Italiano"],
   ["en", "English"],

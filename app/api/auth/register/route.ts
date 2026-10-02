@@ -8,7 +8,7 @@ import { clientIp, rateLimit, rejectCrossOrigin } from "@/lib/security";
 import { ensureDefaultOrganization } from "@/lib/default-organization";
 import { issueExistingAccountEmail, issueVerificationEmail } from "@/lib/verification";
 import { startSession } from "@/lib/auth";
-import { createStarterBoard } from "@/lib/onboarding";
+import { createPersonalBoard, createStarterBoard } from "@/lib/onboarding";
 import { safeNextPath } from "@/lib/navigation";
 import { apiError } from "@/lib/errors";
 import { trackEvent } from "@/lib/product-events";
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
   const board = next.startsWith("/accept-invite")
     ? null
     : await createStarterBoard({ userId: user.id, organizationId: organization.id, locale: body.locale });
+  if (board) await createPersonalBoard({ userId: user.id, organizationId: organization.id, locale: body.locale });
   const delivery = await issueVerificationEmail(user, request, body.next);
   await startSession(user.id);
   await trackEvent("signup");

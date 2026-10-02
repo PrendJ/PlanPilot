@@ -47,5 +47,7 @@ USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-# Failed migrations require operator review; never drop schema automatically on boot.
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && exec node server.js"]
+# Pending migrations are applied on every boot (already-applied ones are skipped). An interrupted run is
+# retried automatically only for migrations marked "-- Idempotent"; any other failure stops the boot for
+# operator review. Nothing is ever dropped automatically.
+CMD ["sh", "-c", "node scripts/migrate-deploy.mjs && exec node server.js"]

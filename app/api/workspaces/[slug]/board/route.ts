@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getUsageStatus } from "@/lib/plans";
 import { boardContext, isResponse } from "@/lib/api-context";
 import { canManageRole, canWriteCards, cardInclude } from "@/lib/board";
-import { resolvePlanningModel } from "@/lib/ai-config";
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -35,7 +34,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       slug: ctx.workspace.slug,
       locale: ctx.workspace.locale,
       dictationEnabled: ctx.workspace.dictationEnabled,
-      planModel: resolvePlanningModel(ctx.workspace.planModel),
       revision: ctx.workspace.revision,
       role: ctx.role,
       canManage: canManageRole(ctx.role),
