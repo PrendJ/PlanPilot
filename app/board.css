@@ -290,6 +290,11 @@
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
 }
+.proposal-head > div,
+.proposal-item > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .proposal-head .eyebrow {
   display: block;
   margin-bottom: 4px;
@@ -352,6 +357,8 @@
 }
 .change {
   display: inline-flex;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   gap: 4px;
   align-items: center;
   font-family: var(--font-mono);
@@ -1189,6 +1196,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .topbar > .menu-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 150px;
+  }
+  .topbar .team-switch {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .topbar .team-switch-name {
+    min-width: 0;
+  }
+  .topbar-actions {
+    flex: none;
+  }
 }
 .avatar-btn {
   width: auto;

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { useI18n, useT } from "./I18nProvider";
-import { api, Avatar, Dialog, MenuButton } from "./ui";
+import { api, Avatar, Dialog, MenuButton, useFeedback } from "./ui";
 import { LOCALE_COOKIE } from "@/lib/i18n/core";
 
 type ThemeChoice = "system" | "light" | "dark";
@@ -341,15 +341,19 @@ export function NotificationsBell() {
 export function UserMenu({ name, email, isAdmin }: { name: string; email: string; isAdmin: boolean }) {
   const t = useT();
   const { locale } = useI18n();
+  const { toast } = useFeedback();
   const router = useRouter();
   const [theme, setTheme] = useState<ThemeChoice>("system");
   useEffect(() => {
     setTheme(readTheme());
   }, []);
   async function logout() {
-    await api("/api/auth/logout", { method: "POST", json: {} });
-    router.push("/");
-    router.refresh();
+    const response = await api("/api/auth/logout", { method: "POST", json: {} });
+    if (!response.ok) {
+      toast({ message: t("errors.SERVER_ERROR"), tone: "error" });
+      return;
+    }
+    window.location.replace("/");
   }
   async function language(next: "it" | "en") {
     await api("/api/account/preferences", { method: "PATCH", json: { locale: next } });

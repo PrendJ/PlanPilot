@@ -46,4 +46,42 @@ test("sign-up lands on a ready board; cards, settings and security work", async 
   await page.getByRole("button", { name: "Attiva la verifica in due passaggi" }).click();
   await expect(page.getByRole("img", { name: "Codice QR per l’app di autenticazione" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  await page.goto("/app");
+  await expect(page.getByRole("heading", { name: "Aggiungi un pensiero" })).toBeVisible();
+  const captureBox = await page.locator(".home-capture").boundingBox();
+  const boardsBox = await page.getByRole("heading", { name: "Board", exact: true }).boundingBox();
+  expect(captureBox).not.toBeNull();
+  expect(boardsBox).not.toBeNull();
+  expect(boardsBox!.y - (captureBox!.y + captureBox!.height)).toBeLessThan(40);
+  await page.getByRole("button", { name: "Menu account" }).click();
+  await page.getByRole("button", { name: "Esci" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Hai troppe cose in testa?");
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Accedi", exact: true })).toBeVisible();
+});
+
+test("the signed-in home fits narrow mobile screens", async ({ page }, testInfo) => {
+  test.skip(!["mobile-320", "mobile-375"].includes(testInfo.project.name), "Mobile layout");
+  const email = `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.invalid`;
+  await page.goto("/register");
+  await page.getByLabel("Nome e cognome").fill("Utente Prova");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Scegli una password").fill("una-frase-lunga-di-prova");
+  await page.getByRole("button", { name: "Crea account e inizia" }).click();
+  await expect(page).toHaveURL(/\/app\/[a-z0-9-]+\?welcome=1/);
+  await page.goto("/app");
+  await expect(page.getByRole("heading", { name: "Aggiungi un pensiero" })).toBeVisible();
+  const overflow = await page.evaluate(() => {
+    const width = window.visualViewport?.width || window.innerWidth;
+    return [...document.querySelectorAll(".topbar *, .home-dashboard *, .page-head *")]
+      .filter(element => {
+        const rect = element.getBoundingClientRect();
+        return getComputedStyle(element).display !== "none" && rect.width > 1 && rect.right > width + 1;
+      })
+      .map(element => `${element.tagName.toLowerCase()}.${element.className}`);
+  });
+  expect(overflow).toEqual([]);
+  expect(await page.evaluate(() => window.innerWidth)).toBe(testInfo.project.use.viewport!.width);
 });
