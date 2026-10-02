@@ -12,6 +12,7 @@ function dayKey(date: Date) {
 /** Month grid of cards with a due date (Monday first). Cards without a date are listed below. */
 export function CalendarView({ columns, onOpen }: { columns: Column[]; onOpen: (card: Card) => void }) {
   const { t, tag } = useI18n();
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -80,14 +81,16 @@ export function CalendarView({ columns, onOpen }: { columns: Column[]; onOpen: (
             </div>
           ))}
           {days.map(date => {
-            const items = byDay.get(dayKey(date)) || [];
+            const key = dayKey(date);
+            const items = byDay.get(key) || [];
+            const shown = expanded === key ? items : items.slice(0, 3);
             return (
               <div
                 key={date.toISOString()}
                 className={`calendar-day ${date.getMonth() !== month.getMonth() ? "muted" : ""} ${dayKey(date) === today ? "today" : ""}`}
               >
                 <span className="num">{date.getDate()}</span>
-                {items.slice(0, 3).map(({ card, done }) => (
+                {shown.map(({ card, done }) => (
                   <button
                     key={card.id}
                     type="button"
@@ -98,13 +101,30 @@ export function CalendarView({ columns, onOpen }: { columns: Column[]; onOpen: (
                     {card.title}
                   </button>
                 ))}
-                {items.length > 3 && <span className="subtle">+{items.length - 3}</span>}
+                {items.length > 3 && (
+                  <button type="button" className="calendar-more" onClick={() => setExpanded(expanded === key ? null : key)}>
+                    {expanded === key ? t("board.calendar.less") : `+${items.length - 3}`}
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
       </div>
-      {undated.length > 0 && <p className="subtle">{t("board.calendar.undated", { count: undated.length })}</p>}
+      {undated.length > 0 && (
+        <section className="calendar-undated">
+          <h3>{t("board.calendar.undated", { count: undated.length })}</h3>
+          <ul>
+            {undated.map(card => (
+              <li key={card.id}>
+                <button type="button" className="calendar-card" onClick={() => onOpen(card)} title={card.title}>
+                  {card.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

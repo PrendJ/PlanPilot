@@ -40,10 +40,10 @@ describe("i18n dictionaries", () => {
 
   test("dynamic key families are complete", () => {
     const families: Record<string, string[]> = {
-      plans: ["TRIAL", "PRO", "TEAM", "BUSINESS", "ENTERPRISE", "LIFETIME", "SOLO", "TEAM_LEGACY", "STUDIO"],
+      plans: ["TRIAL", "PERSONAL_PRO", "FAMILY", "PRO", "TEAM", "BUSINESS", "ENTERPRISE", "LIFETIME", "SOLO", "TEAM_LEGACY", "STUDIO"],
       priority: ["LOW", "NORMAL", "HIGH", "URGENT"],
       roles: ["OWNER", "ADMIN", "MEMBER", "GUEST"],
-      presets: ["GENERAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"],
+      presets: ["GENERAL", "PERSONAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"],
       notifications: ["ASSIGNED", "MENTIONED", "COMMENTED", "DUE_SOON", "OVERDUE"],
       "board.due": ["overdue", "soon", "later", "done"],
       "board.views": ["kanban", "list", "calendar"],
@@ -52,7 +52,7 @@ describe("i18n dictionaries", () => {
       theme: ["system", "light", "dark"],
       "settings.nav": ["general", "columns", "members", "import", "integrations"],
       "account.nav": ["profile", "security", "api", "teams", "danger"],
-      "pricing.audience": ["PRO", "TEAM", "BUSINESS"],
+      "pricing.audience": ["PERSONAL_PRO", "FAMILY", "PRO", "TEAM", "BUSINESS"],
       errors: [...ERROR_CODES],
       activity: [
         "CARD_CREATED",

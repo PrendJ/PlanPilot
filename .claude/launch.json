@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "boardcue-prod-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "start", "-p", "3100"],
+      "env": { "DATABASE_URL": "postgresql://x@localhost:5432/x" },
+      "port": 3100
+    }
+  ]
+}

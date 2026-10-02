@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { assertBoardAccess, BoardAccessError, bumpRevision, isBoardConflict, logActivity } from "@/lib/board";
 import { boardContext, isResponse } from "@/lib/api-context";
 import { apiError } from "@/lib/errors";
+import { inferSemanticKey } from "@/lib/board-state";
 
 const createSchema = z.object({ title: z.string().trim().min(1).max(80), description: z.string().max(500).default("") });
 const reorderSchema = z.object({ columnIds: z.array(z.string().cuid()).min(1).max(12) });
@@ -25,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
           workspaceId: workspace.id,
           title: parsed.data.title,
           description: parsed.data.description,
-          semanticKey: "CUSTOM",
+          semanticKey: inferSemanticKey(parsed.data.title),
           position,
         },
       });

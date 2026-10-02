@@ -6,7 +6,6 @@ import { canManageWorkspaceAction, workspaceLifecycleChange } from "@/lib/worksp
 import { getCurrentUser } from "@/lib/auth";
 import { rejectCrossOrigin } from "@/lib/security";
 import { apiError } from "@/lib/errors";
-import { PLANNING_MODELS } from "@/lib/ai-config";
 import { SUPPORTED_LOCALES } from "@/lib/workspace";
 
 const schema = z.discriminatedUnion("action", [
@@ -18,7 +17,6 @@ const schema = z.discriminatedUnion("action", [
     name: z.string().trim().min(1).max(100).optional(),
     locale: z.enum(SUPPORTED_LOCALES).optional(),
     dictationEnabled: z.boolean().optional(),
-    planModel: z.enum(PLANNING_MODELS.map(model => model.id) as [string, ...string[]]).optional(),
   }),
 ]);
 
@@ -46,7 +44,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
     lifecycleStatus: membership.workspace.lifecycleStatus,
     locale: membership.workspace.locale,
     dictationEnabled: membership.workspace.dictationEnabled,
-    planModel: membership.workspace.planModel,
   };
   const data =
     parsed.data.action === "rename"
@@ -56,14 +53,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
             ...(parsed.data.name && { name: parsed.data.name }),
             ...(parsed.data.locale && { locale: parsed.data.locale }),
             ...(parsed.data.dictationEnabled !== undefined && { dictationEnabled: parsed.data.dictationEnabled }),
-            ...(parsed.data.planModel && { planModel: parsed.data.planModel }),
           }
         : workspaceLifecycleChange(parsed.data.action);
   const workspace = await prisma.$transaction(async tx => {
     const updated = await tx.workspace.update({
       where: { id: membership.workspaceId },
       data: { ...data, revision: { increment: 1 } },
-      select: { id: true, name: true, slug: true, lifecycleStatus: true, locale: true, dictationEnabled: true, planModel: true },
+      select: { id: true, name: true, slug: true, lifecycleStatus: true, locale: true, dictationEnabled: true },
     });
     await tx.activityEvent.create({
       data: {
@@ -79,7 +75,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
           lifecycleStatus: updated.lifecycleStatus,
           locale: updated.locale,
           dictationEnabled: updated.dictationEnabled,
-          planModel: updated.planModel,
         },
         undoable: false,
       },

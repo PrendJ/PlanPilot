@@ -6,29 +6,42 @@ import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
 import { Icon, type IconName } from "@/components/Icon";
 
-/** Static, animated illustration of the loop (CSS only): voice → proposal → the card moves. */
+/** Static illustration of the core loop: free-form capture → reviewed actions → today. */
 function LoopPreview({ t }: { t: (key: string) => string }) {
   return (
     <div className="loop-preview" aria-hidden="true">
-      <div className="loop-bubble">
-        <span className="loop-mic">
-          <Icon name="mic" size={16} />
+      <div className="preview-capture">
+        <span className="preview-capture-icon">
+          <Icon name="mic" size={23} />
         </span>
-        <span>{t("landing.preview.quote")}</span>
+        <div>
+          <small>{t("landing.preview.capture")}</small>
+          <p>“{t("landing.preview.quote")}”</p>
+        </div>
       </div>
-      <div className="loop-proposal">
-        <Icon name="sparkles" size={14} />
-        <span>{t("landing.preview.proposal")}</span>
-        <span className="loop-apply">{t("landing.preview.apply")}</span>
+      <div className="preview-actions">
+        <div className="preview-actions-head">
+          <Icon name="sparkles" size={16} />
+          <strong>{t("landing.preview.proposal")}</strong>
+        </div>
+        <div className="preview-action">
+          <Icon name="checkCircle" size={16} />
+          <span>{t("landing.preview.bank")}</span>
+          <small>{t("landing.preview.personal")}</small>
+        </div>
+        <div className="preview-action">
+          <Icon name="checkCircle" size={16} />
+          <span>{t("landing.preview.quoteTask")}</span>
+          <small>{t("landing.preview.work")}</small>
+        </div>
+        <span className="preview-confirm">{t("landing.preview.apply")}</span>
       </div>
-      <div className="loop-board">
-        {(["todo", "doing", "done"] as const).map(lane => (
-          <div key={lane} className={`loop-lane lane-${lane}`}>
-            <span className="loop-lane-title">{t(`landing.preview.${lane}`)}</span>
-            <span className="loop-card static">{t(`landing.preview.card.${lane}`)}</span>
-            {lane === "doing" && <span className="loop-card moving">{t("landing.preview.card.moving")}</span>}
-          </div>
-        ))}
+      <div className="preview-today">
+        <Icon name="calendar" size={16} />
+        <span>
+          <strong>{t("landing.preview.today")}</strong>
+          <small>{t("landing.preview.todayTask")}</small>
+        </span>
       </div>
     </div>
   );
@@ -36,7 +49,9 @@ function LoopPreview({ t }: { t: (key: string) => string }) {
 
 export default async function Home() {
   const user = await getCurrentUser();
-  const { t } = await getTranslator(user?.locale);
+  const { t, locale } = await getTranslator(user?.locale);
+  const price = (cents: number) =>
+    new Intl.NumberFormat(locale === "it" ? "it-IT" : "en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
   const steps: Array<{ icon: IconName; key: string }> = [
     { icon: "mic", key: "speak" },
     { icon: "eye", key: "review" },
@@ -45,15 +60,16 @@ export default async function Home() {
   const features: Array<{ icon: IconName; key: string }> = [
     { icon: "mic", key: "dictation" },
     { icon: "undo", key: "preview" },
-    { icon: "users", key: "realtime" },
-    { icon: "message", key: "comments" },
+    { icon: "checkCircle", key: "today" },
+    { icon: "phone", key: "channels" },
     { icon: "calendar", key: "views" },
     { icon: "upload", key: "import" },
   ];
   const personas: Array<{ icon: IconName; key: string }> = [
-    { icon: "users", key: "agency" },
+    { icon: "home", key: "personal" },
     { icon: "phone", key: "field" },
     { icon: "user", key: "freelance" },
+    { icon: "users", key: "agency" },
   ];
   const trust: Array<{ icon: IconName; key: string }> = [
     { icon: "globe", key: "eu" },
@@ -74,17 +90,40 @@ export default async function Home() {
             <h1>{t("landing.title")}</h1>
             <p className="lead">{t("landing.lead")}</p>
             <div className="row hero-actions">
-              <Link className="btn primary lg" href={user ? "/app" : "/register"}>
-                {user ? t("landing.openBoards") : t("pricing.startTrial", { days: TRIAL_DAYS })}
+              <Link className="btn primary lg" href={user ? "/app" : "/demo"}>
+                {user ? t("landing.openBoards") : t("landing.tryDemo")}
               </Link>
-              <Link className="btn lg" href="/demo">
+              <Link className="btn lg" href={user ? "/demo" : "/register"}>
                 <Icon name="arrowRight" size={16} />
-                {t("landing.tryDemo")}
+                {user ? t("landing.tryDemo") : t("pricing.startTrial", { days: TRIAL_DAYS })}
               </Link>
             </div>
             <p className="subtle">{t("landing.fineprint")}</p>
           </div>
           <LoopPreview t={t} />
+        </section>
+
+        <section className="section container">
+          <div className="section-heading">
+            <span className="eyebrow">{t("landing.why.eyebrow")}</span>
+            <h2>{t("landing.why.title")}</h2>
+            <p>{t("landing.why.body")}</p>
+          </div>
+          <div className="why-grid">
+            {(["before", "after"] as const).map(side => (
+              <article key={side} className={`panel why-${side}`}>
+                <h3>{t(`landing.why.${side}.title`)}</h3>
+                <ul>
+                  {(["one", "two", "three", "four"] as const).map(item => (
+                    <li key={item}>
+                      <Icon name={side === "after" ? "check" : "x"} size={15} />
+                      {t(`landing.why.${side}.${item}`)}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
         </section>
 
         <section id="come-funziona" className="section container">
@@ -177,11 +216,11 @@ export default async function Home() {
             <p>{t("landing.pricing.body", { days: TRIAL_DAYS })}</p>
           </div>
           <div className="pricing-teaser">
-            {SELLABLE_PLAN_KEYS.map(key => (
+            {SELLABLE_PLAN_KEYS.filter(key => key === "PERSONAL_PRO" || key === "FAMILY").map(key => (
               <Link key={key} href={`/pricing?plan=${key}`} className="panel">
                 <strong>{t(`plans.${key}`)}</strong>
                 <span className="price-inline">
-                  €{PLANS[key].priceEur}
+                  €{price(planPriceCents(key, "month", "consumer"))}
                   <small>{PLANS[key].seatBased ? t("pricing.perSeatMonth") : t("pricing.perMonth")}</small>
                 </span>
                 <span className="subtle">{t(`pricing.audience.${key}`)}</span>
@@ -190,10 +229,12 @@ export default async function Home() {
           </div>
           <p className="subtle" style={{ textAlign: "center", marginTop: 12 }}>
             {t("landing.pricing.vatNote", {
-              pro: (planPriceCents("PRO", "month", "consumer") / 100).toFixed(2).replace(".", ","),
-              team: (planPriceCents("TEAM", "month", "consumer") / 100).toFixed(2).replace(".", ","),
-              business: (planPriceCents("BUSINESS", "month", "consumer") / 100).toFixed(2).replace(".", ","),
-            })}
+              pro: price(planPriceCents("PERSONAL_PRO", "month", "consumer")),
+              family: price(planPriceCents("FAMILY", "month", "consumer")),
+            })}{" "}
+            <Link className="text-link" href="/pricing">
+              {t("landing.pricing.businessNote")}
+            </Link>
           </p>
         </section>
 
@@ -211,11 +252,11 @@ export default async function Home() {
           <h2>{t("landing.final.title")}</h2>
           <p>{t("landing.final.body")}</p>
           <div className="row" style={{ justifyContent: "center" }}>
-            <Link className="btn primary lg" href={user ? "/app" : "/register"}>
-              {user ? t("landing.openBoards") : t("pricing.startTrial", { days: TRIAL_DAYS })}
+            <Link className="btn primary lg" href={user ? "/app" : "/demo"}>
+              {user ? t("landing.openBoards") : t("landing.tryDemo")}
             </Link>
-            <Link className="btn lg" href="/demo">
-              {t("landing.tryDemo")}
+            <Link className="btn lg" href={user ? "/demo" : "/register"}>
+              {user ? t("landing.tryDemo") : t("pricing.startTrial", { days: TRIAL_DAYS })}
             </Link>
           </div>
         </section>

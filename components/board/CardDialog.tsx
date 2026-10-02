@@ -4,7 +4,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../Icon";
 import { useI18n } from "../I18nProvider";
 import { api, Avatar, Dialog, useFeedback } from "../ui";
-import { checklistOf, fromDateInput, tagsOf, toDateInput, type Card, type ChecklistItem, type Column, type Person } from "./types";
+import {
+  checklistOf,
+  dueState,
+  formatDue,
+  fromDateInput,
+  isDoneColumn,
+  tagsOf,
+  toDateInput,
+  type Card,
+  type ChecklistItem,
+  type Column,
+  type Person,
+} from "./types";
 
 type Comment = {
   id: string;
@@ -37,6 +49,8 @@ type Props = {
   canManage: boolean;
   onClose: () => void;
   onSaved: (card: Card) => void;
+  /** Hands the card over to the board's AI composer, so the user can say what changed. */
+  onAskAi?: (prefix: string) => void;
 };
 
 function draftFrom(card: Card | null, columnId: string): Draft {
@@ -83,6 +97,7 @@ export function CardDialog({
   canManage,
   onClose,
   onSaved,
+  onAskAi,
 }: Props) {
   const { t, tag } = useI18n();
   const { toast, confirm } = useFeedback();
@@ -193,10 +208,15 @@ export function CardDialog({
   }
 
   const writers = members.filter(member => member.role !== "GUEST");
+  const columnIndex = columns.findIndex(column => column.id === (card?.columnId || draft.columnId));
+  const column = columns[columnIndex];
+  const done = column ? isDoneColumn(column, columnIndex, columns.length) : false;
+  const due = card?.dueDate ? dueState(card.dueDate, new Date(), done) : null;
+  const items = card ? checklistOf(card) : [];
   return (
     <Dialog
       wide
-      title={isNew ? t("board.card.newTitle") : t("board.card.editTitle")}
+      title={isNew ? t("board.card.newTitle") : draft.title || t("board.card.editTitle")}
       onClose={onClose}
       confirmClose={() => {
         if (!dirty) return true;
@@ -246,6 +266,38 @@ export function CardDialog({
             }}
           >
             {t("board.card.loadLatest")}
+          </button>
+        </div>
+      )}
+      {card && (
+        <div className="card-summary" aria-label={t("board.card.summary")}>
+          {column && <span className="badge outline">{column.title}</span>}
+          {card.dueDate && <span className={`badge due ${due || ""}`}>{formatDue(card.dueDate, tag)}</span>}
+          {card.priority !== "NORMAL" && <span className="badge">{t(`priority.${card.priority}`)}</span>}
+          {items.length > 0 && (
+            <span className="badge">
+              <Icon name="checklist" size={13} /> {items.filter(item => item.done).length}/{items.length}
+            </span>
+          )}
+          {card.assignees.length > 0 && <span className="badge">{card.assignees.map(item => item.user.name).join(", ")}</span>}
+          <span className="subtle">
+            {t("board.card.updatedOn", { date: new Date(card.updatedAt).toLocaleDateString(tag, { day: "numeric", month: "short" }) })}
+          </span>
+        </div>
+      )}
+      {card && editable && onAskAi && (
+        <div className="card-ai-hint">
+          <Icon name="sparkles" size={16} />
+          <p>{t("board.card.aiHint")}</p>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              if (dirty) setAskDiscard(true);
+              else onAskAi(`“${card.title}”: `);
+            }}
+          >
+            {t("board.card.aiCta")}
           </button>
         </div>
       )}

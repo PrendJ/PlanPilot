@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_PLANNING_MODEL, DEFAULT_TRANSCRIPTION_MODEL, resolvePlanningModel, resolveTranscriptionModel } from "@/lib/ai-config";
+import { platformModels } from "@/lib/platform-ai";
 import { TRIAL_DAYS } from "@/lib/plans";
 
 export const SUPPORTED_LOCALES = ["it", "en", "de", "fr", "es", "ru", "pl"] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
-export type PresetKey = "GENERAL" | "SOFTWARE" | "MARKETING" | "PROJECT" | "CONSULTING";
+export type PresetKey = "GENERAL" | "PERSONAL" | "SOFTWARE" | "MARKETING" | "PROJECT" | "CONSULTING";
 type PresetColumn = { title: string; description: string; semanticKey: string };
 
 const PRESETS: Record<PresetKey, PresetColumn[]> = {
@@ -12,8 +12,15 @@ const PRESETS: Record<PresetKey, PresetColumn[]> = {
     { title: "Inbox", description: "Nuove idee e attività ancora da organizzare", semanticKey: "INBOX" },
     { title: "Da fare", description: "Attività pronte per essere iniziate", semanticKey: "READY" },
     { title: "In corso", description: "Lavoro attualmente in esecuzione", semanticKey: "ACTIVE" },
-    { title: "Bloccato", description: "Attività che non possono avanzare", semanticKey: "BLOCKED" },
+    { title: "In attesa", description: "Attività che aspettano qualcuno o qualcosa", semanticKey: "BLOCKED" },
     { title: "Completato", description: "Lavoro concluso", semanticKey: "DONE" },
+  ],
+  PERSONAL: [
+    { title: "Inbox", description: "Pensieri e promemoria ancora da sistemare", semanticKey: "INBOX" },
+    { title: "Da fare", description: "Cose da fare a breve", semanticKey: "READY" },
+    { title: "Più avanti", description: "Promemoria per le prossime settimane o mesi", semanticKey: "LATER" },
+    { title: "In attesa", description: "Cose che aspettano qualcuno o qualcosa", semanticKey: "BLOCKED" },
+    { title: "Fatto", description: "Cose concluse", semanticKey: "DONE" },
   ],
   SOFTWARE: [
     { title: "Backlog", description: "Funzionalità e bug non ancora pianificati", semanticKey: "BACKLOG" },
@@ -51,42 +58,48 @@ const PRESETS: Record<PresetKey, PresetColumn[]> = {
 
 const TITLES: Record<Exclude<SupportedLocale, "it">, Record<PresetKey, string[]>> = {
   en: {
-    GENERAL: ["Inbox", "To do", "In progress", "Blocked", "Completed"],
+    GENERAL: ["Inbox", "To do", "In progress", "Waiting", "Completed"],
+    PERSONAL: ["Inbox", "To do", "Later", "Waiting", "Done"],
     SOFTWARE: ["Backlog", "Ready", "Development", "Code review", "QA", "Done"],
     MARKETING: ["Ideas / Brief", "Planned", "In production", "Approval", "Scheduled", "Published"],
     PROJECT: ["Backlog", "Planned", "In progress", "Blocked", "Review", "Completed"],
     CONSULTING: ["Requests", "Qualified", "Planned", "In progress", "Waiting for client", "Delivered"],
   },
   de: {
-    GENERAL: ["Eingang", "Zu erledigen", "In Arbeit", "Blockiert", "Erledigt"],
+    GENERAL: ["Eingang", "Zu erledigen", "In Arbeit", "Wartet", "Erledigt"],
+    PERSONAL: ["Eingang", "Zu erledigen", "Später", "Wartet", "Erledigt"],
     SOFTWARE: ["Backlog", "Bereit", "Entwicklung", "Code-Review", "QA", "Erledigt"],
     MARKETING: ["Ideen / Briefing", "Geplant", "In Produktion", "Freigabe", "Eingeplant", "Veröffentlicht"],
     PROJECT: ["Backlog", "Geplant", "In Arbeit", "Blockiert", "Prüfung", "Erledigt"],
     CONSULTING: ["Anfragen", "Qualifiziert", "Geplant", "In Arbeit", "Warten auf Kunde", "Geliefert"],
   },
   fr: {
-    GENERAL: ["Boîte de réception", "À faire", "En cours", "Bloqué", "Terminé"],
+    GENERAL: ["Boîte de réception", "À faire", "En cours", "En attente", "Terminé"],
+    PERSONAL: ["Boîte de réception", "À faire", "Plus tard", "En attente", "Fait"],
     SOFTWARE: ["Backlog", "Prêt", "Développement", "Revue de code", "QA", "Terminé"],
     MARKETING: ["Idées / Brief", "Planifié", "En production", "Approbation", "Programmé", "Publié"],
     PROJECT: ["Backlog", "Planifié", "En cours", "Bloqué", "Vérification", "Terminé"],
     CONSULTING: ["Demandes", "Qualifié", "Planifié", "En cours", "En attente du client", "Livré"],
   },
   es: {
-    GENERAL: ["Bandeja de entrada", "Por hacer", "En curso", "Bloqueado", "Completado"],
+    GENERAL: ["Bandeja de entrada", "Por hacer", "En curso", "En espera", "Completado"],
+    PERSONAL: ["Bandeja de entrada", "Por hacer", "Más adelante", "En espera", "Hecho"],
     SOFTWARE: ["Backlog", "Listo", "Desarrollo", "Revisión de código", "QA", "Hecho"],
     MARKETING: ["Ideas / Brief", "Planificado", "En producción", "Aprobación", "Programado", "Publicado"],
     PROJECT: ["Backlog", "Planificado", "En curso", "Bloqueado", "Revisión", "Completado"],
     CONSULTING: ["Solicitudes", "Cualificado", "Planificado", "En curso", "Esperando al cliente", "Entregado"],
   },
   ru: {
-    GENERAL: ["Входящие", "К выполнению", "В работе", "Заблокировано", "Завершено"],
+    GENERAL: ["Входящие", "К выполнению", "В работе", "В ожидании", "Завершено"],
+    PERSONAL: ["Входящие", "К выполнению", "Позже", "В ожидании", "Сделано"],
     SOFTWARE: ["Бэклог", "Готово", "Разработка", "Проверка кода", "QA", "Готово"],
     MARKETING: ["Идеи / Бриф", "Запланировано", "В производстве", "Согласование", "В расписании", "Опубликовано"],
     PROJECT: ["Бэклог", "Запланировано", "В работе", "Заблокировано", "Проверка", "Завершено"],
     CONSULTING: ["Запросы", "Квалифицировано", "Запланировано", "В работе", "Ожидание клиента", "Передано"],
   },
   pl: {
-    GENERAL: ["Skrzynka", "Do zrobienia", "W toku", "Zablokowane", "Ukończone"],
+    GENERAL: ["Skrzynka", "Do zrobienia", "W toku", "Oczekuje", "Ukończone"],
+    PERSONAL: ["Skrzynka", "Do zrobienia", "Później", "Oczekuje", "Zrobione"],
     SOFTWARE: ["Backlog", "Gotowe", "Programowanie", "Przegląd kodu", "QA", "Zrobione"],
     MARKETING: ["Pomysły / Brief", "Zaplanowane", "W produkcji", "Akceptacja", "W harmonogramie", "Opublikowane"],
     PROJECT: ["Backlog", "Zaplanowane", "W toku", "Zablokowane", "Weryfikacja", "Ukończone"],
@@ -106,6 +119,7 @@ const DESCRIPTIONS: Record<Exclude<SupportedLocale, "it">, Record<string, string
     QA: "Work being verified and tested",
     SCHEDULED: "Approved work scheduled for publication",
     QUALIFIED: "Requests understood and confirmed",
+    LATER: "Reminders for the coming weeks or months",
   },
   de: {
     INBOX: "Neue Ideen und Anfragen zur Einordnung",
@@ -118,6 +132,7 @@ const DESCRIPTIONS: Record<Exclude<SupportedLocale, "it">, Record<string, string
     QA: "In Prüfung und Test",
     SCHEDULED: "Zur Veröffentlichung eingeplant",
     QUALIFIED: "Verstandene und bestätigte Anfragen",
+    LATER: "Erinnerungen für die nächsten Wochen oder Monate",
   },
   fr: {
     INBOX: "Nouvelles idées et demandes à organiser",
@@ -130,6 +145,7 @@ const DESCRIPTIONS: Record<Exclude<SupportedLocale, "it">, Record<string, string
     QA: "En cours de vérification et de test",
     SCHEDULED: "Publication approuvée et programmée",
     QUALIFIED: "Demandes comprises et confirmées",
+    LATER: "Rappels pour les semaines ou mois à venir",
   },
   es: {
     INBOX: "Nuevas ideas y solicitudes por organizar",
@@ -142,6 +158,7 @@ const DESCRIPTIONS: Record<Exclude<SupportedLocale, "it">, Record<string, string
     QA: "En verificación y pruebas",
     SCHEDULED: "Publicación aprobada y programada",
     QUALIFIED: "Solicitudes comprendidas y confirmadas",
+    LATER: "Recordatorios para las próximas semanas o meses",
   },
   ru: {
     INBOX: "Новые идеи и запросы для организации",
@@ -154,6 +171,7 @@ const DESCRIPTIONS: Record<Exclude<SupportedLocale, "it">, Record<string, string
     QA: "Проверка и тестирование",
     SCHEDULED: "Одобрено и запланировано к публикации",
     QUALIFIED: "Запросы поняты и подтверждены",
+    LATER: "Напоминания на ближайшие недели или месяцы",
   },
   pl: {
     INBOX: "Nowe pomysły i zgłoszenia do uporządkowania",
@@ -166,11 +184,13 @@ const DESCRIPTIONS: Record<Exclude<SupportedLocale, "it">, Record<string, string
     QA: "W trakcie weryfikacji i testów",
     SCHEDULED: "Zatwierdzone i zaplanowane do publikacji",
     QUALIFIED: "Zgłoszenia zrozumiane i potwierdzone",
+    LATER: "Przypomnienia na kolejne tygodnie lub miesiące",
   },
 };
 
 export const PRESET_LABELS: Record<PresetKey, string> = {
   GENERAL: "Generico",
+  PERSONAL: "Personale / Casa",
   SOFTWARE: "Sviluppo software",
   MARKETING: "Marketing",
   PROJECT: "Project management",
@@ -244,10 +264,14 @@ export async function createWorkspace(input: {
   presetKey?: string;
   locale?: string;
   openrouterKeyEnv?: string;
+  /** @deprecated Ignored: AI models are chosen globally by the superadmin (lib/platform-ai). */
   planModel?: string;
+  /** @deprecated Ignored: AI models are chosen globally by the superadmin (lib/platform-ai). */
   transcriptionModel?: string;
 }) {
   const locale = normalizeLocale(input.locale);
+  // Legacy columns, kept for compatibility: they record the platform models at creation and drive nothing.
+  const models = await platformModels();
   let organizationId = input.organizationId;
   if (!organizationId) organizationId = (await createOrganization({ name: input.name, userId: input.userId, locale })).id;
   const slug = input.slug || (await uniqueSlug(input.name, "workspace"));
@@ -259,8 +283,8 @@ export async function createWorkspace(input: {
       presetKey: input.presetKey || "GENERAL",
       locale,
       openrouterKeyEnv: input.openrouterKeyEnv || "OPENROUTER_API_KEY",
-      planModel: input.planModel ? resolvePlanningModel(input.planModel) : DEFAULT_PLANNING_MODEL,
-      transcriptionModel: input.transcriptionModel ? resolveTranscriptionModel(input.transcriptionModel) : DEFAULT_TRANSCRIPTION_MODEL,
+      planModel: models.planModel,
+      transcriptionModel: models.transcriptionModel,
       createdById: input.userId,
       members: { create: { userId: input.userId, role: "OWNER" } },
       columns: { create: getPreset(input.presetKey, locale) },

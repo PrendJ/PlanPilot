@@ -2,11 +2,22 @@
   "id": "/",
   "name": "BoardCue",
   "short_name": "BoardCue",
-  "description": "Racconta com'è andata: la board si aggiorna da sola.",
+  "description": "Parla, organizza i pensieri e scopri cosa fare oggi.",
   "lang": "it",
-  "start_url": "/app",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "audio", "accept": ["audio/*", ".ogg", ".opus", ".mp3", ".m4a", ".webm", ".wav"] }]
+    }
+  },
   "background_color": "#0D0F14",
   "theme_color": "#0D0F14",
   "icons": [
@@ -15,7 +26,18 @@
     { "src": "/icons/maskable-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Aggiornamento vocale", "short_name": "Detta", "description": "Apri l'ultima board con il microfono pronto", "url": "/app/quick", "icons": [{ "src": "/icons/icon-192.png?v=2", "sizes": "192x192" }] },
-    { "name": "Le mie board", "short_name": "Board", "url": "/app", "icons": [{ "src": "/icons/icon-192.png?v=2", "sizes": "192x192" }] }
+    {
+      "name": "Cattura un pensiero",
+      "short_name": "Parla",
+      "description": "Apri l'assistente con il microfono pronto",
+      "url": "/app/quick",
+      "icons": [{ "src": "/icons/icon-192.png?v=2", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cosa devo fare oggi",
+      "short_name": "Oggi",
+      "url": "/app",
+      "icons": [{ "src": "/icons/icon-192.png?v=2", "sizes": "192x192" }]
+    }
   ]
 }

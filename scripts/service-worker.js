@@ -22,6 +22,39 @@ self.addEventListener('activate', event => {
 });
 self.addEventListener('fetch', event => {
   const request = event.request, url = new URL(request.url);
+  if (request.method === 'POST' && url.origin === self.location.origin && url.pathname === '/share') {
+    event.respondWith((async () => {
+      try {
+        const form = await request.formData();
+        const audio = form.get('audio');
+        let text = [form.get('title'), form.get('text'), form.get('url')].filter(value => typeof value === 'string' && value.trim()).join('\n');
+        // Long shares are kept (trimmed, flagged) instead of being lost; never cut a surrogate pair in half.
+        const truncated = text.length > 12000;
+        if (truncated) text = text.slice(0, /[\uD800-\uDBFF]/.test(text[11999]) ? 11999 : 12000);
+        if (!text && !(audio instanceof File)) return Response.redirect(new URL('/app?shareError=1', self.location.origin), 303);
+        if (audio instanceof File && (audio.size > 8 * 1024 * 1024 || !audio.size || !(audio.type.startsWith('audio/') || /\.(ogg|opus|mp3|m4a|webm|wav)$/i.test(audio.name)))) return Response.redirect(new URL('/app?shareError=1', self.location.origin), 303);
+        const db = await new Promise((resolve, reject) => {
+          const open = indexedDB.open('boardcue-share', 1);
+          open.onupgradeneeded = () => open.result.createObjectStore('inbox');
+          open.onsuccess = () => resolve(open.result);
+          open.onerror = () => reject(open.error);
+        });
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction('inbox', 'readwrite');
+          // audioName survives even if a browser drops File.name on clone; the server infers format from it when type is empty.
+          const file = audio instanceof File ? audio : null;
+          tx.objectStore('inbox').put({ text, audio: file, audioName: file?.name || null, truncated, createdAt: Date.now() }, 'latest');
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+        return Response.redirect(new URL('/app?shared=1', self.location.origin), 303);
+      } catch {
+        return Response.redirect(new URL('/app?shareError=1', self.location.origin), 303);
+      }
+    })());
+    return;
+  }
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   if (request.mode === 'navigate') {
     // Never persist server-rendered pages, credentials, board data or RSC responses.

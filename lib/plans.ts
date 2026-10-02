@@ -8,7 +8,8 @@ import { prisma } from "@/lib/prisma";
  * customers on the old flat Stripe prices but are no longer sold. Private customers pay the VAT-inclusive
  * price from consumerPriceCents(). The economics behind these numbers live in docs/PRICING_ECONOMICS.md.
  */
-export type PlanKey = "TRIAL" | "PRO" | "TEAM" | "BUSINESS" | "ENTERPRISE" | "LIFETIME" | "SOLO" | "TEAM_LEGACY" | "STUDIO";
+export type PlanKey =
+  "TRIAL" | "PERSONAL_PRO" | "FAMILY" | "PRO" | "TEAM" | "BUSINESS" | "ENTERPRISE" | "LIFETIME" | "SOLO" | "TEAM_LEGACY" | "STUDIO";
 
 export type PlanConfig = {
   label: string;
@@ -40,6 +41,19 @@ const base = {
 
 export const PLANS: Record<PlanKey, PlanConfig> = {
   TRIAL: { ...base, label: "Prova Pro", priceEur: 0, memberLimit: 1, aiUpdates: 150 },
+  PERSONAL_PRO: { ...base, label: "Pro", priceEur: 4.02, priceEurYearly: annualEur(4.02), memberLimit: 1, aiUpdates: 300, sellable: true },
+  FAMILY: {
+    ...base,
+    label: "Family",
+    priceEur: 4.1,
+    priceEurYearly: annualEur(4.1),
+    seatBased: true,
+    minSeats: 2,
+    memberLimit: 2,
+    aiUpdates: 300,
+    sellable: true,
+    guests: true,
+  },
   PRO: { ...base, label: "Pro", priceEur: 7, priceEurYearly: annualEur(7), memberLimit: 1, aiUpdates: 800, sellable: true },
   TEAM: {
     ...base,
@@ -97,7 +111,7 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
   STUDIO: { ...base, label: "Studio (legacy)", priceEur: 59, memberLimit: 24, aiUpdates: 12000, guests: true },
 };
 
-export const SELLABLE_PLAN_KEYS = ["PRO", "TEAM", "BUSINESS"] as const;
+export const SELLABLE_PLAN_KEYS = ["PERSONAL_PRO", "FAMILY", "PRO", "TEAM", "BUSINESS"] as const;
 export type SellablePlanKey = (typeof SELLABLE_PLAN_KEYS)[number];
 export const TRIAL_DAYS = 14;
 /** Safety circuit breaker: provider spend per included update above which AI pauses (normal usage ≈ $0.0005 text, ≈ $0.002 voice). */
@@ -109,23 +123,23 @@ export type CustomerType = "business" | "consumer";
 export const CONSUMER_VAT_RATE = 0.22;
 
 /**
- * Pricing rule: every price shown per month is rounded DOWN to the lower ten cents (8.33 → 8.30, 8.54 → 8.50).
- * Annual plans give 2 months free: the monthly equivalent is 10/12 of the monthly price, rounded down, and the
- * annual amount is exactly 12 × that equivalent, so the page shows what Stripe charges.
+ * Every displayed amount is rounded down to ten cents, always in the customer's favour. Annual plans charge
+ * 10 monthly payments (two months free), also rounded down; the UI shows the annual total, never a
+ * monthly equivalent.
  */
 export function floorToTenCents(cents: number) {
   return Math.floor(Math.round(cents) / 10) * 10;
 }
 
 export function annualCents(monthlyCents: number) {
-  return 12 * floorToTenCents((monthlyCents * 10) / 12);
+  return floorToTenCents(Math.round(monthlyCents) * 10);
 }
 
 function annualEur(monthlyEur: number) {
   return annualCents(monthlyEur * 100) / 100;
 }
 
-/** VAT-inclusive monthly price for private customers, in cents: net × 1.22 rounded down (Pro €7 → €8.50). */
+/** VAT-inclusive monthly price for private customers, in cents: net × 1.22 rounded down to ten cents. */
 export function consumerPriceCents(netMonthlyEur: number) {
   return floorToTenCents(netMonthlyEur * 100 * (1 + CONSUMER_VAT_RATE));
 }
@@ -192,11 +206,14 @@ export function getOrganizationLimits(organization: OrganizationEntitlementSourc
   };
 }
 
-/** Monthly amount the customer pays, VAT excluded (null = custom quote). */
-export function monthlyPrice(organization: OrganizationEntitlementSource & { billingInterval?: string | null }) {
+/** Monthly equivalent the customer pays; VAT included for private customers (null = custom quote). */
+export function monthlyPrice(organization: OrganizationEntitlementSource & { billingInterval?: string | null; legalType?: string | null }) {
   const limits = getOrganizationLimits(organization);
   if (limits.priceEur === null) return null;
-  const perSeat = organization.billingInterval === "year" && limits.priceEurYearly !== null ? limits.priceEurYearly / 12 : limits.priceEur;
+  const customerType = organization.legalType === "PERSONAL" ? "consumer" : "business";
+  const monthly = limits.sellable ? planPriceCents(limits.key as SellablePlanKey, "month", customerType) / 100 : limits.priceEur;
+  const yearly = limits.sellable ? planPriceCents(limits.key as SellablePlanKey, "year", customerType) / 100 : limits.priceEurYearly;
+  const perSeat = organization.billingInterval === "year" && yearly !== null ? yearly / 12 : monthly;
   return Math.round(perSeat * limits.seats * 100) / 100;
 }
 

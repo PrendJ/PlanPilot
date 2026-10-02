@@ -50,6 +50,100 @@
   border: 1px solid var(--border-strong);
   box-shadow: calc(var(--offset) + 2px) calc(var(--offset) + 2px) 0 var(--signal-solid);
 }
+.preview-capture {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-control);
+  background: var(--primary-soft);
+}
+.preview-capture-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--primary-solid);
+  color: white;
+}
+.preview-capture small {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.preview-capture p {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.preview-actions {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+.preview-actions-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-size: 13px;
+}
+.preview-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 13px;
+}
+.preview-action svg {
+  color: var(--success);
+  flex: none;
+}
+.preview-action span {
+  min-width: 0;
+  flex: 1;
+}
+.preview-action small {
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.preview-confirm {
+  justify-self: end;
+  padding: 7px 10px;
+  border-radius: var(--radius-control);
+  background: var(--primary-solid);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+.preview-today {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+}
+.preview-today span {
+  display: grid;
+  gap: 2px;
+}
+.preview-today strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.preview-today small {
+  font-size: 12px;
+}
 .loop-bubble {
   display: flex;
   align-items: center;
@@ -242,6 +336,9 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
+.persona-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .persona-grid article {
   display: grid;
   gap: 8px;
@@ -423,11 +520,20 @@
   gap: 16px;
   align-items: stretch;
 }
+.pricing-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 800px;
+  margin-inline: auto;
+}
 @media (max-width: 960px) {
   .pricing-grid {
     grid-template-columns: 1fr;
     max-width: 520px;
     margin: 0 auto;
+  }
+  .pricing-grid.two {
+    grid-template-columns: 1fr;
+    max-width: 520px;
   }
 }
 .pricing-card {
@@ -581,4 +687,44 @@
   gap: 16px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+/* Why BoardCue: the work a classic task manager leaves to you, and what BoardCue takes over. */
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.why-grid h3 {
+  margin-bottom: 12px;
+}
+.why-grid ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.why-grid li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.why-grid li svg {
+  flex: none;
+  margin-top: 3px;
+}
+.why-before li svg {
+  color: var(--text-3);
+}
+.why-after {
+  box-shadow: inset 3px 0 0 var(--primary-solid);
+}
+.why-after li svg {
+  color: var(--primary);
+}
+@media (max-width: 760px) {
+  .why-grid {
+    grid-template-columns: 1fr;
+  }
 }

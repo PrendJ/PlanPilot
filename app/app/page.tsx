@@ -5,20 +5,23 @@ import { getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Topbar } from "@/components/Topbar";
 import { HomeBoards } from "@/components/HomeBoards";
+import { HomeAssistant } from "@/components/HomeAssistant";
+import { canWriteCards, workspaceReadOnly } from "@/lib/board";
 import { ensureDefaultOrganization } from "@/lib/default-organization";
 import { getOrganizationLimits, getUsageStatus, monthlyPrice } from "@/lib/plans";
 import { getTranslator } from "@/lib/i18n/server";
 import { usedSeats } from "@/lib/invites";
 import { Icon } from "@/components/Icon";
+import { PERSONAL_BOARD_NAMES } from "@/lib/onboarding";
 
 export const metadata: Metadata = { title: "Home", robots: { index: false } };
 
 export default async function AppPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
   const query = await searchParams;
   const flag = (key: string) => (Array.isArray(query[key]) ? query[key]![0] : query[key]);
+  const user = await getCurrentUser();
+  if (!user) redirect(flag("shared") === "1" ? "/login?next=%2Fapp%3Fshared%3D1" : "/");
+  if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
   const { t, locale } = await getTranslator(user.locale);
   const team = await ensureDefaultOrganization(user.id);
   const [membership, memberships, seats, usage] = await Promise.all([
@@ -31,7 +34,17 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
       include: {
         workspace: {
           include: {
-            organization: { select: { id: true, name: true } },
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                plan: true,
+                trialEndsAt: true,
+                accessExpiresAt: true,
+                readOnlyAt: true,
+                lifecycleStatus: true,
+              },
+            },
             _count: { select: { cards: { where: { archived: false } }, members: true } },
             columns: { orderBy: { position: "asc" }, select: { _count: { select: { cards: { where: { archived: false } } } } } },
           },
@@ -58,6 +71,14 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
     lanes: workspace.columns.map(column => column._count.cards),
     updatedAt: workspace.updatedAt.toISOString(),
   }));
+  const captureBoards = memberships
+    .filter(({ role, workspace }) => canWriteCards(role) && !workspaceReadOnly(workspace))
+    .map(({ workspace }) => ({
+      id: workspace.id,
+      name: workspace.name,
+      slug: workspace.slug,
+      dictationEnabled: workspace.dictationEnabled,
+    }));
   const steps = [
     { done: Boolean(organization.firstBoardAt), label: t("home.checklist.board") },
     { done: Boolean(organization.firstAiUpdateAt), label: t("home.checklist.ai") },
@@ -102,6 +123,20 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
             </Link>
           </div>
         )}
+        <HomeAssistant
+          initialBoards={captureBoards}
+          paused={!captureBoards.length}
+          quick={flag("quick") === "1"}
+          shared={flag("shared") === "1"}
+          shareError={flag("shareError") === "1"}
+          personalBoardOffer={
+            memberships.some(({ workspace }) => workspace.presetKey === "PERSONAL" && workspace.lifecycleStatus === "ACTIVE") ||
+            membership?.role === "GUEST" ||
+            usage?.readOnly
+              ? null
+              : { organizationId: organization.id, locale: user.locale, name: PERSONAL_BOARD_NAMES[locale === "it" ? "it" : "en"] }
+          }
+        />
         <div className="home-grid">
           <HomeBoards
             boards={boards}

@@ -1,6 +1,6 @@
 # BoardCue
 
-Voice-first planning board. People dictate or type what changed; an AI reached through OpenRouter (zero data retention providers only) proposes a minimal, validated patch, shows it as a preview, and applies it only when confirmed. Every change is attributed, visible in the activity log and undoable.
+Voice-first assistant for personal and work tasks. People dictate or type free-form thoughts from the home page; AI routes them to the right boards, asks when the destination is unclear, then proposes validated changes for approval. The home also shows due and overdue work across boards. Every applied change is attributed, visible in the activity log and undoable.
 
 ## Public URL
 
@@ -10,24 +10,25 @@ Public demo: `https://boardcue.draftapps.it/demo`.
 
 ## What is included
 
-- landing (IT + `/en`), interactive public demo (same preview/apply loop, simulated locally), pricing with seats and annual billing
+- landing (IT + `/en`), interactive public demo (preview/apply loop, simulated locally), separate personal and business pricing with seats and annual billing
 - instant sign-up with a ready-made starter board; 7-day window to verify the email; magic-link sign-in
 - two-step verification (TOTP authenticator apps, recovery codes) on every plan; enforceable per team on Business
 - AI loop: immutable proposals with diff preview, partial apply, clarification questions, idempotent receipts, 15-minute expiry, undo
-- dictation in 7 languages with live level meter, timer, cancel and 2-minute limit (included in every plan)
+- dictation in 7 languages with live level meter on boards, timer, cancel and 2-minute limit; home audio upload and cleaned transcript import
+- Telegram private-chat capture with account linking and audio transcription; mobile PWA share target on supporting devices; read-only calendar subscription for Google and Apple
 - real-time boards (Server-Sent Events) with per-card optimistic concurrency
 - cards with due dates, overdue states, checklists, assignees, comments and @mentions; kanban, list and calendar views
 - notifications (in-app bell, daily email digest, due-date reminders, optional Web Push)
 - invites with pending list, resend/revoke, free guest role (read + comment)
 - import from Trello JSON / CSV; export CSV, JSON, Markdown, print
 - personal API tokens (`/api/v1`) and signed outgoing webhooks (JSON or Slack/Teams text)
-- plans: Pro trial (14 days), Pro, Team and Business (per seat, minimum 2), Enterprise; AI updates quota with atomic reservation and credit packs; frozen (read-only) instead of deleted on non-payment
+- plans: Pro trial (14 days); personal Pro (€4.90/month, 300 AI updates) and Family (€5/seat/month, 300 updates per seat); business Pro, Team and Business; Enterprise; AI updates quota with atomic reservation and credit packs; frozen (read-only) instead of deleted on non-payment
 - Italian e-invoicing data collection at checkout and fiscal CSV export for the back office
 - superadmin back office with economics per seat, activation KPIs (aggregate, privacy-preserving) and licensing
-- design system "Paper/Graphite" (WCAG AA), Geist fonts, BoardCue mark, installable PWA with quick-voice shortcut
+- design system "Paper/Graphite" (WCAG AA), Geist fonts, BoardCue mark, installable PWA with a quick-voice shortcut to the assistant home
 - Docker Compose with PostgreSQL, ready for Coolify; health endpoint, backup/restore scripts, smoke-test workflow
 
-See [the commercial assessment and implementation map](docs/VALUTAZIONE_COMMERCIALE_2026-09-23.md), [pricing and unit economics](docs/PRICING_ECONOMICS.md) and [operations](docs/OPERATIONS.md).
+See [the call-driven product direction and demo script](docs/CALL_DIRECTION_2026-10-01.md), [Telegram, calendar and mobile setup](docs/INTEGRATIONS_MOBILE_CALENDAR.md), [pricing and unit economics](docs/PRICING_ECONOMICS.md) and [operations](docs/OPERATIONS.md). The [23 September assessment](docs/VALUTAZIONE_COMMERCIALE_2026-09-23.md) is historical and predates the personal plans.
 
 ## Coolify
 
@@ -82,7 +83,7 @@ Per assegnare un piano alla sua organizzazione, con scadenza facoltativa:
 npm run license:grant -- --email persona@example.com --plan TEAM --expires-at 2026-12-31 --actor superadmin@example.com
 ```
 
-Piani disponibili: `TRIAL`, `PRO`, `TEAM`, `BUSINESS`, `LIFETIME`, `ENTERPRISE` (più `SOLO`, `TEAM_LEGACY` e `STUDIO` storici). Se la persona possiede più organizzazioni, aggiungi `--organization slug-organizzazione`. Le licenze manuali prevalgono su Stripe fino alla revoca o alla scadenza.
+Piani disponibili: `TRIAL`, `PERSONAL_PRO`, `FAMILY`, `PRO`, `TEAM`, `BUSINESS`, `LIFETIME`, `ENTERPRISE` (più `SOLO`, `TEAM_LEGACY` e `STUDIO` storici). Se la persona possiede più organizzazioni, aggiungi `--organization slug-organizzazione`. Le licenze manuali prevalgono su Stripe fino alla revoca o alla scadenza.
 
 Per promuovere un account esistente a Superadmin, verificarne l'email e riattivarlo senza cambiare la password:
 

@@ -23,8 +23,12 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
   const owned = user
     ? ((await prisma.organizationMember.findFirst({
         where: { userId: user.id, role: "OWNER", ...(user.defaultOrganizationId ? { organizationId: user.defaultOrganizationId } : {}) },
-        select: { organizationId: true },
-      })) ?? (await prisma.organizationMember.findFirst({ where: { userId: user.id, role: "OWNER" }, select: { organizationId: true } })))
+        select: { organizationId: true, organization: { select: { legalType: true } } },
+      })) ??
+      (await prisma.organizationMember.findFirst({
+        where: { userId: user.id, role: "OWNER" },
+        select: { organizationId: true, organization: { select: { legalType: true } } },
+      })))
     : null;
   const plans = SELLABLE_PLAN_KEYS.map(key => ({
     key,
@@ -59,6 +63,15 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
           highlight={highlight}
           trialDays={TRIAL_DAYS}
           verified={Boolean(user?.emailVerifiedAt)}
+          initialCustomerType={
+            highlight
+              ? ["PERSONAL_PRO", "FAMILY"].includes(highlight)
+                ? "consumer"
+                : "business"
+              : owned?.organization.legalType === "BUSINESS"
+                ? "business"
+                : "consumer"
+          }
         />
         <section className="pricing-extra">
           <div className="panel">

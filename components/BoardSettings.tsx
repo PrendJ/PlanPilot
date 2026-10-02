@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Icon } from "./Icon";
 import { useI18n } from "./I18nProvider";
 import { api, Avatar, useFeedback } from "./ui";
+import { SlackSteps } from "./IntegrationsPanel";
 
 type Column = { id: string; title: string; description: string; cards: number };
 type Member = { id: string; name: string; email: string; role: string };
@@ -22,8 +23,7 @@ type Props = {
   slug: string;
   isOwner: boolean;
   meId: string;
-  general: { name: string; locale: string; dictationEnabled: boolean; planModel: string };
-  models: Array<{ id: string; label: string; note: string; recommended?: boolean }>;
+  general: { name: string; locale: string; dictationEnabled: boolean };
   columns: Column[];
   members: Member[];
   guestsAllowed: boolean;
@@ -44,7 +44,6 @@ export function BoardSettings({
   isOwner,
   meId,
   general: initialGeneral,
-  models,
   columns: initialColumns,
   members: initialMembers,
   guestsAllowed,
@@ -337,32 +336,6 @@ export function BoardSettings({
                 onChange={event => setGeneral({ ...general, dictationEnabled: event.target.checked })}
               />
             </label>
-            <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
-              <legend className="field-label">{t("settings.general.model")}</legend>
-              <small>{t("settings.general.modelHint")}</small>
-              <div className="stack" style={{ gap: 8, marginTop: 8 }}>
-                {models.map(model => (
-                  <label key={model.id} className="check" style={{ alignItems: "flex-start" }}>
-                    <input
-                      type="radio"
-                      name="planModel"
-                      checked={general.planModel === model.id}
-                      onChange={() => setGeneral({ ...general, planModel: model.id })}
-                    />
-                    <span>
-                      <strong>{model.label}</strong>
-                      {model.recommended && (
-                        <span className="badge primary" style={{ marginLeft: 6 }}>
-                          {t("settings.general.recommended")}
-                        </span>
-                      )}
-                      <br />
-                      <span className="subtle">{model.note}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
             <div>
               <button className="btn primary" disabled={busy === "general"}>
                 {t("common.save")}
@@ -600,6 +573,11 @@ export function BoardSettings({
               <p>{t("settings.webhooks.description")}</p>
             </div>
           </div>
+          <details className="integration-help">
+            <summary>{t("integrations.slackHow")}</summary>
+            <SlackSteps />
+            <p className="subtle">{t("integrations.slackNote")}</p>
+          </details>
           <form onSubmit={addWebhook} className="stack">
             <div className="form-grid">
               <div className="field">

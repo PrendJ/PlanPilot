@@ -4,7 +4,7 @@ import type Stripe from "stripe";
 import { getCurrentUser, getOrganizationAccess, isVerified } from "@/lib/auth";
 import { appUrl } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
-import { ITALIAN_INVOICE_FIELDS, planPrice, stripe, stripeTaxEnabled } from "@/lib/stripe";
+import { ITALIAN_INVOICE_FIELDS, planPrice, portalConfiguration, stripe, stripeTaxEnabled } from "@/lib/stripe";
 import { PLANS, SELLABLE_PLAN_KEYS } from "@/lib/plans";
 import { rejectCrossOrigin } from "@/lib/security";
 import { apiError } from "@/lib/errors";
@@ -32,10 +32,37 @@ export async function POST(request: Request) {
   if (!membership || membership.role !== "OWNER") return apiError(request, "OWNER_ONLY", 403);
   if (membership.organization.plan === "LIFETIME") return apiError(request, "INVALID_INPUT", 400);
   const customerType = parsed.data.customerType;
+  if (
+    customerType === "consumer"
+      ? !["PERSONAL_PRO", "FAMILY"].includes(parsed.data.plan)
+      : !["PRO", "TEAM", "BUSINESS"].includes(parsed.data.plan)
+  )
+    return apiError(request, "INVALID_INPUT", 400);
   const plan = PLANS[parsed.data.plan];
   // Seat plans start from the people already in the team (never below the minimum of 2).
   const seats = plan.seatBased ? Math.max(plan.minSeats, parsed.data.seats || 0, await usedSeats(membership.organizationId)) : 1;
   const existing = await prisma.subscription.findUnique({ where: { organizationId: membership.organizationId } });
+  // Existing subscribers change plans in Stripe's portal. A second subscription would bill the same
+  // organization twice and leave competing webhook events fighting over its entitlement.
+  if (existing?.stripeSubscriptionId && ["active", "trialing", "past_due"].includes(existing.status)) {
+    const subscribedType = existing.customerType === "consumer" ? "consumer" : "business";
+    if (subscribedType !== customerType) return apiError(request, "BILLING_TYPE_CHANGE", 409);
+    try {
+      const configuration = await portalConfiguration(customerType, {
+        privacy: appUrl("/privacy", request),
+        terms: appUrl("/terms", request),
+      });
+      const session = await stripe().billingPortal.sessions.create({
+        customer: existing.stripeCustomerId!,
+        configuration,
+        return_url: appUrl("/pricing", request),
+      });
+      return NextResponse.json({ url: session.url });
+    } catch (error) {
+      console.error("Billing portal failed", error);
+      return apiError(request, "BILLING_UNAVAILABLE", 503);
+    }
+  }
   const metadata = { organizationId: membership.organizationId, plan: parsed.data.plan, interval: parsed.data.interval, customerType };
   let price: string;
   try {

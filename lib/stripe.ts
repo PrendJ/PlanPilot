@@ -31,6 +31,8 @@ export type BillingInterval = "month" | "year";
  * prices VAT-inclusive (see consumerPriceCents).
  */
 export const PRODUCTS = {
+  PERSONAL_PRO: { id: "boardcue_personal_pro", name: "BoardCue Pro personale" },
+  FAMILY: { id: "boardcue_family", name: "BoardCue Family" },
   PRO: { id: "boardcue_pro", name: "BoardCue Pro" },
   TEAM: { id: "boardcue_team", name: "BoardCue Team" },
   BUSINESS: { id: "boardcue_business", name: "BoardCue Business" },
@@ -159,7 +161,7 @@ const portalCache = new Map<string, string>();
  */
 export async function portalConfiguration(customerType: CustomerType, urls: { privacy: string; terms: string }) {
   const products = await Promise.all(
-    SELLABLE_PLAN_KEYS.map(async plan => ({
+    SELLABLE_PLAN_KEYS.filter(plan => customerType === "consumer" ? plan === "PERSONAL_PRO" || plan === "FAMILY" : plan === "PRO" || plan === "TEAM" || plan === "BUSINESS").map(async plan => ({
       product: PRODUCTS[plan].id,
       prices: [await planPrice(plan, "month", customerType), await planPrice(plan, "year", customerType)],
       adjustable_quantity: PLANS[plan].seatBased ? { enabled: true, minimum: PLANS[plan].minSeats, maximum: 500 } : { enabled: false },

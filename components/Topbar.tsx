@@ -3,6 +3,7 @@ import { getCurrentUser, isVerified } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTranslator } from "@/lib/i18n/server";
 import { Brand } from "./Brand";
+import { Icon } from "./Icon";
 import { InstallAppButton } from "./PwaProvider";
 import { LanguageSwitch, NotificationsBell, SearchButton, TeamSwitcher, ThemeMenu, UserMenu, VerifyBanner } from "./TopbarClient";
 
@@ -27,7 +28,7 @@ export async function Topbar() {
           </span>
           <ThemeMenu />
           <InstallAppButton />
-          <Link className="btn ghost hide-mobile" href="/login">
+          <Link className="btn ghost" href="/login">
             {t("nav.login")}
           </Link>
           <Link className="btn primary" href="/register">
@@ -58,6 +59,10 @@ export async function Topbar() {
           }))}
         />
         <div className="topbar-actions">
+          <Link href="/app?quick=1" className="topbar-capture" title={t("nav.captureHint")}>
+            <Icon name="mic" size={16} />
+            <span>{t("nav.capture")}</span>
+          </Link>
           <SearchButton />
           <NotificationsBell />
           <span className="hide-mobile">

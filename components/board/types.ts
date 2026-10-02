@@ -34,7 +34,6 @@ export type BoardData = {
     slug: string;
     locale: string;
     dictationEnabled: boolean;
-    planModel: string;
     revision: number;
     role: string;
     canManage: boolean;
@@ -115,6 +114,4 @@ export function fromDateInput(value: string) {
   return new Date(year, month - 1, day, 18, 0, 0).toISOString();
 }
 
-export function isDoneColumn(column: Pick<Column, "title">, index: number, total: number) {
-  return index === total - 1 || /\b(done|fatto|completat|consegnat|pubblicat|chius)/i.test(column.title);
-}
+export { isDoneColumn } from "@/lib/board-state";

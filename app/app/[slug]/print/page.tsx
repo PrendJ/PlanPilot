@@ -82,10 +82,6 @@ export default async function PrintWorkspacePage({ params }: { params: Promise<{
           <div className="print-meta">
             <span>Esportato</span>
             <strong>{exportedAt}</strong>
-            <span>Planning model</span>
-            <strong>{workspace.planModel}</strong>
-            <span>Voice model</span>
-            <strong>{workspace.dictationEnabled ? workspace.transcriptionModel : "Disattivato"}</strong>
           </div>
         </header>
 

@@ -2,6 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
+/** Just enough IndexedDB for one keyed object store: requests succeed async, the transaction completes after them. */
+function memoryIndexedDB(data = new Map<string, any>()) {
+  const later = (fn: () => void) => setTimeout(fn, 0);
+  const request = (value?: () => unknown) => { const r: any = {}; queueMicrotask(() => { r.result = value?.(); r.onsuccess?.(); }); return r; };
+  const store = { get: (key: string) => request(() => data.get(key)), put: (value: unknown, key: string) => request(() => data.set(key, value)), delete: (key: string) => request(() => data.delete(key)) };
+  const db = { close: vi.fn(), transaction: () => { const tx: any = { objectStore: () => store }; later(() => tx.oncomplete?.()); return tx; } };
+  return { data, db, indexedDB: { open: vi.fn(() => request(() => db)) } };
+}
+
 const source = readFileSync("scripts/service-worker.js", "utf8").replace("__VERSION__", '"new"').replace("__ASSETS__", '["/_next/static/new.js"]');
 function worker() {
   const listeners: Record<string, (event: any) => void> = {};
@@ -11,19 +20,26 @@ function worker() {
   const caches = { open: vi.fn(async () => cache), match: cache.match, keys: vi.fn(async () => ["other-app", "boardcue-static-oldest", "boardcue-static-previous", "boardcue-static-new"]), delete: vi.fn(async () => true) };
   const fetch = vi.fn(async () => new Response("network"));
   const self = { location: { origin: "https://boardcue.test" }, registration: { showNotification: vi.fn(async () => {}) }, clients: { claim: vi.fn(async () => {}), matchAll: vi.fn(async (): Promise<any[]> => []), openWindow: vi.fn(async () => {}) }, skipWaiting: vi.fn(async () => {}), addEventListener: (name: string, cb: any) => { listeners[name] = cb; } };
-  runInNewContext(source, { self, caches, fetch, URL, Response });
+  const idb = memoryIndexedDB();
+  runInNewContext(source, { self, caches, fetch, URL, Response, File, indexedDB: idb.indexedDB });
   function request(path: string, mode = "cors", method = "GET") {
     let response: Promise<Response> | undefined;
     listeners.fetch({ request: { url: new URL(path, self.location.origin).href, mode, method }, respondWith: (p: Promise<Response>) => { response = p; } });
     return response;
   }
+  async function share(fields: Record<string, string | File>) {
+    const form = new FormData(); for (const [name, value] of Object.entries(fields)) form.append(name, value);
+    let response: Promise<Response> | undefined;
+    listeners.fetch({ request: { url: `${self.location.origin}/share`, mode: "navigate", method: "POST", formData: async () => form }, respondWith: (p: Promise<Response>) => { response = p; } });
+    return new URL((await response!).headers.get("location")!);
+  }
   async function event(name: string, rest = {}) { let task: Promise<unknown> | undefined; listeners[name]({ ...rest, waitUntil: (p: Promise<unknown>) => { task = p; } }); await task; }
-  return { cache, cached, caches, fetch, self, request, event };
+  return { cache, cached, caches, fetch, self, request, event, share, idb };
 }
 describe("PWA privacy, lifecycle and notification worker", () => {
   it("provides real opaque platform icons and a stable standalone identity", () => {
     const manifest = JSON.parse(readFileSync("public/manifest.webmanifest", "utf8"));
-    expect(manifest).toMatchObject({ id: "/", start_url: "/app", scope: "/", display: "standalone" });
+    expect(manifest).toMatchObject({ id: "/", start_url: "/", scope: "/", display: "standalone" });
     for (const icon of manifest.icons) {
       const png = readFileSync(`public${icon.src.split("?")[0]}`); const [w, h] = icon.sizes.split("x").map(Number);
       expect(png.readUInt32BE(16)).toBe(w); expect(png.readUInt32BE(20)).toBe(h); expect(png[25]).toBe(2);
@@ -64,5 +80,59 @@ describe("PWA privacy, lifecycle and notification worker", () => {
     w.self.clients.matchAll.mockResolvedValueOnce([{ url: "https://boardcue.test/app/team", focus }]);
     await w.event("notificationclick", { notification: { close } }); expect(focus).toHaveBeenCalledOnce(); expect(w.self.clients.openWindow).not.toHaveBeenCalled();
     await w.event("notificationclick", { notification: { close } }); expect(w.self.clients.openWindow).toHaveBeenCalledWith("/app");
+  });
+});
+
+describe("PWA share target", () => {
+  it("stores shared text and redirects to the signed-in home", async () => {
+    const w = worker(); const location = await w.share({ title: "Idea", text: "Call the bank", url: "https://example.test/x" });
+    expect(location.pathname + location.search).toBe("/app?shared=1");
+    expect(w.idb.data.get("latest")).toMatchObject({ text: "Idea\nCall the bank\nhttps://example.test/x", audio: null, audioName: null, truncated: false });
+    expect(w.idb.db.close).toHaveBeenCalledOnce();
+  });
+  it("truncates long text to 12,000 characters instead of rejecting it, without splitting a surrogate pair", async () => {
+    const w = worker(); expect((await w.share({ text: "a".repeat(20_000) })).search).toBe("?shared=1");
+    expect(w.idb.data.get("latest")).toMatchObject({ text: "a".repeat(12_000), truncated: true });
+    await w.share({ text: "a".repeat(11_999) + "😀".repeat(10) });
+    const { text } = w.idb.data.get("latest"); expect(text).toBe("a".repeat(11_999)); expect(w.idb.data.get("latest").truncated).toBe(true);
+  });
+  it("keeps the original name of an untyped audio file with a known extension", async () => {
+    const w = worker(); const voice = new File([new Uint8Array(32)], "voice-note.opus", { type: "" });
+    expect((await w.share({ audio: voice })).search).toBe("?shared=1");
+    expect(w.idb.data.get("latest")).toMatchObject({ text: "", audioName: "voice-note.opus", truncated: false });
+    expect(w.idb.data.get("latest").audio.name).toBe("voice-note.opus");
+  });
+  it("rejects empty shares and unsupported, empty or oversized audio without storing anything", async () => {
+    const w = worker();
+    for (const fields of <Record<string, string | File>[]>[{}, { text: "   " }, { audio: new File(["x"], "notes.pdf", { type: "application/pdf" }) }, { audio: new File([], "empty.ogg", { type: "audio/ogg" }) }, { audio: new File([new Uint8Array(8 * 1024 * 1024 + 1)], "big.ogg", { type: "audio/ogg" }) }]) {
+      expect((await w.share(fields)).search).toBe("?shareError=1");
+    }
+    expect(w.idb.data.size).toBe(0);
+  });
+  it("redirects with an error when local storage fails", async () => {
+    const w = worker(); w.idb.indexedDB.open.mockImplementationOnce(() => { const r: any = {}; queueMicrotask(() => { r.error = new Error("blocked"); r.onerror?.(); }); return r; });
+    expect((await w.share({ text: "hello" })).search).toBe("?shareError=1");
+  });
+});
+
+describe("share inbox reader", () => {
+  async function inbox(value?: Record<string, unknown>) {
+    const idb = memoryIndexedDB(); if (value) idb.data.set("latest", value);
+    vi.stubGlobal("indexedDB", idb.indexedDB); vi.resetModules();
+    return { idb, ...(await import("../lib/share-inbox")) };
+  }
+  it("reads without deleting until clearSharedCapture() is called", async () => {
+    const { idb, consumeSharedCapture, clearSharedCapture } = await inbox({ text: "hello", audio: null, createdAt: Date.now() });
+    expect(await consumeSharedCapture()).toEqual({ text: "hello", audio: null, audioName: null, truncated: false, createdAt: expect.any(Number) });
+    expect(await consumeSharedCapture()).toMatchObject({ text: "hello" });
+    await clearSharedCapture(); expect(idb.data.size).toBe(0); expect(await consumeSharedCapture()).toBeNull();
+    vi.unstubAllGlobals();
+  });
+  it("keeps shares for 30 minutes and deletes them once expired", async () => {
+    const fresh = await inbox({ text: "x", audio: null, truncated: true, audioName: "a.ogg", createdAt: Date.now() - 29 * 60_000 });
+    expect(await fresh.consumeSharedCapture()).toMatchObject({ truncated: true, audioName: "a.ogg" });
+    const stale = await inbox({ text: "x", audio: null, createdAt: Date.now() - 31 * 60_000 });
+    expect(await stale.consumeSharedCapture()).toBeNull(); expect(stale.idb.data.size).toBe(0);
+    vi.unstubAllGlobals();
   });
 });

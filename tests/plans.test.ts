@@ -40,13 +40,16 @@ describe("organization license expiry", () => {
 });
 
 describe("commercial catalogue", () => {
-  it("sells Pro, Team and Business only", () => expect([...SELLABLE_PLAN_KEYS]).toEqual(["PRO", "TEAM", "BUSINESS"]));
+  it("keeps personal and business catalogues distinct", () =>
+    expect([...SELLABLE_PLAN_KEYS]).toEqual(["PERSONAL_PRO", "FAMILY", "PRO", "TEAM", "BUSINESS"]));
   it("uses the agreed prices, seats and updates", () => {
-    expect(PLANS.PRO).toMatchObject({ priceEur: 7, priceEurYearly: 69.6, memberLimit: 1, aiUpdates: 800, seatBased: false });
+    expect(PLANS.PERSONAL_PRO).toMatchObject({ memberLimit: 1, aiUpdates: 300, seatBased: false });
+    expect(PLANS.FAMILY).toMatchObject({ seatBased: true, minSeats: 2, aiUpdates: 300 });
+    expect(PLANS.PRO).toMatchObject({ priceEur: 7, priceEurYearly: 70, memberLimit: 1, aiUpdates: 800, seatBased: false });
     expect(PLANS.TEAM).toMatchObject({ priceEur: 6, priceEurYearly: 60, seatBased: true, minSeats: 2, aiUpdates: 600 });
     expect(PLANS.BUSINESS).toMatchObject({
       priceEur: 10,
-      priceEurYearly: 99.6,
+      priceEurYearly: 100,
       seatBased: true,
       minSeats: 2,
       aiUpdates: 1000,
@@ -66,29 +69,33 @@ describe("commercial catalogue", () => {
     // The old flat Team (€24, 10 people) is not squeezed into the new 2-seat minimum.
     expect(getOrganizationLimits({ plan: "TEAM_LEGACY", seats: 1 })).toMatchObject({ memberLimit: 10, aiUpdates: 4000 });
   });
-  it("rounds every monthly amount down to the lower ten cents", () => {
+  it("rounds consumer monthly amounts and gives exactly two free months annually", () => {
     expect(floorToTenCents(833.33)).toBe(830);
     expect(floorToTenCents(854)).toBe(850);
     expect(floorToTenCents(1220)).toBe(1220);
-    expect(annualCents(1000)).toBe(9960); // €100/12 = €8.33 → €8.30 per month, €99.60 a year
+    expect(annualCents(1000)).toBe(10000);
   });
   it("charges private customers VAT included, rounded down to ten cents", () => {
     expect(consumerPriceCents(7)).toBe(850); // 8.54 → 8.50
     expect(consumerPriceCents(6)).toBe(730); // 7.32 → 7.30
     expect(consumerPriceCents(10)).toBe(1220);
     expect(planPriceCents("PRO", "month", "business")).toBe(700);
-    expect(planPriceCents("PRO", "year", "business")).toBe(6960); // 5.83 → 5.80 × 12
+    expect(planPriceCents("PRO", "year", "business")).toBe(7000);
     expect(planPriceCents("TEAM", "year", "business")).toBe(6000);
-    expect(planPriceCents("BUSINESS", "year", "business")).toBe(9960);
-    expect(planPriceCents("PRO", "year", "consumer")).toBe(8400); // 8.50 × 10/12 = 7.08 → 7.00 × 12
+    expect(planPriceCents("BUSINESS", "year", "business")).toBe(10000);
+    expect(planPriceCents("PERSONAL_PRO", "month", "consumer")).toBe(490);
+    expect(planPriceCents("PERSONAL_PRO", "year", "consumer")).toBe(4900);
+    expect(planPriceCents("FAMILY", "month", "consumer")).toBe(500);
+    expect(planPriceCents("FAMILY", "year", "consumer")).toBe(5000);
     expect(planPriceCents("TEAM", "month", "consumer")).toBe(730);
-    expect(planPriceCents("TEAM", "year", "consumer")).toBe(7200);
-    expect(planPriceCents("BUSINESS", "year", "consumer")).toBe(12120); // 10.16 → 10.10 × 12
-    for (const plan of ["PRO", "TEAM", "BUSINESS"] as const)
+    expect(planPriceCents("TEAM", "year", "consumer")).toBe(7300);
+    expect(planPriceCents("BUSINESS", "year", "consumer")).toBe(12200);
+    for (const plan of SELLABLE_PLAN_KEYS)
       for (const customer of ["business", "consumer"] as const)
         for (const interval of ["month", "year"] as const) {
-          const perMonth = planPriceCents(plan, interval, customer) / (interval === "year" ? 12 : 1);
-          expect(perMonth % 10).toBe(0);
+          expect(planPriceCents(plan, interval, customer)).toBe(
+            interval === "year" ? 10 * planPriceCents(plan, "month", customer) : planPriceCents(plan, "month", customer),
+          );
         }
     expect(creditPackPriceCents("business")).toBe(600);
     expect(creditPackPriceCents("consumer")).toBe(730);
@@ -104,6 +111,7 @@ describe("seats and limits", () => {
   it("pools AI updates per seat and derives the member limit from seats", () => {
     expect(getOrganizationLimits({ plan: "TEAM", seats: 5 })).toMatchObject({ memberLimit: 5, aiUpdates: 3000 });
     expect(getOrganizationLimits({ plan: "BUSINESS", seats: null })).toMatchObject({ memberLimit: 2, aiUpdates: 2000 });
+    expect(getOrganizationLimits({ plan: "FAMILY", seats: 3 })).toMatchObject({ memberLimit: 3, aiUpdates: 900 });
   });
   it("applies Enterprise overrides", () => {
     expect(
@@ -119,7 +127,9 @@ describe("seats and limits", () => {
   });
   it("computes the monthly amount, spreading annual plans", () => {
     expect(monthlyPrice({ plan: "TEAM", seats: 3 })).toBe(18);
-    expect(monthlyPrice({ plan: "PRO", billingInterval: "year" })).toBe(5.8);
+    expect(monthlyPrice({ plan: "PRO", billingInterval: "year" })).toBe(5.83);
+    expect(monthlyPrice({ plan: "PERSONAL_PRO", legalType: "PERSONAL" })).toBe(4.9);
+    expect(monthlyPrice({ plan: "FAMILY", legalType: "PERSONAL", seats: 2 })).toBe(10);
     expect(monthlyPrice({ plan: "ENTERPRISE" })).toBeNull();
   });
 });

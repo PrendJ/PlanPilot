@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { assertBoardAccess, BoardAccessError, bumpRevision, isBoardConflict, logActivity } from "@/lib/board";
 import { boardContext, isResponse } from "@/lib/api-context";
 import { apiError } from "@/lib/errors";
+import { inferSemanticKey } from "@/lib/board-state";
 
 const patchSchema = z.object({ title: z.string().trim().min(1).max(80).optional(), description: z.string().max(500).optional() });
 const deleteSchema = z.object({ destinationColumnId: z.string().cuid().optional() });
@@ -22,7 +23,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
       if ((await assertBoardAccess(workspace.id, tx, { userId: user.id, manageColumns: true })) === null) throw new BoardAccessError();
       const updated = await tx.boardColumn.update({
         where: { id: columnId },
-        data: { title: parsed.data.title, description: parsed.data.description },
+        data: {
+          title: parsed.data.title,
+          description: parsed.data.description,
+          // A recognisable new title updates the state; an unrecognised one never erases a known state.
+          ...(parsed.data.title && inferSemanticKey(parsed.data.title) !== "CUSTOM" ? { semanticKey: inferSemanticKey(parsed.data.title) } : {}),
+        },
       });
       await logActivity(tx, {
         organizationId: workspace.organizationId,
