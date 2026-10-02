@@ -520,8 +520,9 @@ export function AccountCenter({
               type="button"
               className="btn"
               onClick={async () => {
-                await api("/api/auth/logout", { method: "POST", json: { all: true } });
-                router.push("/login");
+                const response = await api("/api/auth/logout", { method: "POST", json: { all: true } });
+                if (response.ok) window.location.replace("/login");
+                else toast({ message: t("errors.SERVER_ERROR"), tone: "error" });
               }}
             >
               {t("account.security.signOutAll")}

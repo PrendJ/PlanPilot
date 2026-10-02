@@ -526,9 +526,12 @@ export function AcceptInvite({ token }: { token: string }) {
     router.refresh();
   }
   async function changeAccount() {
-    await api("/api/auth/logout", { method: "POST", json: {} });
-    router.replace(`/login?next=${encodeURIComponent(`/accept-invite?token=${encodeURIComponent(token)}`)}`);
-    router.refresh();
+    const response = await api("/api/auth/logout", { method: "POST", json: {} });
+    if (!response.ok) {
+      setError(response.data.error || t("errors.SERVER_ERROR"));
+      return;
+    }
+    window.location.replace(`/login?next=${encodeURIComponent(`/accept-invite?token=${encodeURIComponent(token)}`)}`);
   }
   return (
     <div className="stack">

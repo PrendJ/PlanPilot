@@ -55,6 +55,8 @@ export function HomeAssistant({
   shared = false,
   shareError = false,
   personalBoardOffer = null,
+  boardList,
+  sidebar,
 }: {
   initialBoards: BoardChoice[];
   paused: boolean;
@@ -62,6 +64,8 @@ export function HomeAssistant({
   shared?: boolean;
   shareError?: boolean;
   personalBoardOffer?: { organizationId: string; locale: string; name: string } | null;
+  boardList: React.ReactNode;
+  sidebar: React.ReactNode;
 }) {
   const { t, tag } = useI18n();
   const router = useRouter();
@@ -432,299 +436,308 @@ export function HomeAssistant({
     card.dueDate && new Date(card.dueDate).getTime() < todayStart.getTime() ? t("home.today.overdue") : t("home.today.dueToday");
 
   return (
-    <section className="home-assistant" aria-label={t("home.assistant.title")}>
-      <div className="panel home-capture">
-        <span className="eyebrow">{t("home.assistant.eyebrow")}</span>
-        <div className="home-capture-main">
-          <button
-            type="button"
-            className={`home-mic ${recording ? "active" : ""}`}
-            onClick={() => void toggleMic()}
-            disabled={micDisabled && !recording}
-            aria-label={recording ? t("home.assistant.stop") : t("home.assistant.speak")}
-          >
-            <Icon name={recording ? "stop" : "mic"} size={44} />
-          </button>
-          <h2>{t("home.assistant.title")}</h2>
-          <strong className="home-capture-status" aria-live="polite">
-            {busy === "transcribing"
-              ? t("home.assistant.transcribing")
-              : recording
-                ? t("home.assistant.recording", { seconds })
-                : t("home.assistant.speak")}
-          </strong>
-          <span className="subtle">
-            {recording
-              ? t("board.composer.maxDuration", { max: "2:00" })
-              : dictation
-                ? t("home.assistant.body")
-                : t("home.assistant.noDictation")}
-          </span>
-          {recording && (
-            <button type="button" className="btn sm" onClick={() => stop(true)}>
-              {t("common.cancel")}
+    <div className="home-dashboard">
+      <div className="home-main">
+        <div className="panel home-capture">
+          <span className="eyebrow">{t("home.assistant.eyebrow")}</span>
+          <div className="home-capture-main">
+            <button
+              type="button"
+              className={`home-mic ${recording ? "active" : ""}`}
+              onClick={() => void toggleMic()}
+              disabled={micDisabled && !recording}
+              aria-label={recording ? t("home.assistant.stop") : t("home.assistant.speak")}
+            >
+              <Icon name={recording ? "stop" : "mic"} size={44} />
             </button>
-          )}
-        </div>
-        <label htmlFor="home-thoughts" className="field-label">
-          {t("home.assistant.textLabel")}
-        </label>
-        <textarea
-          id="home-thoughts"
-          ref={textArea}
-          rows={3}
-          value={text}
-          maxLength={MAX_INPUT}
-          disabled={Boolean(busy) || pending.length > 0}
-          placeholder={t("home.assistant.placeholder")}
-          onChange={event => {
-            setText(event.target.value);
-            setSource("text");
-            setSegments([]);
-            setSelectedCaptureIds([]);
-          }}
-        />
-        {parts && (
-          <p className="subtle" role="status">
-            {t("home.assistant.transcriptParts", { current: parts.current, total: parts.total })}
-          </p>
-        )}
-        <div className="row home-capture-actions">
-          <span className="subtle">{t("home.assistant.previewHint")}</span>
-          <span className="spacer" />
-          <button
-            type="button"
-            className="btn primary"
-            disabled={!text.trim() || Boolean(busy) || recording || pending.length > 0 || paused}
-            onClick={() => void route()}
-          >
-            {busy && busy !== "transcribing" ? <span className="spinner" /> : <Icon name="sparkles" size={16} />}
-            {t("home.assistant.organize")}
-          </button>
-        </div>
-        <div className="home-imports">
-          <label className="home-audio-import">
-            <Icon name="upload" size={16} /> {t("home.assistant.importAudio")}
-            <input
-              type="file"
-              accept="audio/*,.ogg,.oga,.opus,.mp3,.m4a,.aac,.webm,.wav"
-              disabled={micDisabled || recording}
-              onChange={event => {
-                void importAudio(event.target.files?.[0] || null);
-                event.target.value = "";
-              }}
-            />
-          </label>
-          <label className="home-audio-import">
-            <Icon name="file" size={16} /> {t("home.assistant.importTranscript")}
-            <input
-              type="file"
-              accept=".txt,.md,text/plain,text/markdown"
-              disabled={Boolean(busy) || recording || paused || pending.length > 0}
-              onChange={event => {
-                void importTranscript(event.target.files?.[0] || null);
-                event.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-        {!boards.length && <p className="subtle">{t("home.assistant.noBoards")}</p>}
-        {notice && (
-          <p className="subtle" role="status">
-            {notice}
-          </p>
-        )}
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        {segments.length > 0 && (
-          <div className="home-routing">
-            <h3>{t("home.assistant.routeTitle")}</h3>
-            {segments.map((segment, index) => (
-              <div className="home-route-row" key={`${segment.text}-${index}`}>
-                <p>“{segment.text}”</p>
-                <select
-                  aria-label={t("home.assistant.destination")}
-                  value={segment.workspaceId || ""}
-                  onChange={event =>
-                    setSegments(current =>
-                      current.map((item, i) => (i === index ? { ...item, workspaceId: event.target.value || null } : item)),
-                    )
-                  }
-                >
-                  <option value="">{t("home.assistant.chooseBoard")}</option>
-                  {boards.map(board => (
-                    <option value={board.id} key={board.id}>
-                      {board.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-            <div className="row">
-              <button type="button" className="btn" onClick={() => setSegments([])}>
+            <div className="home-capture-copy">
+              <h2>{t("home.assistant.title")}</h2>
+              <strong className="home-capture-status" aria-live="polite">
+                {busy === "transcribing"
+                  ? t("home.assistant.transcribing")
+                  : recording
+                    ? t("home.assistant.recording", { seconds })
+                    : t("home.assistant.speak")}
+              </strong>
+              <span className="subtle">
+                {recording
+                  ? t("board.composer.maxDuration", { max: "2:00" })
+                  : dictation
+                    ? t("home.assistant.body")
+                    : t("home.assistant.noDictation")}
+              </span>
+            </div>
+            {recording && (
+              <button type="button" className="btn sm" onClick={() => stop(true)}>
                 {t("common.cancel")}
               </button>
-              <span className="spacer" />
-              <button
-                type="button"
-                className="btn primary"
-                disabled={Boolean(busy) || segments.some(segment => !segment.workspaceId)}
-                onClick={() => void propose(segments, boards)}
-              >
-                {t("home.assistant.preview")}
-              </button>
-            </div>
+            )}
           </div>
-        )}
-        {pending.map(item => (
-          <div className="home-pending" key={item.proposal.id}>
-            <div className="row">
-              <Icon name="file" size={15} />
-              <strong>{item.board.name}</strong>
-              <span className="spacer" />
-              {boards.length > 1 && (
-                <select
-                  aria-label={t("home.assistant.changeBoard")}
-                  value=""
-                  disabled={Boolean(busy)}
-                  onChange={event => void moveTo(item, event.target.value)}
-                >
-                  <option value="">{t("home.assistant.changeBoard")}</option>
-                  {boards
-                    .filter(board => board.id !== item.board.id)
-                    .map(board => (
+          <label htmlFor="home-thoughts" className="field-label">
+            {t("home.assistant.textLabel")}
+          </label>
+          <textarea
+            id="home-thoughts"
+            ref={textArea}
+            rows={3}
+            value={text}
+            maxLength={MAX_INPUT}
+            disabled={Boolean(busy) || pending.length > 0}
+            placeholder={t("home.assistant.placeholder")}
+            onChange={event => {
+              setText(event.target.value);
+              setSource("text");
+              setSegments([]);
+              setSelectedCaptureIds([]);
+            }}
+          />
+          {parts && (
+            <p className="subtle" role="status">
+              {t("home.assistant.transcriptParts", { current: parts.current, total: parts.total })}
+            </p>
+          )}
+          <div className="row home-capture-actions">
+            <span className="subtle">{t("home.assistant.previewHint")}</span>
+            <span className="spacer" />
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!text.trim() || Boolean(busy) || recording || pending.length > 0 || paused}
+              onClick={() => void route()}
+            >
+              {busy && busy !== "transcribing" ? <span className="spinner" /> : <Icon name="sparkles" size={16} />}
+              {t("home.assistant.organize")}
+            </button>
+          </div>
+          <div className="home-imports">
+            <label className="home-audio-import">
+              <Icon name="upload" size={16} /> {t("home.assistant.importAudio")}
+              <input
+                type="file"
+                accept="audio/*,.ogg,.oga,.opus,.mp3,.m4a,.aac,.webm,.wav"
+                disabled={micDisabled || recording}
+                onChange={event => {
+                  void importAudio(event.target.files?.[0] || null);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            <label className="home-audio-import">
+              <Icon name="file" size={16} /> {t("home.assistant.importTranscript")}
+              <input
+                type="file"
+                accept=".txt,.md,text/plain,text/markdown"
+                disabled={Boolean(busy) || recording || paused || pending.length > 0}
+                onChange={event => {
+                  void importTranscript(event.target.files?.[0] || null);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            <Link href="/app/integrations" className="home-audio-import">
+              <Icon name="settings" size={16} /> {t("home.assistant.integrations")}
+            </Link>
+          </div>
+          {!boards.length && <p className="subtle">{t("home.assistant.noBoards")}</p>}
+          {notice && (
+            <p className="subtle" role="status">
+              {notice}
+            </p>
+          )}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          {segments.length > 0 && (
+            <div className="home-routing">
+              <h3>{t("home.assistant.routeTitle")}</h3>
+              {segments.map((segment, index) => (
+                <div className="home-route-row" key={`${segment.text}-${index}`}>
+                  <p>“{segment.text}”</p>
+                  <select
+                    aria-label={t("home.assistant.destination")}
+                    value={segment.workspaceId || ""}
+                    onChange={event =>
+                      setSegments(current =>
+                        current.map((item, i) => (i === index ? { ...item, workspaceId: event.target.value || null } : item)),
+                      )
+                    }
+                  >
+                    <option value="">{t("home.assistant.chooseBoard")}</option>
+                    {boards.map(board => (
                       <option value={board.id} key={board.id}>
                         {board.name}
                       </option>
                     ))}
-                </select>
-              )}
-            </div>
-            <ProposalPanel
-              proposal={item.proposal}
-              busy={Boolean(busy)}
-              onApply={indexes => void apply(item, indexes)}
-              onDiscard={() => void discard(item)}
-              onClarify={answer => void clarify(item, answer)}
-            />
-          </div>
-        ))}
-        {personalBoardOffer && (
-          <div className="home-personal-offer">
-            <div>
-              <strong>{t("home.assistant.personalTitle")}</strong>
-              <p className="subtle">{t("home.assistant.personalBody")}</p>
-            </div>
-            <button type="button" className="btn sm" disabled={Boolean(busy)} onClick={() => void createPersonalBoard()}>
-              {t("home.assistant.personalCta")}
-            </button>
-          </div>
-        )}
-        <div className="home-inbox">
-          <div className="row">
-            <div>
-              <h3>{t("home.assistant.inbox")}</h3>
-              <p className="subtle">{t("home.assistant.inboxHint")}</p>
-            </div>
-            <span className="spacer" />
-            <Link href="/app/integrations" className="btn sm">
-              {t("home.assistant.integrations")}
-            </Link>
-            <button type="button" className="btn sm" onClick={() => void loadCaptures()}>
-              {t("home.assistant.refresh")}
-            </button>
-          </div>
-          {captures.length ? (
-            captures.map(capture => (
-              <div className="home-inbox-item" key={capture.id}>
-                <span className="subtle">{capture.source === "TELEGRAM" ? "Telegram" : t("home.assistant.shared")}</span>
-                <p>
-                  {capture.status === "READY"
-                    ? capture.text.slice(0, 260)
-                    : capture.status === "FAILED" && !capture.retryable
-                      ? t("home.assistant.captureStatus.FAILED_FINAL")
-                      : t(`home.assistant.captureStatus.${capture.status}`)}
-                </p>
-                <div className="row">
-                  {capture.status === "READY" && (
-                    <button
-                      type="button"
-                      className="btn sm"
-                      disabled={Boolean(busy) || recording || pending.length > 0 || selectedCaptureIds.includes(capture.id)}
-                      onClick={() => {
-                        setText(current => (current.trim() ? `${current.trim()}\n${capture.text}` : capture.text));
-                        setSource("text");
-                        setSegments([]);
-                        setSelectedCaptureIds(current => (current.includes(capture.id) ? current : [...current, capture.id]));
-                        textArea.current?.focus();
-                      }}
-                    >
-                      {selectedCaptureIds.includes(capture.id) ? t("home.assistant.captureAdded") : t("home.assistant.useCapture")}
-                    </button>
-                  )}
-                  {capture.status === "FAILED" && capture.retryable && (
-                    <button type="button" className="btn sm" onClick={() => void retryCapture(capture.id)}>
-                      {t("home.assistant.retryCapture")}
-                    </button>
-                  )}
-                  <button type="button" className="btn sm" onClick={() => void archiveCapture(capture.id)}>
-                    {t("home.assistant.removeCapture")}
-                  </button>
+                  </select>
                 </div>
+              ))}
+              <div className="row">
+                <button type="button" className="btn" onClick={() => setSegments([])}>
+                  {t("common.cancel")}
+                </button>
+                <span className="spacer" />
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={Boolean(busy) || segments.some(segment => !segment.workspaceId)}
+                  onClick={() => void propose(segments, boards)}
+                >
+                  {t("home.assistant.preview")}
+                </button>
               </div>
-            ))
-          ) : (
-            <p className="subtle">{t("home.assistant.inboxEmpty")}</p>
+            </div>
+          )}
+          {pending.map(item => (
+            <div className="home-pending" key={item.proposal.id}>
+              <div className="row">
+                <Icon name="file" size={15} />
+                <strong>{item.board.name}</strong>
+                <span className="spacer" />
+                {boards.length > 1 && (
+                  <select
+                    aria-label={t("home.assistant.changeBoard")}
+                    value=""
+                    disabled={Boolean(busy)}
+                    onChange={event => void moveTo(item, event.target.value)}
+                  >
+                    <option value="">{t("home.assistant.changeBoard")}</option>
+                    {boards
+                      .filter(board => board.id !== item.board.id)
+                      .map(board => (
+                        <option value={board.id} key={board.id}>
+                          {board.name}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
+              <ProposalPanel
+                proposal={item.proposal}
+                busy={Boolean(busy)}
+                onApply={indexes => void apply(item, indexes)}
+                onDiscard={() => void discard(item)}
+                onClarify={answer => void clarify(item, answer)}
+              />
+            </div>
+          ))}
+          {personalBoardOffer && (
+            <div className="home-personal-offer">
+              <div>
+                <strong>{t("home.assistant.personalTitle")}</strong>
+                <p className="subtle">{t("home.assistant.personalBody")}</p>
+              </div>
+              <button type="button" className="btn sm" disabled={Boolean(busy)} onClick={() => void createPersonalBoard()}>
+                {t("home.assistant.personalCta")}
+              </button>
+            </div>
+          )}
+          {captures.length > 0 && (
+            <div className="home-inbox">
+              <div className="row">
+                <div>
+                  <h3>{t("home.assistant.inbox")}</h3>
+                  <p className="subtle">{t("home.assistant.inboxHint")}</p>
+                </div>
+                <span className="spacer" />
+                <Link href="/app/integrations" className="btn sm">
+                  {t("home.assistant.integrations")}
+                </Link>
+                <button type="button" className="btn sm" onClick={() => void loadCaptures()}>
+                  {t("home.assistant.refresh")}
+                </button>
+              </div>
+              {captures.map(capture => (
+                <div className="home-inbox-item" key={capture.id}>
+                  <span className="subtle">{capture.source === "TELEGRAM" ? "Telegram" : t("home.assistant.shared")}</span>
+                  <p>
+                    {capture.status === "READY"
+                      ? capture.text.slice(0, 260)
+                      : capture.status === "FAILED" && !capture.retryable
+                        ? t("home.assistant.captureStatus.FAILED_FINAL")
+                        : t(`home.assistant.captureStatus.${capture.status}`)}
+                  </p>
+                  <div className="row">
+                    {capture.status === "READY" && (
+                      <button
+                        type="button"
+                        className="btn sm"
+                        disabled={Boolean(busy) || recording || pending.length > 0 || selectedCaptureIds.includes(capture.id)}
+                        onClick={() => {
+                          setText(current => (current.trim() ? `${current.trim()}\n${capture.text}` : capture.text));
+                          setSource("text");
+                          setSegments([]);
+                          setSelectedCaptureIds(current => (current.includes(capture.id) ? current : [...current, capture.id]));
+                          textArea.current?.focus();
+                        }}
+                      >
+                        {selectedCaptureIds.includes(capture.id) ? t("home.assistant.captureAdded") : t("home.assistant.useCapture")}
+                      </button>
+                    )}
+                    {capture.status === "FAILED" && capture.retryable && (
+                      <button type="button" className="btn sm" onClick={() => void retryCapture(capture.id)}>
+                        {t("home.assistant.retryCapture")}
+                      </button>
+                    )}
+                    <button type="button" className="btn sm" onClick={() => void archiveCapture(capture.id)}>
+                      {t("home.assistant.removeCapture")}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
+        {boardList}
       </div>
-      <div className="panel home-today">
-        <span className="eyebrow">{t("home.today.eyebrow")}</span>
-        <h2>{t("home.today.title")}</h2>
-        <p className="subtle">{new Date().toLocaleDateString(tag, { weekday: "long", day: "numeric", month: "long" })}</p>
-        {todayError ? (
-          <p className="subtle">{t("home.today.error")}</p>
-        ) : visibleToday.length ? (
-          <ul>
-            {visibleToday.map(card => (
-              <li key={card.id}>
-                <Link href={`/app/${card.slug}?card=${card.id}`}>
-                  <strong>{card.title}</strong>
-                  <span>
-                    {card.board} · {card.column}
-                  </span>
-                  <small className={dueLabel(card) === t("home.today.overdue") ? "overdue" : ""}>{dueLabel(card)}</small>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="home-today-empty">
-            <Icon name="checkCircle" size={23} />
-            <p>{t("home.today.empty")}</p>
-          </div>
-        )}
-        {!todayError && active.length > 0 && (
-          <>
-            <h3 className="home-today-sub">{t("home.today.activeTitle")}</h3>
+      <div className="home-side">
+        <div className="panel home-today">
+          <span className="eyebrow">{t("home.today.eyebrow")}</span>
+          <h2>{t("home.today.title")}</h2>
+          <p className="subtle">{new Date().toLocaleDateString(tag, { weekday: "long", day: "numeric", month: "long" })}</p>
+          {todayError ? (
+            <p className="subtle">{t("home.today.error")}</p>
+          ) : visibleToday.length ? (
             <ul>
-              {active.map(card => (
+              {visibleToday.map(card => (
                 <li key={card.id}>
                   <Link href={`/app/${card.slug}?card=${card.id}`}>
                     <strong>{card.title}</strong>
                     <span>
                       {card.board} · {card.column}
                     </span>
+                    <small className={dueLabel(card) === t("home.today.overdue") ? "overdue" : ""}>{dueLabel(card)}</small>
                   </Link>
                 </li>
               ))}
             </ul>
-          </>
-        )}
+          ) : (
+            <div className="home-today-empty">
+              <Icon name="checkCircle" size={23} />
+              <p>{t("home.today.empty")}</p>
+            </div>
+          )}
+          {!todayError && active.length > 0 && (
+            <>
+              <h3 className="home-today-sub">{t("home.today.activeTitle")}</h3>
+              <ul>
+                {active.map(card => (
+                  <li key={card.id}>
+                    <Link href={`/app/${card.slug}?card=${card.id}`}>
+                      <strong>{card.title}</strong>
+                      <span>
+                        {card.board} · {card.column}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+        {sidebar}
       </div>
-    </section>
+    </div>
   );
 }

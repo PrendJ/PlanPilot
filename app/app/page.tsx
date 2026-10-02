@@ -136,121 +136,115 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
               ? null
               : { organizationId: organization.id, locale: user.locale, name: PERSONAL_BOARD_NAMES[locale === "it" ? "it" : "en"] }
           }
-        />
-        <div className="home-grid">
-          <HomeBoards
-            boards={boards}
-            teams={[
-              {
-                id: organization.id,
-                name: organization.name,
-                locale: organization.locale,
-                canCreate: membership?.role !== "GUEST" && !usage?.readOnly,
-              },
-            ]}
-            defaultTeamId={organization.id}
-            defaultLocale={locale === "en" ? "en" : organization.locale}
-          />
-          <aside className="stack">
-            {completed < steps.length && (
-              <section className="panel checklist-card" aria-labelledby="checklist-title">
+          boardList={
+            <HomeBoards
+              boards={boards}
+              teams={[
+                {
+                  id: organization.id,
+                  name: organization.name,
+                  locale: organization.locale,
+                  canCreate: membership?.role !== "GUEST" && !usage?.readOnly,
+                },
+              ]}
+              defaultTeamId={organization.id}
+              defaultLocale={locale === "en" ? "en" : organization.locale}
+            />
+          }
+          sidebar={
+            <aside className="stack">
+              {completed < steps.length && (
+                <section className="panel checklist-card" aria-labelledby="checklist-title">
+                  <div className="row">
+                    <h2 id="checklist-title" style={{ fontSize: 16 }}>
+                      {t("home.checklist.title")}
+                    </h2>
+                    <span className="spacer" />
+                    <span className="subtle">
+                      {completed}/{steps.length}
+                    </span>
+                  </div>
+                  <div className="meter" style={{ marginTop: 10 }}>
+                    <i style={{ width: `${(completed / steps.length) * 100}%` }} />
+                  </div>
+                  <ol>
+                    {steps.map(step => (
+                      <li key={step.label} className={step.done ? "done" : ""}>
+                        <span className="check-dot">
+                          <Icon name="check" size={12} strokeWidth={3} />
+                        </span>
+                        <span>{step.label}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+              <section className="panel" aria-labelledby="plan-title">
                 <div className="row">
-                  <h2 id="checklist-title" style={{ fontSize: 16 }}>
-                    {t("home.checklist.title")}
+                  <h2 id="plan-title" style={{ fontSize: 16 }}>
+                    {t("home.plan.title")}
                   </h2>
                   <span className="spacer" />
-                  <span className="subtle">
-                    {completed}/{steps.length}
-                  </span>
+                  <span className={`plan-badge plan-${limits.key}`}>{t(`plans.${limits.key}`)}</span>
                 </div>
-                <div className="meter" style={{ marginTop: 10 }}>
-                  <i style={{ width: `${(completed / steps.length) * 100}%` }} />
-                </div>
-                <ol>
-                  {steps.map(step => (
-                    <li key={step.label} className={step.done ? "done" : ""}>
-                      <span className="check-dot">
-                        <Icon name="check" size={12} strokeWidth={3} />
-                      </span>
-                      <span>{step.label}</span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            )}
-            <section className="panel" aria-labelledby="plan-title">
-              <div className="row">
-                <h2 id="plan-title" style={{ fontSize: 16 }}>
-                  {t("home.plan.title")}
-                </h2>
-                <span className="spacer" />
-                <span className={`plan-badge plan-${limits.key}`}>{t(`plans.${limits.key}`)}</span>
-              </div>
-              {trialDaysLeft !== null && (
-                <p className="subtle" style={{ marginTop: 6 }}>
-                  {trialDaysLeft > 0 ? t("home.plan.trialLeft", { days: trialDaysLeft }) : t("home.plan.trialOver")}
-                </p>
-              )}
-              {usage && (
-                <div style={{ marginTop: 14 }}>
-                  <div className="row">
-                    <span className="subtle">{t("home.plan.aiUpdates")}</span>
-                    <span className="spacer" />
-                    <strong>{Number.isFinite(usage.included) ? `${usage.used} / ${usage.included}` : "∞"}</strong>
+                {trialDaysLeft !== null && (
+                  <p className="subtle" style={{ marginTop: 6 }}>
+                    {trialDaysLeft > 0 ? t("home.plan.trialLeft", { days: trialDaysLeft }) : t("home.plan.trialOver")}
+                  </p>
+                )}
+                {usage && (
+                  <div style={{ marginTop: 14 }}>
+                    <div className="row">
+                      <span className="subtle">{t("home.plan.aiUpdates")}</span>
+                      <span className="spacer" />
+                      <strong>{Number.isFinite(usage.included) ? `${usage.used} / ${usage.included}` : "∞"}</strong>
+                    </div>
+                    <div className={`meter ${usage.percent >= 90 ? "crit" : usage.percent >= 75 ? "warn" : ""}`} style={{ marginTop: 6 }}>
+                      <i style={{ width: `${usage.percent}%` }} />
+                    </div>
+                    {usage.credits > 0 && (
+                      <p className="subtle" style={{ marginTop: 6 }}>
+                        {t("home.plan.credits", { count: usage.credits })}
+                      </p>
+                    )}
                   </div>
-                  <div className={`meter ${usage.percent >= 90 ? "crit" : usage.percent >= 75 ? "warn" : ""}`} style={{ marginTop: 6 }}>
-                    <i style={{ width: `${usage.percent}%` }} />
-                  </div>
-                  {usage.credits > 0 && (
-                    <p className="subtle" style={{ marginTop: 6 }}>
-                      {t("home.plan.credits", { count: usage.credits })}
-                    </p>
-                  )}
-                </div>
-              )}
-              <div className="stat-list">
-                <div>
-                  <span>{t("home.plan.seats")}</span>
-                  <strong>
-                    {seats} / {Number.isFinite(limits.memberLimit) ? limits.memberLimit : "∞"}
-                  </strong>
-                </div>
-                <div>
-                  <span>{t("home.plan.boards")}</span>
-                  <strong>
-                    {boards.filter(board => board.organizationId === organization.id && board.lifecycleStatus === "ACTIVE").length}
-                  </strong>
-                </div>
-                {price !== null && price > 0 && (
+                )}
+                <div className="stat-list">
                   <div>
-                    <span>{t("home.plan.price")}</span>
+                    <span>{t("home.plan.seats")}</span>
                     <strong>
-                      €{price.toFixed(2).replace(".00", "")} {t("pricing.perMonth")}
+                      {seats} / {Number.isFinite(limits.memberLimit) ? limits.memberLimit : "∞"}
                     </strong>
                   </div>
-                )}
-              </div>
-              <div className="row" style={{ marginTop: 16 }}>
-                <Link className="btn sm" href="/account#teams">
-                  {t("home.plan.manage")}
-                </Link>
-                {(limits.key === "TRIAL" || usage?.readOnly) && (
-                  <Link className="btn sm primary" href="/pricing">
-                    {t("home.plan.choose")}
+                  <div>
+                    <span>{t("home.plan.boards")}</span>
+                    <strong>
+                      {boards.filter(board => board.organizationId === organization.id && board.lifecycleStatus === "ACTIVE").length}
+                    </strong>
+                  </div>
+                  {price !== null && price > 0 && (
+                    <div>
+                      <span>{t("home.plan.price")}</span>
+                      <strong>
+                        €{price.toFixed(2).replace(".00", "")} {t("pricing.perMonth")}
+                      </strong>
+                    </div>
+                  )}
+                </div>
+                <div className="row" style={{ marginTop: 16 }}>
+                  <Link className="btn sm" href="/account#teams">
+                    {t("home.plan.manage")}
                   </Link>
-                )}
-              </div>
-            </section>
-            <section className="panel">
-              <h2 style={{ fontSize: 16 }}>{t("home.tips.title")}</h2>
-              <ul className="subtle" style={{ paddingLeft: 18, margin: "10px 0 0", display: "grid", gap: 6 }}>
-                <li>{t("home.tips.voice")}</li>
-                <li>{t("home.tips.shortcuts")}</li>
-                <li>{t("home.tips.guests")}</li>
-              </ul>
-            </section>
-          </aside>
-        </div>
+                  {(limits.key === "TRIAL" || usage?.readOnly) && (
+                    <Link className="btn sm primary" href="/pricing">
+                      {t("home.plan.choose")}
+                    </Link>
+                  )}
+                </div>
+              </section>
+            </aside>
+          }
+        />
       </main>
     </div>
   );
