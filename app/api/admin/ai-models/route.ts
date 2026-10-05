@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePlatform } from "@/lib/platform-access";
 import { rejectCrossOrigin } from "@/lib/security";
-import { isAllowedPlanningModel, isAllowedTranscriptionModel, platformModelOptions, platformModels, setPlatformModels } from "@/lib/platform-ai";
+import { isAllowedPlanningModel, isAllowedTranscriptionModel, platformModelOptionsWithPricing, platformModels, setPlatformModels } from "@/lib/platform-ai";
 
 const schema = z.object({ planModel: z.string().min(1).max(200), transcriptionModel: z.string().min(1).max(200) });
 
@@ -10,7 +10,8 @@ const schema = z.object({ planModel: z.string().min(1).max(200), transcriptionMo
 export async function GET() {
   const access = await requirePlatform("METADATA");
   if ("error" in access) return access.error;
-  return NextResponse.json({ current: await platformModels(), options: platformModelOptions() });
+  const [current, options] = await Promise.all([platformModels(), platformModelOptionsWithPricing()]);
+  return NextResponse.json({ current, options });
 }
 
 export async function PATCH(request: Request) {
@@ -24,7 +25,7 @@ export async function PATCH(request: Request) {
   if (!isAllowedTranscriptionModel(parsed.data.transcriptionModel)) return NextResponse.json({ error: "Modello di dettatura non consentito" }, { status: 400 });
   try {
     const current = await setPlatformModels(parsed.data, access.user.id);
-    return NextResponse.json({ current, options: platformModelOptions() });
+    return NextResponse.json({ current, options: await platformModelOptionsWithPricing() });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Aggiornamento non riuscito" }, { status: 400 });
   }

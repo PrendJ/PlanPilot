@@ -3,7 +3,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Icon } from "../Icon";
 import { useT } from "../I18nProvider";
-import { api } from "../ui";
+import { aiRequestError, api } from "../ui";
 import { useUpdateBlocker } from "../PwaProvider";
 import type { Proposal } from "./types";
 
@@ -90,7 +90,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
       );
       setBusy("");
       if (!response.ok) {
-        onError(response.data.error || t("errors.AI_UNAVAILABLE"));
+        onError(aiRequestError(response, t));
         return;
       }
       setText("");

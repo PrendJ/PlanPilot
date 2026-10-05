@@ -1016,6 +1016,7 @@ export const it = {
     CARD_CONFLICT: "Qualcuno ha modificato questa card mentre la stavi modificando. Controlla la versione aggiornata.",
     QUOTA_EXHAUSTED: "Hai esaurito gli aggiornamenti AI disponibili. Puoi continuare a lavorare a mano o aggiungere un pacchetto.",
     AI_UNAVAILABLE: "Il servizio AI non risponde in questo momento. Il testo è rimasto qui: riprova tra poco.",
+    NETWORK: "Connessione interrotta. Il testo è rimasto qui: controlla la rete e riprova.",
     AI_INVALID_PATCH: "L’AI ha proposto modifiche non valide. Nessuna modifica applicata: prova a riformulare.",
     AI_NOT_CONFIGURED: "Il servizio AI non è configurato su questa installazione.",
     PROPOSAL_EXPIRED: "La proposta è scaduta. Invia di nuovo l’aggiornamento.",

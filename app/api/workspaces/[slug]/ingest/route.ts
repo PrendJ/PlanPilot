@@ -56,8 +56,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   } catch (error) {
     if (error instanceof QuotaExceededError) return apiError(request, "QUOTA_EXHAUSTED", 402);
     if (error instanceof InvalidAiPatchError || (error instanceof AiProviderError && error.message === "AI_INVALID_PATCH"))
-      return apiError(request, "AI_INVALID_PATCH", 422);
-    if (error instanceof AiProviderError) return apiError(request, "AI_UNAVAILABLE", 502);
+      return apiError(request, "AI_INVALID_PATCH", 422, error instanceof AiProviderError ? { diagnosticId: error.diagnosticId } : undefined);
+    if (error instanceof AiProviderError) return apiError(request, "AI_UNAVAILABLE", 502, { diagnosticId: error.diagnosticId });
     if (error instanceof ProposalError)
       return apiError(
         request,

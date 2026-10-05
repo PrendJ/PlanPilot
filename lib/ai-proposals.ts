@@ -139,8 +139,13 @@ export async function createProposal(input: {
   now?: Date;
   timeZone?: string;
 }) {
+  const diagnosticId = crypto.randomUUID();
+  console.info("AI proposal started", { diagnosticId, workspaceId: input.workspace.id, source: input.source });
   const apiKey = getWorkspaceApiKey(input.workspace);
-  if (!apiKey) throw new ProposalError("AI_NOT_CONFIGURED");
+  if (!apiKey) {
+    console.error("AI proposal missing API key", { diagnosticId, workspaceId: input.workspace.id });
+    throw new ProposalError("AI_NOT_CONFIGURED");
+  }
   const { planModel: model } = await platformModels();
   const reservation = await reserveAiUpdate({
     organizationId: input.workspace.organizationId,
@@ -166,6 +171,7 @@ export async function createProposal(input: {
       now: input.now,
       timeZone: input.timeZone,
       locale: input.workspace.locale,
+      diagnosticId,
     });
   } catch (error) {
     // The provider produced nothing usable: the person should not pay an update for our outage.

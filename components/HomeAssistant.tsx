@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { useI18n } from "./I18nProvider";
-import { api } from "./ui";
+import { aiRequestError, api } from "./ui";
 import { useUpdateBlocker } from "./PwaProvider";
 import { ProposalPanel } from "./board/ProposalPanel";
 import type { Proposal } from "./board/types";
@@ -318,7 +318,7 @@ export function HomeAssistant({
       if (response.ok) created.push({ board, proposal: response.data.proposal });
       else {
         failed.push(content);
-        setError(response.data.error || t("errors.AI_UNAVAILABLE"));
+        setError(aiRequestError(response, t));
       }
     }
     setPending(current => [...current, ...created]);
@@ -339,7 +339,7 @@ export function HomeAssistant({
     });
     setBusy("");
     if (!response.ok) {
-      setError(response.data.error || t("errors.AI_UNAVAILABLE"));
+      setError(aiRequestError(response, t));
       return;
     }
     const routedBoards = response.data.boards.map(board => ({

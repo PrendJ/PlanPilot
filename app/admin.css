@@ -188,6 +188,23 @@
 .exchange-rate-actions input {
   width: 112px;
 }
+.ai-model-comparison {
+  min-width: 0;
+}
+.ai-model-comparison h3 {
+  margin: 12px 0 6px;
+  font-size: 15px;
+}
+.ai-model-table-scroll {
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+.ai-model-table-scroll .backoffice-table {
+  width: 100%;
+  min-width: 480px;
+}
 .backoffice-filters {
   display: flex;
   gap: 8px;

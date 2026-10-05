@@ -1007,6 +1007,7 @@ export const en: Messages = {
     CARD_CONFLICT: "Someone changed this card while you were editing it. Review the latest version.",
     QUOTA_EXHAUSTED: "You've used all available AI updates. Keep working manually or add a pack.",
     AI_UNAVAILABLE: "The AI service is not responding right now. Your text is still here: try again shortly.",
+    NETWORK: "The connection was interrupted. Your text is still here: check your network and try again.",
     AI_INVALID_PATCH: "The AI proposed invalid changes. Nothing was applied: try rephrasing.",
     AI_NOT_CONFIGURED: "The AI service is not configured on this installation.",
     PROPOSAL_EXPIRED: "The proposal expired. Send the update again.",

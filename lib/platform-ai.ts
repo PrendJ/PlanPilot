@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { publicModelPricing } from "@/lib/model-pricing";
 import {
   DEFAULT_PLANNING_MODEL,
   DEFAULT_TRANSCRIPTION_MODEL,
@@ -88,4 +89,16 @@ export async function setPlatformModels(input: PlatformModels, actorId: string):
 export function platformModelOptions() {
   const pick = ({ id, label, note, recommended }: (typeof PLANNING_MODELS)[number]) => ({ id, label, note, recommended: Boolean(recommended) });
   return { planning: PLANNING_MODELS.map(pick), transcription: TRANSCRIPTION_MODELS.map(pick) };
+}
+
+export async function platformModelOptionsWithPricing() {
+  const options = platformModelOptions();
+  const prices = await publicModelPricing();
+  const priced = (items: typeof options.planning) =>
+    items.map(item => ({
+      ...item,
+      inputUsdPerMillion: prices[item.id]?.inputUsdPerMillion ?? null,
+      outputUsdPerMillion: prices[item.id]?.outputUsdPerMillion ?? null,
+    }));
+  return { planning: priced(options.planning), transcription: priced(options.transcription) };
 }

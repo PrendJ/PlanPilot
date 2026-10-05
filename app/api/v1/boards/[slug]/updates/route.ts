@@ -26,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   } catch (error) {
     if (error instanceof QuotaExceededError) return v1Error(402, "QUOTA_EXHAUSTED", "No AI updates left");
     if (error instanceof InvalidAiPatchError || error instanceof AiProviderError)
-      return v1Error(502, "AI_UNAVAILABLE", "The AI service could not process this update");
+      return v1Error(502, "AI_UNAVAILABLE", "The AI service could not process this update", error instanceof AiProviderError ? error.diagnosticId : undefined);
     if (error instanceof ProposalError) return v1Error(409, error.message, "Proposal could not be applied");
     throw error;
   }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   logProviderFailure,
+  networkCauseCode,
   openRouterBaseUrl,
   openRouterHeaders,
   parseJsonContent,
@@ -51,6 +52,12 @@ export async function routeHomeCapture(input: {
   if (!apiKey) return { segments: [{ text, workspaceId: null }], cost: 0 };
   const fallback = { segments: [{ text, workspaceId: null }], cost: 0 };
   const model = resolvePlanningModel(input.model);
+  const diagnosticId = crypto.randomUUID();
+  const started = Date.now();
+  const details = (phase: "request" | "response" | "parse", causeCode?: string, providerRequestId?: string) => ({
+    diagnosticId, model, elapsedMs: Date.now() - started, phase, causeCode, providerRequestId,
+  });
+  console.info("OpenRouter routing started", { diagnosticId, model });
   try {
     const response = await fetch(`${openRouterBaseUrl()}/chat/completions`, {
       method: "POST",
@@ -100,19 +107,22 @@ export async function routeHomeCapture(input: {
       }),
     });
     const raw = await response.json().catch(() => null);
+    const providerRequestId = typeof raw?.id === "string" ? raw.id : undefined;
     if (!response.ok || !raw) {
-      logProviderFailure("routing", response.status, raw);
+      logProviderFailure("routing", response.status, raw, details("response", undefined, providerRequestId));
       return fallback;
     }
     const content = raw?.choices?.[0]?.message?.content;
     const parsed = parseJsonContent(content);
+    console.info("OpenRouter routing completed", details("response", undefined, providerRequestId));
     return {
       segments: validateRouting(parsed, text, boards),
       cost: Math.max(0, Number(raw?.usage?.cost || 0)),
-      requestId: typeof raw.id === "string" ? raw.id : undefined,
+      requestId: providerRequestId,
     };
   } catch (error) {
-    logProviderFailure("routing", error instanceof Error ? error.name : "network", null);
+    logProviderFailure("routing", error instanceof SyntaxError ? "invalid_json" : error instanceof Error ? error.name : "network", null,
+      details(error instanceof SyntaxError ? "parse" : "request", networkCauseCode(error)));
     return fallback;
   }
 }

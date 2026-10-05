@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   logProviderFailure,
+  networkCauseCode,
   openRouterBaseUrl,
   openRouterHeaders,
   parseJsonContent,
@@ -78,7 +79,7 @@ const responseSchema = {
 };
 
 export class AiProviderError extends Error {
-  constructor(message = "AI_UNAVAILABLE") {
+  constructor(message = "AI_UNAVAILABLE", public readonly diagnosticId?: string) {
     super(message);
   }
 }
@@ -130,9 +131,16 @@ export async function planPatchFromText(input: {
   now?: Date;
   timeZone?: string;
   locale?: string;
+  diagnosticId?: string;
 }) {
   const now = input.now || new Date();
   const timeZone = input.timeZone || "Europe/Rome";
+  const diagnosticId = input.diagnosticId || crypto.randomUUID();
+  const started = Date.now();
+  const details = (phase: "request" | "response" | "parse" | "schema", causeCode?: string, providerRequestId?: string) => ({
+    diagnosticId, model: input.model, elapsedMs: Date.now() - started, phase, causeCode, providerRequestId,
+  });
+  console.info("OpenRouter planning started", { diagnosticId, model: input.model });
   let response: Response;
   try {
     response = await fetch(`${openRouterBaseUrl()}/chat/completions`, {
@@ -155,26 +163,32 @@ export async function planPatchFromText(input: {
       }),
     });
   } catch (error) {
-    logProviderFailure("planning", error instanceof Error ? error.name : "network", null);
-    throw new AiProviderError();
+    logProviderFailure("planning", error instanceof Error ? error.name : "network", null, details("request", networkCauseCode(error)));
+    throw new AiProviderError("AI_UNAVAILABLE", diagnosticId);
   }
   const raw = await response.json().catch(() => null);
+  const providerRequestId = typeof raw?.id === "string" ? raw.id : undefined;
   if (!response.ok || !raw) {
-    logProviderFailure("planning", response.status, raw);
-    throw new AiProviderError();
+    logProviderFailure("planning", response.status, raw, details("response", undefined, providerRequestId));
+    throw new AiProviderError("AI_UNAVAILABLE", diagnosticId);
   }
   const content = raw?.choices?.[0]?.message?.content;
   if (!content) {
-    logProviderFailure("planning", "empty", raw);
-    throw new AiProviderError();
+    logProviderFailure("planning", "empty", raw, details("response", undefined, providerRequestId));
+    throw new AiProviderError("AI_UNAVAILABLE", diagnosticId);
   }
   let parsed: unknown;
   try {
     parsed = parseJsonContent(content);
   } catch {
-    throw new AiProviderError("AI_INVALID_PATCH");
+    logProviderFailure("planning", "invalid_json", null, details("parse", undefined, providerRequestId));
+    throw new AiProviderError("AI_INVALID_PATCH", diagnosticId);
   }
   const patch = aiPatchSchema.safeParse(parsed);
-  if (!patch.success) throw new AiProviderError("AI_INVALID_PATCH");
+  if (!patch.success) {
+    logProviderFailure("planning", "invalid_schema", null, details("schema", undefined, providerRequestId));
+    throw new AiProviderError("AI_INVALID_PATCH", diagnosticId);
+  }
+  console.info("OpenRouter planning completed", details("response", undefined, providerRequestId));
   return { patch: patch.data, usage: (raw.usage || null) as { cost?: number } | null, requestId: raw.id as string | undefined };
 }

@@ -30,6 +30,13 @@ export const PLANNING_MODELS: ModelOption[] = [
     temperature: false,
   },
   {
+    id: "openai/gpt-5-mini",
+    label: "GPT-5 mini",
+    note: "Alternativa OpenAI con output strutturato; disponibile su endpoint ZDR.",
+    reasoningEffort: "minimal",
+    temperature: false,
+  },
+  {
     id: "mistralai/mistral-small-2603",
     label: "Mistral Small",
     note: "Buona comprensione dell'italiano, costo leggermente più alto.",
@@ -38,6 +45,21 @@ export const PLANNING_MODELS: ModelOption[] = [
     id: "google/gemini-2.5-flash",
     label: "Gemini 2.5 Flash",
     note: "Massima comprensione per board grandi e aggiornamenti complessi; costo più alto.",
+  },
+  {
+    id: "google/gemini-2.5-pro",
+    label: "Gemini 2.5 Pro",
+    note: "Alternativa Google per contesti complessi; verifica costi e latenza prima di selezionarla.",
+  },
+  {
+    id: "anthropic/claude-haiku-4.5",
+    label: "Claude Haiku 4.5",
+    note: "Alternativa Anthropic con output strutturato su endpoint ZDR.",
+  },
+  {
+    id: "qwen/qwen3-235b-a22b-2507",
+    label: "Qwen3 235B Instruct",
+    note: "Alternativa open-weight con output strutturato su endpoint ZDR.",
   },
 ];
 
@@ -87,11 +109,26 @@ export function parseJsonContent(content: unknown): unknown {
   return JSON.parse(fenced ? fenced[1] : content);
 }
 
-/** Server log line for a failed provider call: status and provider message only, never the user's text. */
-export function logProviderFailure(scope: string, status: number | string, raw: unknown) {
+/** Diagnostic fields exclude prompts, board data, audio and credentials. */
+export type ProviderDiagnostic = {
+  diagnosticId: string;
+  model: string;
+  elapsedMs: number;
+  phase: "request" | "response" | "parse" | "schema";
+  causeCode?: string;
+  providerRequestId?: string;
+};
+
+/** Server log line for a failed provider call. */
+export function logProviderFailure(scope: string, status: number | string, raw: unknown, diagnostic?: ProviderDiagnostic) {
   const error = (raw as { error?: { message?: unknown; code?: unknown } } | null)?.error;
   const message = typeof error?.message === "string" ? error.message.slice(0, 300) : "";
-  console.error(`OpenRouter ${scope} failed`, { status, code: error?.code, message });
+  console.error(`OpenRouter ${scope} failed`, { ...diagnostic, status, code: error?.code, message });
+}
+
+export function networkCauseCode(error: unknown): string | undefined {
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
+  return typeof cause?.code === "string" && /^[A-Z0-9_]{1,64}$/.test(cause.code) ? cause.code : undefined;
 }
 
 export function openRouterBaseUrl() {

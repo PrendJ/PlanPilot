@@ -1,10 +1,10 @@
 "use client";
 
-import { Fragment, FormEvent, useMemo, useState } from "react";
+import React, { Fragment, FormEvent, useMemo, useState } from "react";
 import { ExchangeRateControl, type ExchangeRateStatus } from "@/components/ExchangeRateControl";
 
 type Workspace={id:string;name:string;slug:string;lifecycleStatus?:string};
-type AiModelOption={id:string;label:string;note:string;recommended:boolean};
+type AiModelOption={id:string;label:string;note:string;recommended:boolean;inputUsdPerMillion:number|null;outputUsdPerMillion:number|null};
 export type AiModelsState={current:{planModel:string;transcriptionModel:string};options:{planning:AiModelOption[];transcription:AiModelOption[]}};
 type Membership={role:string;workspace:Workspace};
 type OrganizationMembership={role:string;organization:{id:string;name:string;slug:string;plan:string;legalType:string;createdById:string;licenseSource:string;lifecycleStatus:string;accessExpiresAt:string|Date|null;trialEndsAt?:string|Date|null}};
@@ -73,14 +73,54 @@ function UserManagement({row,user,superadmin,support,busy,workspaces,replacement
   const primary=user?.organizationMemberships.find(item=>item.organization.id===row.defaultOrganizationId); const ownedBusiness=user?.organizationMemberships.filter(item=>item.organization.createdById===row.id&&item.organization.id!==row.defaultOrganizationId&&item.organization.legalType==="BUSINESS"&&item.organization.lifecycleStatus==="ACTIVE")||[];
   return <div className="user-management-panel"><div className="drilldown user-controls"><div><span>Ruolo piattaforma</span><strong>{row.platformRole}</strong></div><div><span>Stato account</span><strong>{row.lifecycleStatus}</strong></div><div><span>Organizzazione predefinita</span><strong>{primary?.organization.name||"Mancante"}</strong></div><div><span>Ruolo organizzazione</span><strong>{primary?.role||"—"}</strong></div>{superadmin&&<><label><input type="checkbox" checked={row.lifetimeFree} onChange={event=>{const enabled=event.target.checked;if(confirm(enabled?"Concedere accesso gratuito a vita? Gli abbonamenti attivi non si rinnoveranno.":"Revocare l'accesso gratuito a vita?"))updateUser(row.id,{lifetimeFree:enabled})}}/> Free a vita</label><label><input type="checkbox" checked={row.isAdmin} onChange={event=>updateUser(row.id,{isAdmin:event.target.checked})}/> Superadmin</label><label><input type="checkbox" checked={row.emailVerified} onChange={event=>updateUser(row.id,{emailVerified:event.target.checked})}/> Email verificata</label></>}</div>{superadmin&&(primary?<><div className="admin-warning">Piano {primary.organization.plan} · fonte {primary.organization.licenseSource}{primary.organization.accessExpiresAt?` · scade ${new Date(primary.organization.accessExpiresAt).toLocaleDateString("it-IT")}`:""}{row.lifetimeFree?" · Free a vita attivo: i piani diversi da LIFETIME sono bloccati.":""}</div><LicenseForm organizationId={primary.organization.id} currentPlan={primary.organization.plan} onSubmit={assignPlan} busy={busy}/>{primary.organization.licenseSource==="MANUAL"&&<div className="management-actions"><button className="btn" disabled={busy} onClick={()=>revokePlan(primary.organization.id)}>Revoca piano manuale</button></div>}</>:<div className="personal-plan-missing"><strong>Nessuna organizzazione predefinita</strong><span>Crea esplicitamente il contesto operativo prima di assegnare un piano.</span><button className="btn accent" disabled={busy} onClick={()=>provisionDefault(row.id)}>Crea organizzazione predefinita</button></div>)}{superadmin&&<div className="lifecycle-panel">{ownedBusiness.length>0&&row.lifecycleStatus!=="ARCHIVED"?<><div><strong>Trasferimento ownership obbligatorio</strong><p>L’utente possiede {ownedBusiness.length} organizzazioni business: {ownedBusiness.map(item=>item.organization.name).join(", ")}.</p></div><label>Nuovo Owner interno<select value={transferOwner} onChange={event=>setTransferOwner(event.target.value)}><option value="">Seleziona Support o Superadmin</option>{replacementOwners.map(candidate=><option value={candidate.id} key={candidate.id}>{candidate.name} · {candidate.platformRole}</option>)}</select></label></>:null}<div className="management-actions">{row.lifecycleStatus==="ARCHIVED"?<button className="btn accent" disabled={busy} onClick={()=>lifecycle("user",row.id,"reactivate")}>Ripristina persona</button>:<button className="btn danger" disabled={busy||Boolean(ownedBusiness.length&&!transferOwner)} onClick={()=>lifecycle("user",row.id,"archive",transferOwner)}>Elimina persona (30 giorni)</button>}</div></div>}{support&&<WorkspaceMemberships user={user} workspaces={workspaces} assign={assign} remove={remove}/>}</div>}
 
-function AiModelsControl({initial,editable,onChanged}:{initial:AiModelsState;editable:boolean;onChanged:()=>Promise<void>|void}){
-  const[current,setCurrent]=useState(initial.current); const[planModel,setPlanModel]=useState(initial.current.planModel); const[transcriptionModel,setTranscriptionModel]=useState(initial.current.transcriptionModel);
-  const[busy,setBusy]=useState(false); const[error,setError]=useState(""); const[notice,setNotice]=useState("");
-  const{planning,transcription}=initial.options; const find=(list:AiModelOption[],id:string)=>list.find(item=>item.id===id);
-  const optionLabel=(item:AiModelOption)=>`${item.label}${item.recommended?" · consigliato":""}`;
+export function AiModelsControl({initial,editable,onChanged}:{initial:AiModelsState;editable:boolean;onChanged:()=>Promise<void>|void}){
+  const [current,setCurrent]=useState(initial.current);
+  const [planModel,setPlanModel]=useState(initial.current.planModel);
+  const [transcriptionModel,setTranscriptionModel]=useState(initial.current.transcriptionModel);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+  const [notice,setNotice]=useState("");
+  const {planning,transcription}=initial.options;
+  const find=(items:AiModelOption[],id:string)=>items.find(item=>item.id===id);
+  const price=(value:number|null)=>value===null?"n.d.":`$${value.toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:4})}`;
+  const sampleCost=(item:AiModelOption)=>item.inputUsdPerMillion===null||item.outputUsdPerMillion===null?Infinity:item.inputUsdPerMillion/1000+item.outputUsdPerMillion/2000;
+  const ranked=[...planning].sort((a,b)=>sampleCost(a)-sampleCost(b));
   const changed=planModel!==current.planModel||transcriptionModel!==current.transcriptionModel;
-  async function save(){setBusy(true);setError("");setNotice("");const response=await fetch("/api/admin/ai-models",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({planModel,transcriptionModel})});const data=await response.json().catch(()=>({}));setBusy(false);if(!response.ok){setError(data.error||"Aggiornamento non riuscito");return}setCurrent(data.current);setPlanModel(data.current.planModel);setTranscriptionModel(data.current.transcriptionModel);setNotice("Modifica salvata e registrata nell’audit.");await onChanged()}
-  const plan=find(planning,editable?planModel:current.planModel),dictation=find(transcription,editable?transcriptionModel:current.transcriptionModel);
-  return <section className="admin-card exchange-rate-control ai-models-control"><div><h2>Modelli AI</h2><p>Scelti a livello di piattaforma per tutte le board: utenti e board non possono cambiarli. Solo il superadmin può modificarli.</p><small>Pianificazione: <strong>{plan?.label||current.planModel}</strong>{plan?.note?` · ${plan.note}`:""}</small><br/><small>Dettatura: <strong>{dictation?.label||current.transcriptionModel}</strong>{dictation?.note?` · ${dictation.note}`:""}</small></div>{editable?<div className="exchange-rate-actions"><label>Modello di pianificazione<select value={planModel} disabled={busy} onChange={event=>setPlanModel(event.target.value)}>{planning.map(item=><option value={item.id} key={item.id} title={item.note}>{optionLabel(item)}</option>)}</select></label><label>Modello di dettatura<select value={transcriptionModel} disabled={busy} onChange={event=>setTranscriptionModel(event.target.value)}>{transcription.map(item=><option value={item.id} key={item.id} title={item.note}>{optionLabel(item)}</option>)}</select></label><button className="btn accent" disabled={busy||!changed} onClick={save}>{busy?"Salvataggio…":"Salva"}</button></div>:<p className="muted-copy">Sola lettura: chiedi al superadmin per cambiare i modelli.</p>}{error&&<p className="negative">{error}</p>}{notice&&<p className="muted-copy" role="status">{notice}</p>}</section>}
+  const plan=find(planning,editable?planModel:current.planModel);
+  const dictation=find(transcription,editable?transcriptionModel:current.transcriptionModel);
+  async function save(){
+    setBusy(true);setError("");setNotice("");
+    try {
+      const response=await fetch("/api/admin/ai-models",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({planModel,transcriptionModel})});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok){setError(data.error||"Aggiornamento non riuscito");return}
+      setCurrent(data.current);setPlanModel(data.current.planModel);setTranscriptionModel(data.current.transcriptionModel);
+      setNotice("Modifica salvata e registrata nell’audit.");await onChanged();
+    } catch { setError("Connessione interrotta durante il salvataggio.") }
+    finally { setBusy(false) }
+  }
+  return <section className="admin-card exchange-rate-control ai-models-control">
+    <div>
+      <h2>Modelli AI</h2>
+      <p>Un modello di pianificazione e uno di dettatura per tutte le board. Il superadmin li sceglie qui.</p>
+      <small>Pianificazione: <strong>{plan?.label||current.planModel}</strong>{plan?.note?` · ${plan.note}`:""}</small><br/>
+      <small>Dettatura: <strong>{dictation?.label||current.transcriptionModel}</strong>{dictation?.note?` · ${dictation.note}`:""}</small>
+    </div>
+    {editable?<div className="exchange-rate-actions">
+      <label>Modello di pianificazione<select value={planModel} disabled={busy} onChange={event=>setPlanModel(event.target.value)}>{planning.map(item=><option value={item.id} key={item.id}>{item.label}{item.recommended?" · consigliato":""} · {price(item.inputUsdPerMillion)} / {price(item.outputUsdPerMillion)}</option>)}</select></label>
+      <label>Modello di dettatura<select value={transcriptionModel} disabled={busy} onChange={event=>setTranscriptionModel(event.target.value)}>{transcription.map(item=><option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
+      <button className="btn accent" disabled={busy||!changed} onClick={save}>{busy?"Salvataggio…":"Salva"}</button>
+    </div>:<p className="muted-copy">Sola lettura: chiedi al superadmin per cambiare i modelli.</p>}
+    <div className="ai-model-comparison">
+      <h3>Confronto costi dei modelli di pianificazione</h3>
+      <p>Ordine per costo stimato di 1.000 token in ingresso e 500 in uscita. Non misura la qualità. Prezzi USD di catalogo OpenRouter per 1 milione di token; possono variare.</p>
+      <div className="ai-model-table-scroll"><table className="backoffice-table">
+        <thead><tr><th>#</th><th>Modello</th><th>Input / 1M</th><th>Output / 1M</th></tr></thead>
+        <tbody>{ranked.map((item,index)=><tr key={item.id}><td>{Number.isFinite(sampleCost(item))?index+1:"—"}</td><td><strong>{item.label}</strong>{item.id===current.planModel?" · in uso":""}<small className="block">{item.note}</small></td><td>{price(item.inputUsdPerMillion)}</td><td>{price(item.outputUsdPerMillion)}</td></tr>)}</tbody>
+      </table></div>
+    </div>
+    {error&&<p className="negative">{error}</p>}{notice&&<p className="muted-copy" role="status">{notice}</p>}
+  </section>
+}
 function Metric({label,value,sub,tone}:{label:string;value:string;sub?:string;tone?:string}){return <article className={`metric-card ${tone||""}`}><span>{label}</span><strong>{value}</strong>{sub&&<small>{sub}</small>}</article>}
 function WorkspaceMemberships({user,workspaces,assign,remove}:{user:User|undefined;workspaces:Workspace[];assign:(userId:string,workspaceId:string)=>void;remove:(userId:string,workspaceId:string)=>void}){if(!user)return null;return <div className="admin-memberships"><div>{user.memberships.map(membership=><span key={membership.workspace.id}>{membership.workspace.name} · {membership.role}<button aria-label={`Rimuovi ${membership.workspace.name}`} onClick={()=>remove(user.id,membership.workspace.id)}>×</button></span>)}</div><select defaultValue="" onChange={event=>{assign(user.id,event.target.value);event.currentTarget.value=""}}><option value="">+ Assegna workspace</option>{workspaces.filter(workspace=>!user.memberships.some(membership=>membership.workspace.id===workspace.id)).map(workspace=><option value={workspace.id} key={workspace.id}>{workspace.name}</option>)}</select></div>}

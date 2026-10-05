@@ -8,7 +8,7 @@ const input = {
   userText: "Nessuna modifica",
   plan: { columns: [] },
 };
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
   it("routes only to zero-retention providers without data collection", async () => {
@@ -115,5 +115,31 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     const content = "```json\n" + JSON.stringify({ summary: "ok", actions: [], clarification: null }) + "\n```";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content } }] }) }));
     await expect(planPatchFromText(input)).resolves.toMatchObject({ patch: { summary: "ok", actions: [] } });
+  });
+  it("correlates a provider rejection with the UI diagnostic id without exposing its message", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 404, message: "No endpoints meet the requirements" } }), { status: 404 })));
+    const error = await planPatchFromText({ ...input, diagnosticId: "diagnostic-123" }).catch((caught: Error) => caught) as Error;
+    expect(error.message).toBe("AI_UNAVAILABLE");
+    expect(error).toHaveProperty("diagnosticId", "diagnostic-123");
+    expect(error.message).not.toContain("No endpoints");
+    expect(log).toHaveBeenCalledWith("OpenRouter planning failed", expect.objectContaining({ diagnosticId: "diagnostic-123", model: input.model, status: 404, code: 404, phase: "response" }));
+  });
+  it("logs a safe network cause and logs invalid structured output", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(new TypeError("fetch failed", { cause: { code: "ENOTFOUND" } })).mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: "{broken" } }] }))));
+    await expect(planPatchFromText(input)).rejects.toThrow("AI_UNAVAILABLE");
+    await expect(planPatchFromText(input)).rejects.toThrow("AI_INVALID_PATCH");
+    expect(log).toHaveBeenCalledWith("OpenRouter planning failed", expect.objectContaining({ causeCode: "ENOTFOUND", phase: "request" }));
+    expect(log).toHaveBeenCalledWith("OpenRouter planning failed", expect.objectContaining({ status: "invalid_json", phase: "parse" }));
+  });
+  it("omits temperature for every curated GPT-5 model", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const mocked = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: "ok", actions: [], clarification: null }) } }] })));
+    vi.stubGlobal("fetch", mocked);
+    for (const model of ["openai/gpt-5-nano", "openai/gpt-5-mini"]) await planPatchFromText({ ...input, model });
+    for (const [, options] of mocked.mock.calls) expect(JSON.parse(options.body)).not.toHaveProperty("temperature");
   });
 });

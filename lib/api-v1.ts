@@ -3,8 +3,8 @@ import { userFromApiToken } from "@/lib/auth";
 import { canWriteCards, workspaceForUser, workspaceReadOnly } from "@/lib/board";
 import { rateLimit } from "@/lib/security";
 
-export function v1Error(status: number, code: string, message: string) {
-  return NextResponse.json({ error: { code, message } }, { status });
+export function v1Error(status: number, code: string, message: string, diagnosticId?: string) {
+  return NextResponse.json({ error: { code, message, ...(diagnosticId ? { diagnosticId } : {}) } }, { status });
 }
 
 /** Public API v1: personal token auth, 120 requests/minute per token owner. */

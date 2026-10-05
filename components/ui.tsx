@@ -298,16 +298,28 @@ export function Avatar({ name, size }: { name: string; size?: "sm" | "lg" }) {
 export async function api<T = Record<string, unknown>>(
   url: string,
   init?: RequestInit & { json?: unknown },
-): Promise<{ ok: boolean; status: number; data: T & { error?: string; code?: string } }> {
+): Promise<{ ok: boolean; status: number; data: T & { error?: string; code?: string; diagnosticId?: string } }> {
   try {
     const response = await fetch(url, {
       ...init,
       headers: { ...(init?.json !== undefined ? { "Content-Type": "application/json" } : {}), ...(init?.headers || {}) },
       body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body,
     });
-    const data = await response.json().catch(() => ({}));
-    return { ok: response.ok, status: response.status, data };
+    if (response.status === 204) return { ok: true, status: response.status, data: {} as T & { error?: string; code?: string } };
+    const parsed = await response.json().catch(() => null);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { ok: false, status: response.status, data: { code: "INVALID_RESPONSE" } as T & { code: string } };
+    }
+    return { ok: response.ok, status: response.status, data: parsed };
   } catch {
     return { ok: false, status: 0, data: { code: "NETWORK" } as T & { code: string } };
   }
+}
+
+/** Keep transport/proxy failures separate from a real AI provider error. */
+export function aiRequestError(response: { status: number; data: { error?: string; code?: string; diagnosticId?: string } }, t: (key: string) => string) {
+  if (response.data.error) return response.data.diagnosticId ? `${response.data.error} (ID ${response.data.diagnosticId.slice(0, 8)})` : response.data.error;
+  if (response.status === 0 || response.data.code === "NETWORK") return t("errors.NETWORK");
+  if (response.data.code === "INVALID_RESPONSE") return t("errors.SERVER_ERROR");
+  return t("errors.AI_UNAVAILABLE");
 }

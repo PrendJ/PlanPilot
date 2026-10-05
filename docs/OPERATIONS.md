@@ -47,7 +47,8 @@
 - Le chiamate usano l'endpoint standard di OpenRouter (piano pay-as-you-go, fee 5,5% sui crediti). I provider possono essere fuori dall'UE.
 - Ogni richiesta invia `provider: { zdr: true, data_collection: "deny", allow_fallbacks: true, require_parameters: true }`: solo endpoint a zero conservazione che non addestrano sui dati; il fallback può finire solo su un altro endpoint con gli stessi requisiti. Per fissare un provider usa `AI_PROVIDER_ONLY` (es. `google-vertex/eu`, senza costi aggiuntivi).
 - Per l'instradamento interamente UE basta impostare `OPENROUTER_BASE_URL=https://eu.openrouter.ai/api/v1`, ma richiede il piano OpenRouter Business.
-- Modelli: pianificazione `google/gemini-2.5-flash-lite` (alternative GPT-5 nano, Mistral Small, Gemini 2.5 Flash dalle impostazioni della board), dettatura `mistralai/voxtral-mini-transcribe`. Endpoint a zero conservazione: `GET https://openrouter.ai/api/v1/endpoints/zdr`.
+- Modelli: pianificazione `google/gemini-2.5-flash-lite` per impostazione predefinita, dettatura `mistralai/voxtral-mini-transcribe`. Il superadmin sceglie i modelli globali nel pannello admin; il confronto prezzi legge il catalogo pubblico OpenRouter e indica un ordine per costo esemplificativo, non una classifica di qualità. Endpoint a zero conservazione: `GET https://openrouter.ai/api/v1/endpoints/zdr`.
+- Per diagnosticare un errore AI, usa l'ID mostrato all'utente per trovare `AI proposal started` e `OpenRouter planning failed` nei log del container app. La risposta di `/api/health` mostra `APP_VERSION` oppure l'ID della build Next.js quando la variabile è vuota; un errore HTML del proxy e un errore di rete del browser sono distinti nell'interfaccia.
 - **Qualità**: `npx tsx scripts/ai-eval.ts` esegue i 200 casi del set di valutazione (serve `OPENROUTER_API_KEY`, costo stimato < €1) e scrive `ai-eval-report.json`. Eseguilo prima di cambiare modello o prompt.
 
 ## 6. Fatturazione elettronica
