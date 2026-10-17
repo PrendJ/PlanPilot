@@ -59,7 +59,8 @@ const responseSchema = {
             title: { type: ["string", "null"] },
             description: { type: ["string", "null"] },
             targetColumnId: { type: ["string", "null"] },
-            priority: { type: ["string", "null"], enum: ["LOW", "NORMAL", "HIGH", "URGENT", null] },
+            // Keep null outside the string enum: Google's schema decoder expects enum values to be strings.
+            priority: { anyOf: [{ type: "string", enum: ["LOW", "NORMAL", "HIGH", "URGENT"] }, { type: "null" }] },
             dueDate: { type: ["string", "null"] },
             tags: { type: ["array", "null"], items: { type: "string" } },
             reason: { type: "string" },

@@ -9,6 +9,11 @@ const ENGLISH_PAGES = ["", "/pricing", "/demo", "/privacy", "/terms", "/cookies"
  * 2. Private areas require a session cookie; the page itself still validates the session in the database.
  */
 export function middleware(request: NextRequest) {
+  // Reject malformed action headers before Next's action decoder logs an exception.
+  const actionId = request.headers.get("next-action");
+  if (request.method === "POST" && actionId !== null && !/^[a-f0-9]{42}$/i.test(actionId)) {
+    return new NextResponse(null, { status: 400 });
+  }
   const { pathname, search } = request.nextUrl;
   if (pathname === "/en" || pathname.startsWith("/en/")) {
     const rest = pathname.slice(3);
@@ -38,6 +43,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    { source: "/:path*", has: [{ type: "header", key: "next-action" }] },
     "/en",
     "/en/:path*",
     "/app/:path*",

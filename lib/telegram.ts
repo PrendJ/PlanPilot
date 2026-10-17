@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { MAX_AUDIO_BYTES, openRouterBaseUrl, openRouterHeaders, providerPolicy } from "@/lib/ai-config";
+import { MAX_AUDIO_BYTES } from "@/lib/ai-config";
+import { transcribeAudio } from "@/lib/transcription";
 import { canWriteCards, workspaceReadOnly } from "@/lib/board";
 import { platformModels } from "@/lib/platform-ai";
 import { getUsageStatus, recordUsage } from "@/lib/plans";
@@ -225,19 +226,7 @@ export async function processTelegramAudio(captureId: string) {
     const buffer = Buffer.from(await response.arrayBuffer());
     if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) throw new Error("AUDIO_UNAVAILABLE");
     const model = (await platformModels()).transcriptionModel;
-    const transcribed = await fetch(`${openRouterBaseUrl()}/audio/transcriptions`, {
-      method: "POST",
-      signal: AbortSignal.timeout(60_000),
-      headers: openRouterHeaders(getWorkspaceApiKey(workspace)!),
-      body: JSON.stringify({
-        model,
-        input_audio: { data: buffer.toString("base64"), format },
-        language: workspace.locale,
-        provider: providerPolicy(),
-      }),
-    });
-    const result = await transcribed.json().catch(() => null);
-    if (!transcribed.ok || typeof result?.text !== "string" || !result.text.trim()) throw new Error("TRANSCRIPTION_FAILED");
+    const result = await transcribeAudio({ apiKey: getWorkspaceApiKey(workspace)!, model, audio: buffer, format, language: workspace.locale });
     const caption = capture.text.trim();
     const saved = await prisma.externalCapture.updateMany({
       where: { id: captureId },
@@ -251,9 +240,9 @@ export async function processTelegramAudio(captureId: string) {
       organizationId: workspace.organizationId,
       workspaceId: workspace.id,
       userId: capture.userId,
-      providerRequestId: result.id,
+      providerRequestId: result.requestId,
       category: "TRANSCRIPTION",
-      model,
+      model: result.model,
       costUsd: result?.usage?.cost,
     });
     if (saved.count) await telegramSay(connection.chatId, telegramReply(locale, "transcribed"));

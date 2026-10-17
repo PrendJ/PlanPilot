@@ -107,7 +107,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
     const response = await api<{ text: string }>(`/api/workspaces/${slug}/transcribe`, { method: "POST", body: form });
     setBusy("");
     if (!response.ok || !response.data.text) {
-      onError(response.data.error || t("errors.TRANSCRIPTION_FAILED"));
+      onError(response.data.error ? aiRequestError(response, t) : t("errors.TRANSCRIPTION_FAILED"));
       return;
     }
     const combined = text.trim() ? `${text.trim()}\n${response.data.text}` : response.data.text;

@@ -32,6 +32,9 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     expect(body.reasoning).toBeUndefined();
     expect(mocked.mock.calls[0][0]).toBe("https://openrouter.ai/api/v1/chat/completions");
     expect(body.response_format.json_schema.schema.required).toContain("clarification");
+    expect(body.response_format.json_schema.schema.properties.actions.items.properties.priority).toEqual({
+      anyOf: [{ type: "string", enum: ["LOW", "NORMAL", "HIGH", "URGENT"] }, { type: "null" }],
+    });
     expect(body.messages[0].content).toContain("untrusted data");
   });
   it("AI-030 aborts with the configured deadline and does not retry", async () => {
@@ -141,5 +144,17 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     vi.stubGlobal("fetch", mocked);
     for (const model of ["openai/gpt-5-nano", "openai/gpt-5-mini"]) await planPatchFromText({ ...input, model });
     for (const [, options] of mocked.mock.calls) expect(JSON.parse(options.body)).not.toHaveProperty("temperature");
+  });
+  it("identifies Google's upstream schema rejection without logging the raw body", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const raw = JSON.stringify({ error: { code: 400, status: "INVALID_ARGUMENT", message: "response_schema.priority.enum: invalid null value; private prompt" } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: { code: 400, message: "Provider returned error", metadata: { provider_name: "Google", raw } },
+    }), { status: 400 })));
+    await expect(planPatchFromText(input)).rejects.toThrow("AI_UNAVAILABLE");
+    expect(log).toHaveBeenCalledWith("OpenRouter planning failed", expect.objectContaining({
+      provider: "Google", upstreamCode: 400, upstreamStatus: "INVALID_ARGUMENT", reason: "invalid_enum_schema",
+    }));
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private prompt");
   });
 });

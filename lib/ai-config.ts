@@ -70,6 +70,11 @@ export const TRANSCRIPTION_MODELS: ModelOption[] = [
     note: "Trascrizione multilingua senza conservazione dei dati.",
     recommended: true,
   },
+  {
+    id: "openai/whisper-large-v3-turbo",
+    label: "Whisper Large V3 Turbo",
+    note: "Alternativa multilingua su endpoint a zero conservazione; usata se Voxtral non è disponibile (404).",
+  },
 ];
 
 export const DEFAULT_PLANNING_MODEL = PLANNING_MODELS[0].id;
@@ -121,9 +126,28 @@ export type ProviderDiagnostic = {
 
 /** Server log line for a failed provider call. */
 export function logProviderFailure(scope: string, status: number | string, raw: unknown, diagnostic?: ProviderDiagnostic) {
-  const error = (raw as { error?: { message?: unknown; code?: unknown } } | null)?.error;
+  const error = (raw as { error?: { message?: unknown; code?: unknown; metadata?: Record<string, unknown> } } | null)?.error;
   const message = typeof error?.message === "string" ? error.message.slice(0, 300) : "";
-  console.error(`OpenRouter ${scope} failed`, { ...diagnostic, status, code: error?.code, message });
+  const metadata = error?.metadata;
+  let upstream: { error?: { message?: unknown; code?: unknown; status?: unknown } } | null = null;
+  try {
+    upstream = typeof metadata?.raw === "string" ? JSON.parse(metadata.raw) : null;
+  } catch { /* Never print raw provider bodies: they may contain user data. */ }
+  const upstreamMessage = typeof upstream?.error?.message === "string" ? upstream.error.message : "";
+  const reason = /enum/i.test(upstreamMessage) ? "invalid_enum_schema"
+    : /schema|response_format|responseSchema/i.test(upstreamMessage) ? "invalid_response_schema"
+    : /no endpoints/i.test(message + upstreamMessage) ? "no_matching_endpoints"
+    : /model.*(not found|does not exist|invalid)/i.test(message + upstreamMessage) ? "model_not_found"
+    : /audio.*format|unsupported.*format/i.test(upstreamMessage) ? "unsupported_audio_format"
+    : undefined;
+  const safeToken = (value: unknown) => typeof value === "string" && /^[a-zA-Z0-9 _./-]{1,80}$/.test(value) ? value : undefined;
+  console.error(`OpenRouter ${scope} failed`, {
+    ...diagnostic, status, code: error?.code, message,
+    provider: safeToken(metadata?.provider_name),
+    upstreamCode: typeof upstream?.error?.code === "number" ? upstream.error.code : safeToken(metadata?.provider_error_code),
+    upstreamStatus: safeToken(upstream?.error?.status),
+    reason,
+  });
 }
 
 export function networkCauseCode(error: unknown): string | undefined {

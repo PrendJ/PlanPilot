@@ -197,7 +197,7 @@ export function HomeAssistant({
     const response = await api<{ text: string }>(`/api/workspaces/${board.slug}/transcribe`, { method: "POST", body: form });
     setBusy("");
     if (!response.ok || !response.data.text) {
-      setError(response.data.error || t("errors.TRANSCRIPTION_FAILED"));
+      setError(response.data.error ? aiRequestError(response, t) : t("errors.TRANSCRIPTION_FAILED"));
       return false;
     }
     setText(current => (current.trim() ? `${current.trim()}\n${response.data.text}` : response.data.text));

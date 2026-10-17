@@ -4,7 +4,8 @@ import { rateLimit } from "@/lib/security";
 import { getWorkspaceApiKey } from "@/lib/workspace";
 import { boardContext, isResponse } from "@/lib/api-context";
 import { apiError } from "@/lib/errors";
-import { audioFormatFor, MAX_AUDIO_BYTES, openRouterBaseUrl, openRouterHeaders, providerPolicy } from "@/lib/ai-config";
+import { audioFormatFor, MAX_AUDIO_BYTES } from "@/lib/ai-config";
+import { transcribeAudio, TranscriptionError } from "@/lib/transcription";
 import { platformModels } from "@/lib/platform-ai";
 import { trackEvent } from "@/lib/product-events";
 
@@ -28,34 +29,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { transcriptionModel: model } = await platformModels();
   const buffer = Buffer.from(await audio.arrayBuffer());
   try {
-    const response = await fetch(`${openRouterBaseUrl()}/audio/transcriptions`, {
-      method: "POST",
-      signal: AbortSignal.timeout(60_000),
-      headers: openRouterHeaders(apiKey),
-      body: JSON.stringify({
-        model,
-        input_audio: { data: buffer.toString("base64"), format: audioFormatFor(audio.type, audio.name) },
-        language: workspace.locale,
-        provider: providerPolicy(),
-      }),
+    const result = await transcribeAudio({
+      apiKey, model, audio: buffer, format: audioFormatFor(audio.type, audio.name), language: workspace.locale,
     });
-    const raw = await response.json().catch(() => null);
-    if (!response.ok || typeof raw?.text !== "string") {
-      console.error("Transcription failed", response.status);
-      return apiError(request, "TRANSCRIPTION_FAILED", 502);
-    }
     await recordUsage({
       organizationId: workspace.organizationId,
       workspaceId: workspace.id,
       userId: user.id,
-      providerRequestId: raw.id,
+      providerRequestId: result.requestId,
       category: "TRANSCRIPTION",
-      model,
-      costUsd: raw?.usage?.cost,
+      model: result.model,
+      costUsd: result.usage?.cost,
     });
     await trackEvent("dictation");
-    return NextResponse.json({ text: raw.text.trim() });
-  } catch {
-    return apiError(request, "TRANSCRIPTION_FAILED", 502);
+    return NextResponse.json({ text: result.text });
+  } catch (error) {
+    return apiError(request, "TRANSCRIPTION_FAILED", 502, error instanceof TranscriptionError ? { diagnosticId: error.diagnosticId } : undefined);
   }
 }
