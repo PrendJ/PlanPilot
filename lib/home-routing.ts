@@ -93,7 +93,7 @@ export async function routeHomeCapture(input: {
                   items: {
                     type: "object",
                     additionalProperties: false,
-                    properties: { text: { type: "string" }, workspaceId: { type: ["string", "null"] } },
+                    properties: { text: { type: "string" }, workspaceId: { anyOf: [{ type: "string" }, { type: "null" }] } },
                     required: ["text", "workspaceId"],
                   },
                 },

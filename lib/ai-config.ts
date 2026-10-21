@@ -139,6 +139,8 @@ export function logProviderFailure(scope: string, status: number | string, raw: 
     : /no endpoints/i.test(message + upstreamMessage) ? "no_matching_endpoints"
     : /model.*(not found|does not exist|invalid)/i.test(message + upstreamMessage) ? "model_not_found"
     : /audio.*format|unsupported.*format/i.test(upstreamMessage) ? "unsupported_audio_format"
+    // Vertex answers an unsupported response schema with a bare "Request contains an invalid argument."
+    : upstream?.error?.status === "INVALID_ARGUMENT" ? "invalid_argument"
     : undefined;
   const safeToken = (value: unknown) => typeof value === "string" && /^[a-zA-Z0-9 _./-]{1,80}$/.test(value) ? value : undefined;
   console.error(`OpenRouter ${scope} failed`, {

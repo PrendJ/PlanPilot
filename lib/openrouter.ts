@@ -39,6 +39,12 @@ export const aiPatchSchema = z
 export type AiPatch = z.infer<typeof aiPatchSchema>;
 export type AiAction = AiPatch["actions"][number];
 
+/**
+ * Nullable as an explicit union with nothing beside `anyOf`. Google Vertex (the zero-retention Gemini endpoint)
+ * rejects type arrays such as ["string", "null"] and enums containing null with a bare 400 INVALID_ARGUMENT.
+ */
+const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: "null" }] });
+
 const responseSchema = {
   name: "plan_patch",
   strict: true,
@@ -55,25 +61,24 @@ const responseSchema = {
           additionalProperties: false,
           properties: {
             action: { type: "string", enum: ["create", "update", "move", "archive"] },
-            cardId: { type: ["string", "null"] },
-            title: { type: ["string", "null"] },
-            description: { type: ["string", "null"] },
-            targetColumnId: { type: ["string", "null"] },
-            // Keep null outside the string enum: Google's schema decoder expects enum values to be strings.
-            priority: { anyOf: [{ type: "string", enum: ["LOW", "NORMAL", "HIGH", "URGENT"] }, { type: "null" }] },
-            dueDate: { type: ["string", "null"] },
-            tags: { type: ["array", "null"], items: { type: "string" } },
+            cardId: nullable({ type: "string" }),
+            title: nullable({ type: "string" }),
+            description: nullable({ type: "string" }),
+            targetColumnId: nullable({ type: "string" }),
+            priority: nullable({ type: "string", enum: ["LOW", "NORMAL", "HIGH", "URGENT"] }),
+            dueDate: nullable({ type: "string" }),
+            tags: nullable({ type: "array", items: { type: "string" } }),
             reason: { type: "string" },
           },
           required: ["action", "cardId", "title", "description", "targetColumnId", "priority", "dueDate", "tags", "reason"],
         },
       },
-      clarification: {
-        type: ["object", "null"],
+      clarification: nullable({
+        type: "object",
         additionalProperties: false,
         properties: { question: { type: "string" }, options: { type: "array", maxItems: 4, items: { type: "string" } } },
         required: ["question", "options"],
-      },
+      }),
     },
     required: ["summary", "actions", "clarification"],
   },

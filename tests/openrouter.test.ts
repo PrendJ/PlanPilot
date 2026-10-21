@@ -35,6 +35,8 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     expect(body.response_format.json_schema.schema.properties.actions.items.properties.priority).toEqual({
       anyOf: [{ type: "string", enum: ["LOW", "NORMAL", "HIGH", "URGENT"] }, { type: "null" }],
     });
+    // Google Vertex rejects nullable type arrays with a bare 400 INVALID_ARGUMENT.
+    expect(JSON.stringify(body.response_format)).not.toMatch(/"type":\[/);
     expect(body.messages[0].content).toContain("untrusted data");
   });
   it("AI-030 aborts with the configured deadline and does not retry", async () => {
