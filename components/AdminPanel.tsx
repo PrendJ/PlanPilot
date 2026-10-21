@@ -4,8 +4,8 @@ import React, { Fragment, FormEvent, useMemo, useState } from "react";
 import { ExchangeRateControl, type ExchangeRateStatus } from "@/components/ExchangeRateControl";
 
 type Workspace={id:string;name:string;slug:string;lifecycleStatus?:string};
-type AiModelOption={id:string;label:string;note:string;recommended:boolean;inputUsdPerMillion:number|null;outputUsdPerMillion:number|null};
-export type AiModelsState={current:{planModel:string;transcriptionModel:string};options:{planning:AiModelOption[];transcription:AiModelOption[]}};
+type AiModelOption={id:string;label:string;note:string;recommended:boolean;inputUsdPerMillion:number|null;outputUsdPerMillion:number|null;audioUsdPerMinute:number|null};
+export type AiModelsState={current:{planModel:string;complexPlanModel:string;transcriptionModel:string};options:{planning:AiModelOption[];transcription:AiModelOption[]}};
 type Membership={role:string;workspace:Workspace};
 type OrganizationMembership={role:string;organization:{id:string;name:string;slug:string;plan:string;legalType:string;createdById:string;licenseSource:string;lifecycleStatus:string;accessExpiresAt:string|Date|null;trialEndsAt?:string|Date|null}};
 type User={id:string;email:string;name:string;isAdmin:boolean;platformRole:string;lifecycleStatus:string;defaultOrganizationId:string|null;lifetimeFree:boolean;emailVerifiedAt:string|Date|null;memberships:Membership[];organizationMemberships:OrganizationMembership[]};
@@ -76,25 +76,28 @@ function UserManagement({row,user,superadmin,support,busy,workspaces,replacement
 export function AiModelsControl({initial,editable,onChanged}:{initial:AiModelsState;editable:boolean;onChanged:()=>Promise<void>|void}){
   const [current,setCurrent]=useState(initial.current);
   const [planModel,setPlanModel]=useState(initial.current.planModel);
+  const [complexPlanModel,setComplexPlanModel]=useState(initial.current.complexPlanModel);
   const [transcriptionModel,setTranscriptionModel]=useState(initial.current.transcriptionModel);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
   const {planning,transcription}=initial.options;
   const find=(items:AiModelOption[],id:string)=>items.find(item=>item.id===id);
-  const price=(value:number|null)=>value===null?"n.d.":`$${value.toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:4})}`;
+  const price=(value:number|null)=>value==null?"n.d.":`$${value.toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:6})}`;
   const sampleCost=(item:AiModelOption)=>item.inputUsdPerMillion===null||item.outputUsdPerMillion===null?Infinity:item.inputUsdPerMillion/1000+item.outputUsdPerMillion/2000;
   const ranked=[...planning].sort((a,b)=>sampleCost(a)-sampleCost(b));
-  const changed=planModel!==current.planModel||transcriptionModel!==current.transcriptionModel;
+  const rankedTranscription=[...transcription].sort((a,b)=>(a.audioUsdPerMinute??Infinity)-(b.audioUsdPerMinute??Infinity));
+  const changed=planModel!==current.planModel||complexPlanModel!==current.complexPlanModel||transcriptionModel!==current.transcriptionModel;
   const plan=find(planning,editable?planModel:current.planModel);
+  const complexPlan=find(planning,editable?complexPlanModel:current.complexPlanModel);
   const dictation=find(transcription,editable?transcriptionModel:current.transcriptionModel);
   async function save(){
     setBusy(true);setError("");setNotice("");
     try {
-      const response=await fetch("/api/admin/ai-models",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({planModel,transcriptionModel})});
+      const response=await fetch("/api/admin/ai-models",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({planModel,complexPlanModel,transcriptionModel})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok){setError(data.error||"Aggiornamento non riuscito");return}
-      setCurrent(data.current);setPlanModel(data.current.planModel);setTranscriptionModel(data.current.transcriptionModel);
+      setCurrent(data.current);setPlanModel(data.current.planModel);setComplexPlanModel(data.current.complexPlanModel);setTranscriptionModel(data.current.transcriptionModel);
       setNotice("Modifica salvata e registrata nell’audit.");await onChanged();
     } catch { setError("Connessione interrotta durante il salvataggio.") }
     finally { setBusy(false) }
@@ -102,13 +105,16 @@ export function AiModelsControl({initial,editable,onChanged}:{initial:AiModelsSt
   return <section className="admin-card exchange-rate-control ai-models-control">
     <div>
       <h2>Modelli AI</h2>
-      <p>Un modello di pianificazione e uno di dettatura per tutte le board. Il superadmin li sceglie qui.</p>
-      <small>Pianificazione: <strong>{plan?.label||current.planModel}</strong>{plan?.note?` · ${plan.note}`:""}</small><br/>
+      <p>Due livelli di pianificazione e un modello di dettatura per tutte le board. Il superadmin li sceglie qui.</p>
+      <p>Il modello per aggiornamenti complessi interviene per testi da 1.200 caratteri, almeno 5 frasi, modifiche collettive o contesti grandi. La selezione è automatica e indicativa; scegli lo stesso modello nei due campi per usarne sempre uno.</p>
+      <small>Aggiornamenti semplici: <strong>{plan?.label||current.planModel}</strong>{plan?.note?` · ${plan.note}`:""}</small><br/>
+      <small>Aggiornamenti complessi: <strong>{complexPlan?.label||current.complexPlanModel}</strong>{complexPlan?.note?` · ${complexPlan.note}`:""}</small><br/>
       <small>Dettatura: <strong>{dictation?.label||current.transcriptionModel}</strong>{dictation?.note?` · ${dictation.note}`:""}</small>
     </div>
     {editable?<div className="exchange-rate-actions">
-      <label>Modello di pianificazione<select value={planModel} disabled={busy} onChange={event=>setPlanModel(event.target.value)}>{planning.map(item=><option value={item.id} key={item.id}>{item.label}{item.recommended?" · consigliato":""} · {price(item.inputUsdPerMillion)} / {price(item.outputUsdPerMillion)}</option>)}</select></label>
-      <label>Modello di dettatura<select value={transcriptionModel} disabled={busy} onChange={event=>setTranscriptionModel(event.target.value)}>{transcription.map(item=><option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
+      <label>Modello per aggiornamenti semplici<select value={planModel} disabled={busy} onChange={event=>setPlanModel(event.target.value)}>{planning.map(item=><option value={item.id} key={item.id}>{item.label}{item.recommended?" · consigliato":""} · {price(item.inputUsdPerMillion)} / {price(item.outputUsdPerMillion)} per 1M token</option>)}</select></label>
+      <label>Modello per aggiornamenti complessi<select value={complexPlanModel} disabled={busy} onChange={event=>setComplexPlanModel(event.target.value)}>{planning.map(item=><option value={item.id} key={item.id}>{item.label} · {price(item.inputUsdPerMillion)} / {price(item.outputUsdPerMillion)} per 1M token</option>)}</select></label>
+      <label>Modello di dettatura<select value={transcriptionModel} disabled={busy} onChange={event=>setTranscriptionModel(event.target.value)}>{transcription.map(item=><option value={item.id} key={item.id}>{item.label} · {price(item.audioUsdPerMinute)} / minuto</option>)}</select></label>
       <button className="btn accent" disabled={busy||!changed} onClick={save}>{busy?"Salvataggio…":"Salva"}</button>
     </div>:<p className="muted-copy">Sola lettura: chiedi al superadmin per cambiare i modelli.</p>}
     <div className="ai-model-comparison">
@@ -116,7 +122,15 @@ export function AiModelsControl({initial,editable,onChanged}:{initial:AiModelsSt
       <p>Ordine per costo stimato di 1.000 token in ingresso e 500 in uscita. Non misura la qualità. Prezzi USD di catalogo OpenRouter per 1 milione di token; possono variare.</p>
       <div className="ai-model-table-scroll"><table className="backoffice-table">
         <thead><tr><th>#</th><th>Modello</th><th>Input / 1M</th><th>Output / 1M</th></tr></thead>
-        <tbody>{ranked.map((item,index)=><tr key={item.id}><td>{Number.isFinite(sampleCost(item))?index+1:"—"}</td><td><strong>{item.label}</strong>{item.id===current.planModel?" · in uso":""}<small className="block">{item.note}</small></td><td>{price(item.inputUsdPerMillion)}</td><td>{price(item.outputUsdPerMillion)}</td></tr>)}</tbody>
+        <tbody>{ranked.map((item,index)=><tr key={item.id}><td>{Number.isFinite(sampleCost(item))?index+1:"—"}</td><td><strong>{item.label}</strong>{item.id===current.planModel?" · semplici":""}{item.id===current.complexPlanModel?" · complessi":""}<small className="block">{item.note}</small></td><td>{price(item.inputUsdPerMillion)}</td><td>{price(item.outputUsdPerMillion)}</td></tr>)}</tbody>
+      </table></div>
+    </div>
+    <div className="ai-model-comparison">
+      <h3>Confronto costi dei modelli di dettatura</h3>
+      <p>Prezzi USD di catalogo OpenRouter per durata audio, ordinati dal più economico. Il costo effettivo dipende dal provider e dai suoi arrotondamenti; non misura la qualità. Tutte le opzioni richiedono zero conservazione dei dati.</p>
+      <div className="ai-model-table-scroll"><table className="backoffice-table">
+        <thead><tr><th>Modello</th><th>1 minuto</th><th>2 minuti</th><th>1 ora</th></tr></thead>
+        <tbody>{rankedTranscription.map(item=><tr key={item.id}><td><strong>{item.label}</strong>{item.id===current.transcriptionModel?" · in uso":""}<small className="block">{item.note}</small></td><td>{price(item.audioUsdPerMinute)}</td><td>{price(item.audioUsdPerMinute==null?null:item.audioUsdPerMinute*2)}</td><td>{price(item.audioUsdPerMinute==null?null:item.audioUsdPerMinute*60)}</td></tr>)}</tbody>
       </table></div>
     </div>
     {error&&<p className="negative">{error}</p>}{notice&&<p className="muted-copy" role="status">{notice}</p>}

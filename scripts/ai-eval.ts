@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { planPatchFromText } from "../lib/openrouter";
+import { DEFAULT_PLANNING_MODEL } from "../lib/ai-config";
 import {
   buildScoreContext,
   scoreCase,
@@ -22,7 +23,7 @@ const NOW = new Date("2026-09-23T09:00:00+02:00");
 const TIME_ZONE = "Europe/Rome";
 const LOCALE = "it";
 const CONCURRENCY = 4;
-const DEFAULT_MODEL = process.env.AI_EVAL_MODEL || "google/gemini-3.1-flash-lite"; // same default as DEFAULT_PLANNING_MODEL
+const DEFAULT_MODEL = process.env.AI_EVAL_MODEL || DEFAULT_PLANNING_MODEL;
 
 type Args = { model: string; limit: number | null; category: string | null };
 

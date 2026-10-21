@@ -13,6 +13,8 @@ export type ModelOption = {
   reasoningEffort?: "minimal" | "low";
   /** False when the model's zero-retention endpoints reject `temperature` (see samplingParams). */
   temperature?: false;
+  /** Unit of pricing.prompt in the STT catalogue (never infer it from the price). */
+  audioPriceUnit?: "second";
 };
 
 /**
@@ -22,34 +24,24 @@ export type ModelOption = {
  */
 export const PLANNING_MODELS: ModelOption[] = [
   {
-    id: "google/gemini-3.1-flash-lite",
-    label: "Gemini 3.1 Flash-Lite",
-    note: "Consigliato: veloce, economico e affidabile nell'output strutturato.",
-    recommended: true,
-  },
-  {
     id: "openai/gpt-5-nano",
     label: "GPT-5 nano",
     note: "Il più economico per token; ragionamento minimo, adatto ad aggiornamenti semplici.",
+    recommended: true,
     reasoningEffort: "minimal",
     temperature: false,
   },
   {
     id: "openai/gpt-5-mini",
     label: "GPT-5 mini",
-    note: "Alternativa OpenAI con output strutturato; disponibile su endpoint ZDR.",
-    reasoningEffort: "minimal",
+    note: "Consigliato per aggiornamenti lunghi o con molte modifiche; ragionamento leggero.",
+    reasoningEffort: "low",
     temperature: false,
   },
   {
     id: "mistralai/mistral-small-2603",
     label: "Mistral Small",
     note: "Buona comprensione dell'italiano, costo leggermente più alto.",
-  },
-  {
-    id: "google/gemini-3.5-flash",
-    label: "Gemini 3.5 Flash",
-    note: "Massima comprensione per board grandi e aggiornamenti complessi; costo più alto.",
   },
   {
     id: "anthropic/claude-haiku-4.5",
@@ -70,15 +62,30 @@ export const TRANSCRIPTION_MODELS: ModelOption[] = [
     label: "Whisper Large V3 Turbo",
     note: "Consigliato: trascrizione multilingua economica su endpoint a zero conservazione.",
     recommended: true,
+    audioPriceUnit: "second",
+  },
+  {
+    id: "openai/whisper-large-v3",
+    label: "Whisper Large V3",
+    note: "Alternativa multilingua a Whisper Turbo su endpoint a zero conservazione.",
+    audioPriceUnit: "second",
   },
   {
     id: "mistralai/voxtral-mini-transcribe-3-0",
     label: "Voxtral Mini Transcribe 3",
     note: "Alternativa Mistral a zero conservazione, costo più alto; ripiega su Whisper se non disponibile (404).",
+    audioPriceUnit: "second",
+  },
+  {
+    id: "mistralai/voxtral-small-transcribe-3-0",
+    label: "Voxtral Small Transcribe 3",
+    note: "Modello Mistral più grande; ripiega su Whisper se non disponibile (404).",
+    audioPriceUnit: "second",
   },
 ];
 
 export const DEFAULT_PLANNING_MODEL = PLANNING_MODELS[0].id;
+export const DEFAULT_COMPLEX_PLANNING_MODEL = "openai/gpt-5-mini";
 export const DEFAULT_TRANSCRIPTION_MODEL = TRANSCRIPTION_MODELS[0].id;
 
 export function resolvePlanningModel(id?: string | null) {

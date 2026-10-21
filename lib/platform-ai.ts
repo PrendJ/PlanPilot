@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { publicModelPricing } from "@/lib/model-pricing";
 import {
   DEFAULT_PLANNING_MODEL,
+  DEFAULT_COMPLEX_PLANNING_MODEL,
   DEFAULT_TRANSCRIPTION_MODEL,
   PLANNING_MODELS,
   resolvePlanningModel,
@@ -16,13 +17,14 @@ import {
 export const PLATFORM_AI_SETTING_ID = "default";
 const CACHE_TTL_MS = 30_000;
 
-export type PlatformModels = { planModel: string; transcriptionModel: string };
+export type PlatformModels = { planModel: string; complexPlanModel: string; transcriptionModel: string };
 
 let cache: { value: PlatformModels; expiresAt: number } | null = null;
 
-function normalize(row: { planModel?: string | null; transcriptionModel?: string | null } | null): PlatformModels {
+function normalize(row: { planModel?: string | null; complexPlanModel?: string | null; transcriptionModel?: string | null } | null): PlatformModels {
   return {
     planModel: resolvePlanningModel(row?.planModel ?? DEFAULT_PLANNING_MODEL),
+    complexPlanModel: isAllowedPlanningModel(row?.complexPlanModel || "") ? row!.complexPlanModel! : DEFAULT_COMPLEX_PLANNING_MODEL,
     transcriptionModel: resolveTranscriptionModel(row?.transcriptionModel ?? DEFAULT_TRANSCRIPTION_MODEL),
   };
 }
@@ -59,15 +61,17 @@ export function isAllowedTranscriptionModel(id: string) {
  * Stores the platform models and writes the admin audit event in the same transaction.
  * Callers must already have checked the superadmin capability.
  */
-export async function setPlatformModels(input: PlatformModels, actorId: string): Promise<PlatformModels> {
+export async function setPlatformModels(input: Omit<PlatformModels, "complexPlanModel"> & { complexPlanModel?: string }, actorId: string): Promise<PlatformModels> {
   if (!isAllowedPlanningModel(input.planModel)) throw new Error("Modello di pianificazione non consentito");
+  if (input.complexPlanModel !== undefined && !isAllowedPlanningModel(input.complexPlanModel)) throw new Error("Modello di pianificazione complessa non consentito");
   if (!isAllowedTranscriptionModel(input.transcriptionModel)) throw new Error("Modello di dettatura non consentito");
   const saved = await prisma.$transaction(async tx => {
     const previous = await tx.platformAiSetting.findUnique({ where: { id: PLATFORM_AI_SETTING_ID } });
+    const complexPlanModel = input.complexPlanModel ?? normalize(previous).complexPlanModel;
     const row = await tx.platformAiSetting.upsert({
       where: { id: PLATFORM_AI_SETTING_ID },
-      create: { id: PLATFORM_AI_SETTING_ID, planModel: input.planModel, transcriptionModel: input.transcriptionModel, updatedById: actorId },
-      update: { planModel: input.planModel, transcriptionModel: input.transcriptionModel, updatedById: actorId },
+      create: { id: PLATFORM_AI_SETTING_ID, planModel: input.planModel, complexPlanModel, transcriptionModel: input.transcriptionModel, updatedById: actorId },
+      update: { planModel: input.planModel, complexPlanModel, transcriptionModel: input.transcriptionModel, updatedById: actorId },
     });
     const before = normalize(previous);
     await tx.adminAuditEvent.create({
@@ -76,7 +80,7 @@ export async function setPlatformModels(input: PlatformModels, actorId: string):
         action: "PLATFORM_AI_MODELS_UPDATED",
         targetType: "PLATFORM",
         targetId: "ai-models",
-        metadata: { before, after: { planModel: row.planModel, transcriptionModel: row.transcriptionModel } },
+        metadata: { before, after: normalize(row) },
       },
     });
     return row;
@@ -99,6 +103,7 @@ export async function platformModelOptionsWithPricing() {
       ...item,
       inputUsdPerMillion: prices[item.id]?.inputUsdPerMillion ?? null,
       outputUsdPerMillion: prices[item.id]?.outputUsdPerMillion ?? null,
+      audioUsdPerMinute: prices[item.id]?.audioUsdPerMinute ?? null,
     }));
   return { planning: priced(options.planning), transcription: priced(options.transcription) };
 }

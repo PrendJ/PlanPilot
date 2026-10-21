@@ -11,6 +11,42 @@ const input = {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
+  it("falls back once to Mini for unavailable Nano endpoints, retaining policy and deadline", async () => {
+    const mocked = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 404, message: "No endpoints" } }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: "ok", actions: [], clarification: null }) } }], usage: { cost: 0.002 } }), { headers: { "x-generation-id": "gen-mini" } }));
+    vi.stubGlobal("fetch", mocked);
+    const result = await planPatchFromText({ ...input, model: "openai/gpt-5-nano", fallbackModel: "openai/gpt-5-mini", diagnosticId: "fallback-test" });
+    expect(result).toMatchObject({ model: "openai/gpt-5-mini", requestId: "gen-mini", usage: { cost: 0.002 } });
+    const requests = mocked.mock.calls.map(call => JSON.parse(call[1].body));
+    expect(requests.map(body => body.model)).toEqual(["openai/gpt-5-nano", "openai/gpt-5-mini"]);
+    expect(requests[1].reasoning).toEqual({ effort: "low", exclude: true });
+    expect(requests[1].provider).toEqual(requests[0].provider);
+    expect(requests[1]).not.toHaveProperty("temperature");
+    expect(mocked.mock.calls[0][1].signal).toBe(mocked.mock.calls[1][1].signal);
+  });
+  it.each([400, 401, 402, 403, 429])("does not retry rejected requests with status %s", async status => {
+    const mocked = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: status } }), { status }));
+    vi.stubGlobal("fetch", mocked);
+    await expect(planPatchFromText({ ...input, fallbackModel: "openai/gpt-5-mini" })).rejects.toThrow("AI_UNAVAILABLE");
+    expect(mocked).toHaveBeenCalledTimes(1);
+  });
+  it("stops after the fallback fails", async () => {
+    const mocked = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ error: { code: 503 } }), { status: 503 }));
+    vi.stubGlobal("fetch", mocked);
+    await expect(planPatchFromText({ ...input, fallbackModel: "openai/gpt-5-mini" })).rejects.toThrow("AI_UNAVAILABLE");
+    expect(mocked).toHaveBeenCalledTimes(2);
+  });
+  it("does not retry when both tiers use the same model", async () => {
+    const mocked = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 404 } }), { status: 404 }));
+    vi.stubGlobal("fetch", mocked);
+    await expect(planPatchFromText({ ...input, fallbackModel: input.model })).rejects.toThrow("AI_UNAVAILABLE");
+    expect(mocked).toHaveBeenCalledTimes(1);
+  });
+  it("rejects an error envelope even when HTTP status and content look successful", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 400 }, choices: [{ message: { content: JSON.stringify({ summary: "ok", actions: [] }) } }] }))));
+    await expect(planPatchFromText(input)).rejects.toThrow("AI_UNAVAILABLE");
+  });
   it("routes only to zero-retention providers without data collection", async () => {
     const mocked = vi.fn().mockResolvedValue({
       ok: true,
@@ -47,7 +83,7 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     vi.stubGlobal("fetch", mocked);
     try {
       await expect(planPatchFromText(input)).rejects.toThrow("AI_UNAVAILABLE");
-      expect(timeout).toHaveBeenCalledWith(30_000);
+      expect(timeout).toHaveBeenCalledWith(60_000);
       expect(mocked).toHaveBeenCalledTimes(1);
     } finally {
       timeout.mockRestore();

@@ -6,6 +6,7 @@ import { AiProviderError, planPatchFromText, type AiAction } from "@/lib/openrou
 import { recordUsage, refundAiUpdate, reserveAiUpdate } from "@/lib/plans";
 import { getWorkspaceApiKey } from "@/lib/workspace";
 import { platformModels } from "@/lib/platform-ai";
+import { selectPlanningModel } from "@/lib/planning-model";
 import { assertBoardAccess, BoardAccessError, bumpRevision, logActivity, markMilestone, placeCard } from "@/lib/board";
 import { trackEvent } from "@/lib/product-events";
 
@@ -146,7 +147,15 @@ export async function createProposal(input: {
     console.error("AI proposal missing API key", { diagnosticId, workspaceId: input.workspace.id });
     throw new ProposalError("AI_NOT_CONFIGURED");
   }
-  const { planModel: model } = await platformModels();
+  const models = await platformModels();
+  const board = await loadBoard(input.workspace.id);
+  const plan = buildCompactPlan(
+    board.columns.map(column => ({ id: column.id, title: column.title, description: column.description, cards: column.cards })),
+    input.text,
+  );
+  const { model: selectedModel, reason } = selectPlanningModel({ ...models, text: input.text, plan });
+  let model = selectedModel;
+  console.info("AI planning model selected", { diagnosticId, model, reason });
   const reservation = await reserveAiUpdate({
     organizationId: input.workspace.organizationId,
     workspaceId: input.workspace.id,
@@ -155,11 +164,6 @@ export async function createProposal(input: {
     model,
     metadata: { source: input.source },
   });
-  const board = await loadBoard(input.workspace.id);
-  const plan = buildCompactPlan(
-    board.columns.map(column => ({ id: column.id, title: column.title, description: column.description, cards: column.cards })),
-    input.text,
-  );
   let result: Awaited<ReturnType<typeof planPatchFromText>>;
   try {
     result = await planPatchFromText({
@@ -172,6 +176,7 @@ export async function createProposal(input: {
       timeZone: input.timeZone,
       locale: input.workspace.locale,
       diagnosticId,
+      fallbackModel: models.complexPlanModel,
     });
   } catch (error) {
     // The provider produced nothing usable: the person should not pay an update for our outage.
@@ -179,6 +184,7 @@ export async function createProposal(input: {
     throw error;
   }
   const { patch: candidate, usage, requestId } = result;
+  model = result.model;
   await recordUsage({
     organizationId: input.workspace.organizationId,
     workspaceId: input.workspace.id,

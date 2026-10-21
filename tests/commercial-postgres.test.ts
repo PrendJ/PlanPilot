@@ -19,7 +19,8 @@ vi.mock("@/lib/auth", async importOriginal => ({
 }));
 vi.mock("@/lib/openrouter", async importOriginal => ({
   ...(await importOriginal<typeof import("@/lib/openrouter")>()),
-  planPatchFromText: vi.fn(async (input: { plan: unknown; userText: string }) => ({
+  planPatchFromText: vi.fn(async (input: { plan: unknown; userText: string; model: string }) => ({
+    model: input.model,
     patch: state.planner!(input),
     usage: { cost: 0.0012 },
     requestId: `req-${crypto.randomUUID()}`,

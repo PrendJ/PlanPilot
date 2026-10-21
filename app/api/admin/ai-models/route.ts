@@ -4,7 +4,7 @@ import { requirePlatform } from "@/lib/platform-access";
 import { rejectCrossOrigin } from "@/lib/security";
 import { isAllowedPlanningModel, isAllowedTranscriptionModel, platformModelOptionsWithPricing, platformModels, setPlatformModels } from "@/lib/platform-ai";
 
-const schema = z.object({ planModel: z.string().min(1).max(200), transcriptionModel: z.string().min(1).max(200) });
+const schema = z.object({ planModel: z.string().min(1).max(200), complexPlanModel: z.string().min(1).max(200).optional(), transcriptionModel: z.string().min(1).max(200) });
 
 /** Platform staff can read the current models; only the superadmin (PLATFORM_ADMIN) can change them. */
 export async function GET() {
@@ -22,6 +22,7 @@ export async function PATCH(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Indica un modello di pianificazione e uno di dettatura." }, { status: 400 });
   if (!isAllowedPlanningModel(parsed.data.planModel)) return NextResponse.json({ error: "Modello di pianificazione non consentito" }, { status: 400 });
+  if (parsed.data.complexPlanModel !== undefined && !isAllowedPlanningModel(parsed.data.complexPlanModel)) return NextResponse.json({ error: "Modello di pianificazione complessa non consentito" }, { status: 400 });
   if (!isAllowedTranscriptionModel(parsed.data.transcriptionModel)) return NextResponse.json({ error: "Modello di dettatura non consentito" }, { status: 400 });
   try {
     const current = await setPlatformModels(parsed.data, access.user.id);

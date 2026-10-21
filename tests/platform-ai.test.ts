@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ db: {} as any }));
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
-import { audioFormatFor, DEFAULT_PLANNING_MODEL, DEFAULT_TRANSCRIPTION_MODEL, PLANNING_MODELS } from "@/lib/ai-config";
+import { audioFormatFor, DEFAULT_PLANNING_MODEL, DEFAULT_COMPLEX_PLANNING_MODEL, DEFAULT_TRANSCRIPTION_MODEL, PLANNING_MODELS } from "@/lib/ai-config";
 import { invalidatePlatformModels, platformModelOptions, platformModels, setPlatformModels } from "@/lib/platform-ai";
 
 const alternative = PLANNING_MODELS[1].id;
@@ -15,26 +15,41 @@ beforeEach(() => {
 });
 
 describe("platform AI models", () => {
+  it("retires stored Gemini settings and defaults complex planning to Mini", async () => {
+    mocks.db.platformAiSetting.findUnique.mockResolvedValue({ planModel: "google/gemini-3.1-flash-lite", complexPlanModel: "google/gemini-3.5-flash" });
+    await expect(platformModels()).resolves.toMatchObject({ planModel: "openai/gpt-5-nano", complexPlanModel: "openai/gpt-5-mini" });
+    expect(platformModelOptions().planning.some(item => item.id.startsWith("google/"))).toBe(false);
+  });
+
+  it("saves and audits the complex model and preserves it for older clients", async () => {
+    mocks.db.platformAiSetting.findUnique.mockResolvedValue({ planModel: DEFAULT_PLANNING_MODEL, complexPlanModel: alternative, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
+    mocks.db.platformAiSetting.upsert.mockImplementation(async ({ update }: any) => update);
+    const input = { planModel: DEFAULT_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL };
+    await expect(setPlatformModels(input, "admin_1")).resolves.toMatchObject({ complexPlanModel: alternative });
+    await expect(setPlatformModels({ ...input, complexPlanModel: DEFAULT_PLANNING_MODEL }, "admin_1")).resolves.toMatchObject({ complexPlanModel: DEFAULT_PLANNING_MODEL });
+    expect(mocks.db.adminAuditEvent.create.mock.calls[1][0].data.metadata.after.complexPlanModel).toBe(DEFAULT_PLANNING_MODEL);
+    await expect(setPlatformModels({ ...input, complexPlanModel: "google/gemini-3.1-flash-lite" }, "admin_1")).rejects.toThrow();
+  });
   it("falls back to the defaults when no row exists", async () => {
-    await expect(platformModels()).resolves.toEqual({ planModel: DEFAULT_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
+    await expect(platformModels()).resolves.toEqual({ planModel: DEFAULT_PLANNING_MODEL, complexPlanModel: DEFAULT_COMPLEX_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
   });
 
   it("falls back to the defaults when the stored ids are no longer allowed", async () => {
     mocks.db.platformAiSetting.findUnique.mockResolvedValue({ id: "default", planModel: "retired/model", transcriptionModel: "retired/voice" });
-    await expect(platformModels()).resolves.toEqual({ planModel: DEFAULT_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
+    await expect(platformModels()).resolves.toEqual({ planModel: DEFAULT_PLANNING_MODEL, complexPlanModel: DEFAULT_COMPLEX_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
   });
 
   it("falls back to the defaults without caching when the table is unreadable", async () => {
     mocks.db.platformAiSetting.findUnique.mockRejectedValueOnce(new Error("relation does not exist"));
     vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(platformModels()).resolves.toEqual({ planModel: DEFAULT_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
+    await expect(platformModels()).resolves.toEqual({ planModel: DEFAULT_PLANNING_MODEL, complexPlanModel: DEFAULT_COMPLEX_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
     mocks.db.platformAiSetting.findUnique.mockResolvedValue({ id: "default", planModel: alternative, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
     await expect(platformModels()).resolves.toMatchObject({ planModel: alternative });
   });
 
   it("returns the stored models and caches them in process", async () => {
     mocks.db.platformAiSetting.findUnique.mockResolvedValue({ id: "default", planModel: alternative, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
-    await expect(platformModels()).resolves.toEqual({ planModel: alternative, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
+    await expect(platformModels()).resolves.toEqual({ planModel: alternative, complexPlanModel: DEFAULT_COMPLEX_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
     await platformModels();
     expect(mocks.db.platformAiSetting.findUnique).toHaveBeenCalledTimes(1);
   });
@@ -42,7 +57,7 @@ describe("platform AI models", () => {
   it("stores allowed models, writes the audit event and invalidates the cache", async () => {
     await platformModels();
     mocks.db.platformAiSetting.upsert.mockResolvedValue({ id: "default", planModel: alternative, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
-    await expect(setPlatformModels({ planModel: alternative, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL }, "admin_1")).resolves.toEqual({ planModel: alternative, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
+    await expect(setPlatformModels({ planModel: alternative, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL }, "admin_1")).resolves.toEqual({ planModel: alternative, complexPlanModel: DEFAULT_COMPLEX_PLANNING_MODEL, transcriptionModel: DEFAULT_TRANSCRIPTION_MODEL });
     expect(mocks.db.platformAiSetting.upsert.mock.calls[0][0].update).toMatchObject({ planModel: alternative, updatedById: "admin_1" });
     const audit = mocks.db.adminAuditEvent.create.mock.calls[0][0].data;
     expect(audit).toMatchObject({ actorId: "admin_1", action: "PLATFORM_AI_MODELS_UPDATED", targetType: "PLATFORM", targetId: "ai-models" });
