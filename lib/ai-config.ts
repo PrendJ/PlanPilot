@@ -15,10 +15,15 @@ export type ModelOption = {
   temperature?: false;
 };
 
+/**
+ * Only models with a zero-retention endpoint on the standard OpenRouter URL (GET /api/v1/endpoints/zdr).
+ * A stored id that leaves this list resolves to the default. Gemini 2.5 lost its ZDR (Vertex) endpoints in
+ * October 2026, and every call answered 404 "No endpoints found matching your data policy".
+ */
 export const PLANNING_MODELS: ModelOption[] = [
   {
-    id: "google/gemini-2.5-flash-lite",
-    label: "Gemini 2.5 Flash-Lite",
+    id: "google/gemini-3.1-flash-lite",
+    label: "Gemini 3.1 Flash-Lite",
     note: "Consigliato: veloce, economico e affidabile nell'output strutturato.",
     recommended: true,
   },
@@ -42,14 +47,9 @@ export const PLANNING_MODELS: ModelOption[] = [
     note: "Buona comprensione dell'italiano, costo leggermente più alto.",
   },
   {
-    id: "google/gemini-2.5-flash",
-    label: "Gemini 2.5 Flash",
+    id: "google/gemini-3.5-flash",
+    label: "Gemini 3.5 Flash",
     note: "Massima comprensione per board grandi e aggiornamenti complessi; costo più alto.",
-  },
-  {
-    id: "google/gemini-2.5-pro",
-    label: "Gemini 2.5 Pro",
-    note: "Alternativa Google per contesti complessi; verifica costi e latenza prima di selezionarla.",
   },
   {
     id: "anthropic/claude-haiku-4.5",
@@ -63,17 +63,18 @@ export const PLANNING_MODELS: ModelOption[] = [
   },
 ];
 
+/** Voxtral Mini Transcribe (first release) is zero-retention only on mistral/eu, which the standard URL never reaches. */
 export const TRANSCRIPTION_MODELS: ModelOption[] = [
-  {
-    id: "mistralai/voxtral-mini-transcribe",
-    label: "Voxtral Mini Transcribe",
-    note: "Trascrizione multilingua senza conservazione dei dati.",
-    recommended: true,
-  },
   {
     id: "openai/whisper-large-v3-turbo",
     label: "Whisper Large V3 Turbo",
-    note: "Alternativa multilingua su endpoint a zero conservazione; usata se Voxtral non è disponibile (404).",
+    note: "Consigliato: trascrizione multilingua economica su endpoint a zero conservazione.",
+    recommended: true,
+  },
+  {
+    id: "mistralai/voxtral-mini-transcribe-3-0",
+    label: "Voxtral Mini Transcribe 3",
+    note: "Alternativa Mistral a zero conservazione, costo più alto; ripiega su Whisper se non disponibile (404).",
   },
 ];
 

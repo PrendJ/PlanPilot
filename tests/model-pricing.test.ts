@@ -7,13 +7,13 @@ afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); vi.restoreAllMocks()
 describe("AI model prices and client error classification", () => {
   it("reads public prices per million tokens and ignores unlisted models", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [
-      { id: "google/gemini-2.5-flash-lite", pricing: { prompt: "0.0000001", completion: "0.0000004" } },
+      { id: "google/gemini-3.1-flash-lite", pricing: { prompt: "0.0000001", completion: "0.0000004" } },
       { id: "openai/gpt-5-nano", pricing: {} },
       { id: "unlisted/model", pricing: { prompt: "10", completion: "10" } },
     ] }))));
     const { publicModelPricing } = await import("@/lib/model-pricing");
     expect(await publicModelPricing()).toEqual({
-      "google/gemini-2.5-flash-lite": { inputUsdPerMillion: 0.1, outputUsdPerMillion: 0.4 },
+      "google/gemini-3.1-flash-lite": { inputUsdPerMillion: 0.1, outputUsdPerMillion: 0.4 },
       "openai/gpt-5-nano": { inputUsdPerMillion: null, outputUsdPerMillion: null },
     });
   });

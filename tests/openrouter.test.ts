@@ -112,7 +112,7 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     });
     vi.stubGlobal("fetch", mocked);
     await planPatchFromText({ ...input, model: "openai/gpt-5-nano" });
-    await planPatchFromText({ ...input, model: "google/gemini-2.5-flash-lite" });
+    await planPatchFromText({ ...input, model: "google/gemini-3.1-flash-lite" });
     expect(JSON.parse(mocked.mock.calls[0][1].body)).not.toHaveProperty("temperature");
     expect(JSON.parse(mocked.mock.calls[1][1].body).temperature).toBe(0.1);
   });
