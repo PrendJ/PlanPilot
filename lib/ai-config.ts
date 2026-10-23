@@ -130,6 +130,7 @@ export type ProviderDiagnostic = {
   phase: "request" | "response" | "parse" | "schema";
   causeCode?: string;
   providerRequestId?: string;
+  validationIssues?: Array<{ path: string; code: string; validation?: string }>;
 };
 
 /** Server log line for a failed provider call. */

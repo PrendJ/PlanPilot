@@ -8,9 +8,80 @@ const input = {
   userText: "Nessuna modifica",
   plan: { columns: [] },
 };
+const dnsPatch = {
+  summary: "Aggiungo la chiamata di oggi", actions: [{ action: "create", cardId: null,
+    title: "Chiamare Sara NUSDV per settare il DNS", description: null, targetColumnId: "todo", priority: null,
+    dueDate: "2026-10-23T18:00:00+02:00", tags: null, reason: "Attività richiesta per oggi" }], clarification: null,
+};
+const completion = (patch: unknown, id = "gen-test", cost = 0.001) => new Response(JSON.stringify({
+  id, choices: [{ message: { content: JSON.stringify(patch) } }], usage: { cost },
+}));
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
+  it("recovers from a date-only Nano response with Mini using the original DNS task and one deadline", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(completion({ ...dnsPatch, actions: [{ ...dnsPatch.actions[0], dueDate: "2026-10-23" }] }, "gen-nano", 0.0001))
+      .mockResolvedValueOnce(completion(dnsPatch, "gen-mini", 0.002));
+    const onUsage = vi.fn(async () => undefined);
+    vi.stubGlobal("fetch", fetcher);
+    const result = await planPatchFromText({ ...input, model: "openai/gpt-5-nano", fallbackModel: "openai/gpt-5-mini",
+      userText: "Oggi devo chiamare Sara NUSDV per settare il DNS", diagnosticId: "dns-task-test", onUsage,
+      now: new Date("2026-10-23T09:00:00+02:00") });
+    expect(result).toMatchObject({ patch: dnsPatch, model: "openai/gpt-5-mini", requestId: "gen-mini" });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const [first, second] = fetcher.mock.calls.map(call => JSON.parse(call[1].body));
+    expect(second.messages[1]).toEqual(first.messages[1]);
+    expect(second.messages[0].content).toContain("previous attempt failed local output validation");
+    expect(second.messages[0].content).toContain("actions.0.dueDate");
+    expect(second.messages[0].content).not.toContain('"dueDate":"2026-10-23"');
+    expect(second.provider).toEqual(first.provider);
+    expect(fetcher.mock.calls[0][1].signal).toBe(fetcher.mock.calls[1][1].signal);
+    expect(onUsage.mock.calls).toEqual([
+      [{ model: "openai/gpt-5-nano", requestId: "gen-nano", usage: { cost: 0.0001 } }],
+      [{ model: "openai/gpt-5-mini", requestId: "gen-mini", usage: { cost: 0.002 } }],
+    ]);
+  });
+  it("constrains dates and bounded fields in the schema sent to the provider", async () => {
+    const fetcher = vi.fn().mockResolvedValue(completion(dnsPatch));
+    vi.stubGlobal("fetch", fetcher);
+    await planPatchFromText(input);
+    const schema = JSON.parse(fetcher.mock.calls[0][1].body).response_format.json_schema.schema;
+    const fields = schema.properties.actions.items.properties;
+    expect(fields.dueDate.anyOf).toEqual([{ type: "string", format: "date-time" }, { type: "string", enum: [""] }, { type: "null" }]);
+    expect(fields.title.anyOf[0]).toMatchObject({ minLength: 1, maxLength: 180, pattern: "\\S" });
+    expect(fields.tags.anyOf[0]).toMatchObject({ maxItems: 20, items: { maxLength: 40 } });
+    expect(schema.properties.summary.maxLength).toBe(4000);
+  });
+  it("logs field paths and validator codes without logging rejected values or unknown keys", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(completion({ ...dnsPatch,
+      private_field_from_board: "private-value", actions: [{ ...dnsPatch.actions[0], title: "private-title".repeat(20), dueDate: "private-date" }] })));
+    await expect(planPatchFromText({ ...input, diagnosticId: "invalid-test" })).rejects.toMatchObject({ message: "AI_INVALID_PATCH", diagnosticId: "invalid-test" });
+    expect(log).toHaveBeenCalledWith("OpenRouter planning failed", expect.objectContaining({
+      phase: "schema", providerRequestId: "gen-test", validationIssues: expect.arrayContaining([
+        { path: "actions.0.title", code: "too_big" },
+        { path: "actions.0.dueDate", code: "invalid_string", validation: "datetime" },
+        { path: "$", code: "unrecognized_keys" },
+      ]),
+    }));
+    expect(JSON.stringify(log.mock.calls)).not.toMatch(/private-|private_field|Sara|NUSDV/);
+  });
+  it("retries malformed JSON once and rejects malformed fallback output", async () => {
+    const fetcher = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ choices: [{ message: { content: '{"actions":[' } }] })));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(planPatchFromText({ ...input, fallbackModel: "openai/gpt-5-mini" })).rejects.toThrow("AI_INVALID_PATCH");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it("does not retry invalid output with the same model or an expired deadline", async () => {
+    const fetcher = vi.fn().mockImplementation(async () => completion({ ...dnsPatch, actions: [{ ...dnsPatch.actions[0], dueDate: "today" }] }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(planPatchFromText({ ...input, fallbackModel: input.model })).rejects.toThrow("AI_INVALID_PATCH");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort());
+    await expect(planPatchFromText({ ...input, fallbackModel: "openai/gpt-5-mini" })).rejects.toThrow("AI_INVALID_PATCH");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it("falls back once to Mini for unavailable Nano endpoints, retaining policy and deadline", async () => {
     const mocked = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 404, message: "No endpoints" } }), { status: 404 }))

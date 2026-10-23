@@ -29,6 +29,30 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("planning proposals with model tiers", () => {
+  it("recovers the user's DNS reminder from an invalid date and accounts for both generations with one update", async () => {
+    const dns = { ...patch, actions: [{ ...patch.actions[0], title: "Chiamare Sara NUSDV per settare il DNS", dueDate: "2026-10-23T18:00:00+02:00" }] };
+    const completion = (value: unknown, id: string, cost: number) => new Response(JSON.stringify({ id,
+      choices: [{ message: { content: JSON.stringify(value) } }], usage: { cost } }));
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(completion({ ...dns, actions: [{ ...dns.actions[0], dueDate: "2026-10-23" }] }, "gen-invalid", 0.0001))
+      .mockResolvedValueOnce(completion(dns, "gen-corrected", 0.002)));
+    const proposal = await createProposal({ ...input, text: "Oggi devo chiamare Sara NUSDV per settare il DNS", source: "text", now: new Date("2026-10-23T09:00:00+02:00") });
+    expect(proposal.actions[0].newTitle).toBe("Chiamare Sara NUSDV per settare il DNS");
+    expect(mocks.reserve).toHaveBeenCalledTimes(1);
+    expect(mocks.usage).toHaveBeenCalledTimes(2);
+    expect(mocks.usage).toHaveBeenNthCalledWith(1, expect.objectContaining({ model: "openai/gpt-5-nano", providerRequestId: "gen-invalid", costUsd: 0.0001 }));
+    expect(mocks.usage).toHaveBeenNthCalledWith(2, expect.objectContaining({ model: "openai/gpt-5-mini", providerRequestId: "gen-corrected", costUsd: 0.002 }));
+    expect(mocks.db.aiProposal.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ model: "openai/gpt-5-mini" }) }));
+    expect(mocks.refund).not.toHaveBeenCalled();
+  });
+  it("refunds one update when both models return invalid schema and never stores a proposal", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: crypto.randomUUID(),
+      choices: [{ message: { content: JSON.stringify({ ...patch, actions: [{ ...patch.actions[0], dueDate: "today" }] }) } }], usage: { cost: 0.0001 } }))));
+    await expect(createProposal(input)).rejects.toMatchObject({ message: "AI_INVALID_PATCH", diagnosticId: expect.any(String) });
+    expect(mocks.refund).toHaveBeenCalledExactlyOnceWith("reservation");
+    expect(mocks.usage).toHaveBeenCalledTimes(2);
+    expect(mocks.db.aiProposal.create).not.toHaveBeenCalled();
+  });
   it("records the effective fallback model, cost and request ID and reserves just one update", async () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 404 } }), { status: 404 }))

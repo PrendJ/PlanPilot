@@ -19,12 +19,14 @@ vi.mock("@/lib/auth", async importOriginal => ({
 }));
 vi.mock("@/lib/openrouter", async importOriginal => ({
   ...(await importOriginal<typeof import("@/lib/openrouter")>()),
-  planPatchFromText: vi.fn(async (input: { plan: unknown; userText: string; model: string }) => ({
-    model: input.model,
-    patch: state.planner!(input),
-    usage: { cost: 0.0012 },
-    requestId: `req-${crypto.randomUUID()}`,
-  })),
+  planPatchFromText: vi.fn(async (input: { plan: unknown; userText: string; model: string;
+    onUsage?: (attempt: { model: string; requestId: string; usage: { cost: number } }) => Promise<void> }) => {
+    const patch = state.planner!(input);
+    const requestId = `req-${crypto.randomUUID()}`;
+    const usage = { cost: 0.0012 };
+    await input.onUsage?.({ model: input.model, requestId, usage });
+    return { model: input.model, patch, usage, requestId };
+  }),
 }));
 vi.mock("@/lib/email", async importOriginal => ({
   ...(await importOriginal<typeof import("@/lib/email")>()),

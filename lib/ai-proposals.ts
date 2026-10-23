@@ -177,24 +177,26 @@ export async function createProposal(input: {
       locale: input.workspace.locale,
       diagnosticId,
       fallbackModel: models.complexPlanModel,
+      onUsage: async ({ model, requestId, usage }) => {
+        await recordUsage({
+          organizationId: input.workspace.organizationId,
+          workspaceId: input.workspace.id,
+          userId: input.userId,
+          providerRequestId: requestId,
+          category: "PLANNING",
+          model,
+          costUsd: usage?.cost,
+          metadata: { source: input.source },
+        });
+      },
     });
   } catch (error) {
     // The provider produced nothing usable: the person should not pay an update for our outage.
-    if (error instanceof AiProviderError && error.message === "AI_UNAVAILABLE") await refundAiUpdate(reservation.id);
+    if (error instanceof AiProviderError) await refundAiUpdate(reservation.id);
     throw error;
   }
-  const { patch: candidate, usage, requestId } = result;
+  const { patch: candidate, usage } = result;
   model = result.model;
-  await recordUsage({
-    organizationId: input.workspace.organizationId,
-    workspaceId: input.workspace.id,
-    userId: input.userId,
-    providerRequestId: requestId,
-    category: "PLANNING",
-    model,
-    costUsd: usage?.cost,
-    metadata: { source: input.source },
-  });
   const allCards = board.columns.flatMap(column => column.cards);
   const patch = validateAiPatch(candidate, {
     columnIds: new Set(board.columns.map(column => column.id)),
