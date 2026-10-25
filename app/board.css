@@ -1,5 +1,8 @@
 /* Board workspace */
+/* Same reading width as the home and the demo: wide screens get margins, extra Kanban columns scroll. */
 .board-page {
+  width: min(1240px, 100%);
+  margin-inline: auto;
   padding: 16px clamp(12px, 2.4vw, 24px) 40px;
   display: grid;
   gap: 14px;
@@ -70,7 +73,7 @@
   justify-content: space-between;
 }
 
-/* Composer: the board's signature object. The offset turns signal-orange while recording. */
+/* Composer: the board's signature object. The offset turns to the signal colour while recording. */
 .composer {
   position: relative;
   display: grid;

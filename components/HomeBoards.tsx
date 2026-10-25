@@ -20,7 +20,8 @@ type BoardSummary = {
   lanes: number[];
   updatedAt: string;
 };
-type Team = { id: string; name: string; locale: string; canCreate: boolean };
+/** boardLimit is set only when the team has reached the active-board limit of its plan. */
+type Team = { id: string; name: string; locale: string; canCreate: boolean; boardLimit?: number | null };
 
 const PRESETS = ["GENERAL", "PERSONAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"] as const;
 const LANGUAGES = [
@@ -55,6 +56,7 @@ export function HomeBoards({
   const [file, setFile] = useState<File | null>(null);
   const shown = boards.filter(board => board.lifecycleStatus === (archivedView ? "ARCHIVED" : "ACTIVE"));
   const canCreate = teams.some(team => team.canCreate);
+  const fullTeam = teams.find(team => team.id === defaultTeamId && team.boardLimit);
 
   async function create(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -151,7 +153,7 @@ export function HomeBoards({
             >
               <span className="mini-lanes" aria-hidden="true">
                 {(board.lanes.length ? board.lanes : [0, 0, 0]).slice(0, 6).map((count, index) => (
-                  <i key={index} style={{ height: 8 + Math.min(count, 8) * 3 }} />
+                  <i key={index} data-empty={count ? undefined : ""} style={{ height: 8 + Math.min(count, 8) * 3 }} />
                 ))}
               </span>
               <h3>{board.name}</h3>
@@ -225,11 +227,17 @@ export function HomeBoards({
             </div>
           </article>
         ))}
-        {!archivedView && canCreate && (
+        {!archivedView && canCreate && !fullTeam && (
           <button type="button" className="board-tile new" onClick={() => setCreating(true)}>
             <Icon name="plus" size={22} />
             {t("home.create.cta")}
           </button>
+        )}
+        {!archivedView && canCreate && fullTeam && (
+          <div className="board-tile new limit" role="note">
+            <Icon name="lock" size={20} />
+            <span>{t("home.create.limit", { limit: fullTeam.boardLimit! })}</span>
+          </div>
         )}
       </div>
       {!shown.length && (archivedView || !canCreate) && (

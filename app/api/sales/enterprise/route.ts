@@ -6,7 +6,7 @@ const schema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().email(),
   company: z.string().trim().min(2).max(150),
-  teamSize: z.coerce.number().int().min(25).max(100000),
+  teamSize: z.coerce.number().int().min(2).max(100000),
   needs: z.string().trim().min(10).max(5000),
   locale: z.enum(["it", "en", "de", "fr", "es", "ru", "pl"]),
 });
@@ -22,9 +22,9 @@ export async function POST(request: Request) {
   if (!to) return NextResponse.json({ error: "Contatto commerciale non configurato" }, { status: 503 });
   await sendEmail({
     to,
-    subject: `Richiesta Enterprise · ${b.company}`,
+    subject: `Richiesta Business · ${b.company}`,
     html: renderEmail({
-      title: "Nuova richiesta Enterprise",
+      title: "Nuova richiesta Business",
       preheader: `${b.company} ha richiesto un contatto commerciale.`,
       paragraphs: [
         `<strong>Nome:</strong> ${escapeHtml(b.name)}<br><strong>Email:</strong> ${escapeHtml(b.email)}<br><strong>Azienda:</strong> ${escapeHtml(b.company)}<br><strong>Team:</strong> ${b.teamSize}<br><strong>Lingua:</strong> ${escapeHtml(b.locale)}`,

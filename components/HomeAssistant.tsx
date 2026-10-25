@@ -5,21 +5,67 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { useI18n } from "./I18nProvider";
-import { aiRequestError, api } from "./ui";
+import { aiRequestError, api, useFeedback } from "./ui";
 import { useUpdateBlocker } from "./PwaProvider";
 import { ProposalPanel } from "./board/ProposalPanel";
 import type { Proposal } from "./board/types";
 import { clearSharedCapture, consumeSharedCapture } from "@/lib/share-inbox";
 
 type BoardChoice = { id: string; name: string; slug: string; dictationEnabled?: boolean };
-type Segment = { text: string; workspaceId: string | null };
+type Segment = { text: string; workspaceId: string | null; newBoardName?: string | null };
+/** Select value for "put this task on a new board". */
+const NEW_BOARD = "__new__";
 type Pending = { board: BoardChoice; proposal: Proposal };
-type TodayCard = { id: string; title: string; dueDate: string | null; priority: string; board: string; slug: string; column: string };
+type TodayCard = {
+  id: string;
+  title: string;
+  dueDate: string | null;
+  priority: string;
+  board: string;
+  slug: string;
+  column: string;
+  columnId: string;
+  doneColumnId: string | null;
+};
+
+/** How many of today's tasks the home shows before "Show all". */
+const TODAY_PREVIEW = 5;
+const PRIORITY_RANK: Record<string, number> = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
+
+/** One task of the day: opens the card in its board, or is marked done right here (it moves to the board's done column). */
+function TodayItem({ card, due, overdue, onDone }: { card: TodayCard; due?: string; overdue?: boolean; onDone: () => void }) {
+  const { t } = useI18n();
+  return (
+    <li className="home-today-item">
+      {card.doneColumnId && (
+        <button type="button" className="home-today-done" onClick={onDone} aria-label={t("home.today.markDone", { title: card.title })}>
+          <Icon name="check" size={14} strokeWidth={3} />
+        </button>
+      )}
+      <Link href={`/app/${card.slug}?card=${card.id}`}>
+        <strong>
+          {(card.priority === "URGENT" || card.priority === "HIGH") && (
+            <span className={`today-priority ${card.priority.toLowerCase()}`}>{t(`priority.${card.priority}`)}</span>
+          )}
+          {card.title}
+        </strong>
+        <span>
+          {card.board} · {card.column}
+        </span>
+        {due && <small className={overdue ? "overdue" : ""}>{due}</small>}
+      </Link>
+    </li>
+  );
+}
 type Capture = { id: string; source: string; text: string; status: string; createdAt: string; retryable?: boolean };
 
 const MAX_INPUT = 12_000;
 const MAX_TRANSCRIPT = 60_000;
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+/** Documents whose text can be imported (see lib/document-text.ts); .pages is accepted to explain how to export it. */
+const DOCUMENT_ACCEPT =
+  ".txt,.md,.markdown,.docx,.odt,.rtf,.html,.htm,.pages,text/plain,text/markdown,text/rtf,application/rtf,text/html," +
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text";
 
 function localDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -55,6 +101,7 @@ export function HomeAssistant({
   shared = false,
   shareError = false,
   personalBoardOffer = null,
+  newBoardTarget = null,
   boardList,
   sidebar,
 }: {
@@ -64,6 +111,8 @@ export function HomeAssistant({
   shared?: boolean;
   shareError?: boolean;
   personalBoardOffer?: { organizationId: string; locale: string; name: string } | null;
+  /** Where a task can get a new board (null when the person cannot create one, e.g. at the board limit). */
+  newBoardTarget?: { organizationId: string; locale: string } | null;
   boardList: React.ReactNode;
   sidebar: React.ReactNode;
 }) {
@@ -77,12 +126,17 @@ export function HomeAssistant({
   const [today, setToday] = useState<TodayCard[]>([]);
   const [active, setActive] = useState<TodayCard[]>([]);
   const [todayError, setTodayError] = useState(false);
+  const [todayExpanded, setTodayExpanded] = useState(false);
+  const { toast } = useFeedback();
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
   const [parts, setParts] = useState<{ queue: string[]; current: number; total: number } | null>(null);
   const [busy, setBusy] = useState<"" | "routing" | "transcribing" | "proposing" | "applying" | "creating">("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [googleDocOpen, setGoogleDocOpen] = useState(false);
+  const [googleDocUrl, setGoogleDocUrl] = useState("");
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -213,13 +267,48 @@ export function HomeAssistant({
     await transcribe(file);
   }
 
+  /** Plain text is read in the browser; other documents go to the server, which returns only their text. */
   async function importTranscript(file: File | null) {
     if (!file) return;
-    if (file.size > MAX_TRANSCRIPT * 4) {
-      setError(t("home.assistant.transcriptTooLong"));
+    const plain = /\.(txt|md|markdown)$/i.test(file.name) || file.type === "text/plain" || file.type === "text/markdown";
+    if (plain) {
+      if (file.size > MAX_TRANSCRIPT * 4) {
+        setError(t("home.assistant.transcriptTooLong"));
+        return;
+      }
+      addImportedText(await file.text());
       return;
     }
-    const content = (await file.text()).trim();
+    const form = new FormData();
+    form.append("file", file);
+    setImporting(true);
+    const response = await api<{ text: string }>("/api/import/document", { method: "POST", body: form });
+    setImporting(false);
+    if (!response.ok) {
+      setError(response.data.error || t("errors.DOCUMENT_UNREADABLE"));
+      return;
+    }
+    addImportedText(response.data.text);
+  }
+
+  async function importGoogleDoc(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!googleDocUrl.trim()) return;
+    setImporting(true);
+    const response = await api<{ text: string }>("/api/import/document", { method: "POST", json: { url: googleDocUrl.trim() } });
+    setImporting(false);
+    if (!response.ok) {
+      setError(response.data.error || t("errors.GOOGLE_DOC_NOT_SHARED"));
+      return;
+    }
+    setGoogleDocUrl("");
+    setGoogleDocOpen(false);
+    addImportedText(response.data.text);
+  }
+
+  /** Imported text joins the draft; long documents are worked through in parts, one AI request each. */
+  function addImportedText(raw: string) {
+    const content = raw.trim();
     if (!content || content.length > MAX_TRANSCRIPT) {
       setError(t("home.assistant.transcriptTooLong"));
       return;
@@ -310,7 +399,8 @@ export function HomeAssistant({
         failed.push(...groupedParts);
         continue;
       }
-      const content = groupedParts.join("\n");
+      // Several tasks for the same board go as a list, so the planner keeps one card per task.
+      const content = groupedParts.length > 1 ? groupedParts.map(part => `- ${part}`).join("\n") : groupedParts[0];
       const response = await api<{ proposal: Proposal }>(`/api/workspaces/${board.slug}/ingest`, {
         method: "POST",
         json: { text: content, source, autoApply: false, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
@@ -347,8 +437,48 @@ export function HomeAssistant({
       dictationEnabled: boards.find(item => item.id === board.id)?.dictationEnabled,
     }));
     setBoards(routedBoards);
-    if (response.data.segments.some(segment => !segment.workspaceId)) setSegments(response.data.segments);
-    else void propose(response.data.segments, routedBoards);
+    const routed = response.data.segments.map(segment => ({
+      ...segment,
+      newBoardName: newBoardTarget && !segment.workspaceId ? (segment.newBoardName ?? null) : null,
+    }));
+    // One task with a board goes straight to the preview; several tasks are listed first so each placement can be checked.
+    if (routed.length === 1 && routed[0].workspaceId) void propose(routed, routedBoards);
+    else setSegments(routed);
+  }
+
+  /** Creates the new boards the person confirmed (one per distinct name), then previews every task on its board. */
+  async function confirmRouting() {
+    if (busy) return;
+    const names = [...new Set(segments.filter(segment => !segment.workspaceId).map(segment => segment.newBoardName?.trim() || ""))];
+    let choices = boards;
+    const createdIds = new Map<string, string>();
+    if (names.length && newBoardTarget) {
+      setBusy("creating");
+      for (const name of names) {
+        const response = await api<{ workspace: BoardChoice }>("/api/workspaces", {
+          method: "POST",
+          json: { organizationId: newBoardTarget.organizationId, name, presetKey: "GENERAL", locale: newBoardTarget.locale },
+        });
+        if (!response.ok) {
+          setBusy("");
+          setError(response.data.error || t("errors.SERVER_ERROR"));
+          return;
+        }
+        createdIds.set(name, response.data.workspace.id);
+        choices = [...choices, { ...response.data.workspace, dictationEnabled: true }];
+      }
+      setBoards(choices);
+      setBusy("");
+      router.refresh();
+    }
+    await propose(
+      segments.map(segment => ({
+        ...segment,
+        text: segment.text.trim(),
+        workspaceId: segment.workspaceId || createdIds.get(segment.newBoardName?.trim() || "") || null,
+      })),
+      choices,
+    );
   }
 
   async function apply(item: Pending, indexes: number[]) {
@@ -432,8 +562,42 @@ export function HomeAssistant({
     } else setError(response.data.error || t("errors.SERVER_ERROR"));
   }
 
-  const dueLabel = (card: TodayCard) =>
-    card.dueDate && new Date(card.dueDate).getTime() < todayStart.getTime() ? t("home.today.overdue") : t("home.today.dueToday");
+  const isOverdue = (card: TodayCard) => Boolean(card.dueDate && new Date(card.dueDate).getTime() < todayStart.getTime());
+  const dueLabel = (card: TodayCard) => (isOverdue(card) ? t("home.today.overdue") : t("home.today.dueToday"));
+  // Most important first: priority, then the oldest deadline. The same cards as the boards, never copies.
+  const rankedToday = [...visibleToday].sort(
+    (a, b) =>
+      (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2) ||
+      new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime(),
+  );
+  const shownToday = todayExpanded ? rankedToday : rankedToday.slice(0, TODAY_PREVIEW);
+
+  /** Moves the card to its board's done column through the board API (activity log, revision, permissions). */
+  async function markDone(card: TodayCard) {
+    if (!card.doneColumnId) return;
+    const remove = (list: TodayCard[]) => list.filter(item => item.id !== card.id);
+    setToday(remove);
+    setActive(remove);
+    const response = await api(`/api/workspaces/${card.slug}/cards/${card.id}`, {
+      method: "PATCH",
+      json: { columnId: card.doneColumnId },
+    });
+    if (!response.ok) {
+      toast({ message: response.data.error || t("errors.SERVER_ERROR"), tone: "error" });
+      void loadToday();
+      return;
+    }
+    toast({
+      message: t("home.today.doneToast", { title: card.title }),
+      action: {
+        label: t("activity.undo.cta"),
+        onClick: async () => {
+          await api(`/api/workspaces/${card.slug}/cards/${card.id}`, { method: "PATCH", json: { columnId: card.columnId } });
+          void loadToday();
+        },
+      },
+    });
+  }
 
   return (
     <div className="home-dashboard">
@@ -522,22 +686,63 @@ export function HomeAssistant({
                 }}
               />
             </label>
-            <label className="home-audio-import">
-              <Icon name="file" size={16} /> {t("home.assistant.importTranscript")}
+            <label className="home-audio-import" title={t("home.assistant.importTranscriptHint")}>
+              {importing ? <span className="spinner" /> : <Icon name="file" size={16} />}{" "}
+              {importing ? t("home.assistant.importing") : t("home.assistant.importTranscript")}
               <input
                 type="file"
-                accept=".txt,.md,text/plain,text/markdown"
-                disabled={Boolean(busy) || recording || paused || pending.length > 0}
+                accept={DOCUMENT_ACCEPT}
+                aria-describedby="home-import-formats"
+                disabled={importing || Boolean(busy) || recording || paused || pending.length > 0}
                 onChange={event => {
                   void importTranscript(event.target.files?.[0] || null);
                   event.target.value = "";
                 }}
               />
             </label>
+            <button
+              type="button"
+              className="home-audio-import text-button"
+              aria-expanded={googleDocOpen}
+              aria-controls="home-google-doc"
+              disabled={importing || Boolean(busy) || recording || paused || pending.length > 0}
+              onClick={() => setGoogleDocOpen(value => !value)}
+            >
+              <Icon name="link" size={16} /> {t("home.assistant.importGoogleDoc")}
+            </button>
             <Link href="/app/integrations" className="home-audio-import">
               <Icon name="settings" size={16} /> {t("home.assistant.integrations")}
             </Link>
           </div>
+          <p className="subtle home-import-formats" id="home-import-formats">
+            {t("home.assistant.importTranscriptHint")}
+          </p>
+          {googleDocOpen && (
+            <form className="home-google-doc" id="home-google-doc" onSubmit={event => void importGoogleDoc(event)}>
+              <label htmlFor="home-google-doc-url" className="field-label">
+                {t("home.assistant.googleDocLabel")}
+              </label>
+              <div className="row">
+                <input
+                  id="home-google-doc-url"
+                  type="url"
+                  inputMode="url"
+                  required
+                  value={googleDocUrl}
+                  placeholder={t("home.assistant.googleDocPlaceholder")}
+                  onChange={event => setGoogleDocUrl(event.target.value)}
+                  aria-describedby="home-google-doc-hint"
+                />
+                <button type="submit" className="btn" disabled={importing || !googleDocUrl.trim()}>
+                  {importing ? <span className="spinner" /> : null}
+                  {t("home.assistant.googleDocImport")}
+                </button>
+              </div>
+              <p className="subtle" id="home-google-doc-hint">
+                {t("home.assistant.googleDocHint")}
+              </p>
+            </form>
+          )}
           {!boards.length && <p className="subtle">{t("home.assistant.noBoards")}</p>}
           {notice && (
             <p className="subtle" role="status">
@@ -551,28 +756,50 @@ export function HomeAssistant({
           )}
           {segments.length > 0 && (
             <div className="home-routing">
-              <h3>{t("home.assistant.routeTitle")}</h3>
-              {segments.map((segment, index) => (
-                <div className="home-route-row" key={`${segment.text}-${index}`}>
-                  <p>“{segment.text}”</p>
-                  <select
-                    aria-label={t("home.assistant.destination")}
-                    value={segment.workspaceId || ""}
-                    onChange={event =>
-                      setSegments(current =>
-                        current.map((item, i) => (i === index ? { ...item, workspaceId: event.target.value || null } : item)),
-                      )
-                    }
-                  >
-                    <option value="">{t("home.assistant.chooseBoard")}</option>
-                    {boards.map(board => (
-                      <option value={board.id} key={board.id}>
-                        {board.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+              <h3>{t("home.assistant.routeTitle", { count: segments.length })}</h3>
+              <p className="subtle">{t("home.assistant.routeHint")}</p>
+              {segments.map((segment, index) => {
+                const update = (patch: Partial<Segment>) =>
+                  setSegments(current => current.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+                const creating = !segment.workspaceId && segment.newBoardName != null;
+                return (
+                  <div className="home-route-row" key={index}>
+                    <input
+                      aria-label={t("home.assistant.taskLabel", { number: index + 1 })}
+                      value={segment.text}
+                      maxLength={2000}
+                      onChange={event => update({ text: event.target.value })}
+                    />
+                    <select
+                      aria-label={t("home.assistant.destination")}
+                      value={segment.workspaceId || (creating ? NEW_BOARD : "")}
+                      onChange={event =>
+                        event.target.value === NEW_BOARD
+                          ? update({ workspaceId: null, newBoardName: segment.newBoardName || "" })
+                          : update({ workspaceId: event.target.value || null, newBoardName: null })
+                      }
+                    >
+                      <option value="">{t("home.assistant.chooseBoard")}</option>
+                      {boards.map(board => (
+                        <option value={board.id} key={board.id}>
+                          {board.name}
+                        </option>
+                      ))}
+                      {newBoardTarget && <option value={NEW_BOARD}>{t("home.assistant.newBoardOption")}</option>}
+                    </select>
+                    {creating && (
+                      <input
+                        className="home-route-new"
+                        aria-label={t("home.assistant.newBoardName")}
+                        placeholder={t("home.assistant.newBoardName")}
+                        value={segment.newBoardName || ""}
+                        maxLength={60}
+                        onChange={event => update({ newBoardName: event.target.value })}
+                      />
+                    )}
+                  </div>
+                );
+              })}
               <div className="row">
                 <button type="button" className="btn" onClick={() => setSegments([])}>
                   {t("common.cancel")}
@@ -581,8 +808,11 @@ export function HomeAssistant({
                 <button
                   type="button"
                   className="btn primary"
-                  disabled={Boolean(busy) || segments.some(segment => !segment.workspaceId)}
-                  onClick={() => void propose(segments, boards)}
+                  disabled={
+                    Boolean(busy) ||
+                    segments.some(segment => !segment.text.trim() || (!segment.workspaceId && !segment.newBoardName?.trim()))
+                  }
+                  onClick={() => void confirmRouting()}
                 >
                   {t("home.assistant.preview")}
                 </button>
@@ -692,24 +922,16 @@ export function HomeAssistant({
         {boardList}
       </div>
       <div className="home-side">
-        <div className="panel home-today">
+        <section className="panel home-today" aria-labelledby="home-today-title">
           <span className="eyebrow">{t("home.today.eyebrow")}</span>
-          <h2>{t("home.today.title")}</h2>
+          <h2 id="home-today-title">{t("home.today.title")}</h2>
           <p className="subtle">{new Date().toLocaleDateString(tag, { weekday: "long", day: "numeric", month: "long" })}</p>
           {todayError ? (
             <p className="subtle">{t("home.today.error")}</p>
           ) : visibleToday.length ? (
-            <ul>
-              {visibleToday.map(card => (
-                <li key={card.id}>
-                  <Link href={`/app/${card.slug}?card=${card.id}`}>
-                    <strong>{card.title}</strong>
-                    <span>
-                      {card.board} · {card.column}
-                    </span>
-                    <small className={dueLabel(card) === t("home.today.overdue") ? "overdue" : ""}>{dueLabel(card)}</small>
-                  </Link>
-                </li>
+            <ul id="home-today-list">
+              {shownToday.map(card => (
+                <TodayItem key={card.id} card={card} due={dueLabel(card)} overdue={isOverdue(card)} onDone={() => void markDone(card)} />
               ))}
             </ul>
           ) : (
@@ -718,24 +940,29 @@ export function HomeAssistant({
               <p>{t("home.today.empty")}</p>
             </div>
           )}
-          {!todayError && active.length > 0 && (
+          {!todayError && visibleToday.length > TODAY_PREVIEW && (
+            <button
+              type="button"
+              className="btn sm block home-today-more"
+              aria-expanded={todayExpanded}
+              aria-controls="home-today-list"
+              onClick={() => setTodayExpanded(value => !value)}
+            >
+              <Icon name={todayExpanded ? "chevronUp" : "chevronDown"} size={15} />
+              {todayExpanded ? t("home.today.showLess") : t("home.today.showAll", { count: visibleToday.length })}
+            </button>
+          )}
+          {!todayError && active.length > 0 && (todayExpanded || visibleToday.length < TODAY_PREVIEW) && (
             <>
               <h3 className="home-today-sub">{t("home.today.activeTitle")}</h3>
               <ul>
                 {active.map(card => (
-                  <li key={card.id}>
-                    <Link href={`/app/${card.slug}?card=${card.id}`}>
-                      <strong>{card.title}</strong>
-                      <span>
-                        {card.board} · {card.column}
-                      </span>
-                    </Link>
-                  </li>
+                  <TodayItem key={card.id} card={card} onDone={() => void markDone(card)} />
                 ))}
               </ul>
             </>
           )}
-        </div>
+        </section>
         {sidebar}
       </div>
     </div>

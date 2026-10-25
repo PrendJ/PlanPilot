@@ -86,6 +86,14 @@ export async function createStarterBoard(input: { userId: string; organizationId
 
 export const PERSONAL_BOARD_NAMES = { it: "Casa e personale", en: "Home and personal" } as const;
 
+/**
+ * A board for private life. Boards created before the PERSONAL preset (or renamed by hand) carry another
+ * preset, so a personal-sounding name counts too: the home must not keep offering a second personal board.
+ */
+export function isPersonalBoard(workspace: { presetKey: string | null; name: string }) {
+  return workspace.presetKey === "PERSONAL" || /\b(personal[ei]?|casa|home|privat[oaie]|private|famiglia|family)\b/i.test(workspace.name);
+}
+
 /** A private-life board next to the work one, so dictated chores and reminders have a natural destination. */
 export async function createPersonalBoard(input: { userId: string; organizationId: string; locale: string }) {
   const locale = normalizeLocale(input.locale);

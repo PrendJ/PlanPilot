@@ -4,11 +4,14 @@ import { NotificationsPanel } from "./NotificationsPanel";
 import { usePathname } from "next/navigation";
 
 type InstallEvent = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
-type PwaContext = { open: () => void; block: (key: string, value: boolean) => void };
-const Context = createContext<PwaContext>({ open: () => {}, block: () => {} });
+type PwaContext = { open: () => void; block: (key: string, value: boolean) => void; updateReady: boolean };
+const Context = createContext<PwaContext>({ open: () => {}, block: () => {}, updateReady: false });
+/** Opens the app panel. A badge shows while a new version waits; it goes away once the update is applied. */
 export function InstallAppButton() {
-  const { open } = useContext(Context);
-  return <button className="btn ghost pwa-install" onClick={open}>App</button>;
+  const { open, updateReady } = useContext(Context);
+  return <button className="btn ghost pwa-install" onClick={open} aria-label={updateReady ? "App: nuova versione disponibile" : undefined} title={updateReady ? "Nuova versione disponibile" : undefined}>
+    App{updateReady && <span className="update-dot" aria-hidden="true" />}
+  </button>;
 }
 export function useUpdateBlocker(key: string, active: boolean) {
   const { block } = useContext(Context);
@@ -111,7 +114,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     }, 12000);
   }
   const updateControls = waiting && <div className="pwa-update"><p>Una nuova versione è pronta.{blocked ? " Salva le modifiche e torna alla Home per aggiornare." : " Aggiornando, questa pagina verrà ricaricata."}</p><button className="btn accent" disabled={blocked || updating || offline} onClick={updateNow}>{updating ? "Aggiornamento…" : "Aggiorna ora"}</button></div>;
-  return <Context.Provider value={{ open, block }}>{children}
+  return <Context.Provider value={{ open, block, updateReady: Boolean(waiting) }}>{children}
     {(offline || waiting) && <aside className="pwa-status" aria-label="Stato app" aria-live="polite">{offline && <p>Sei offline. Mantieni aperta la pagina per conservare la bozza.</p>}{updateControls}</aside>}
     <dialog className="pwa-dialog" ref={dialog} onClose={() => setOpened(false)} aria-labelledby="pwa-title">
       <header><h2 id="pwa-title">BoardCue sul tuo dispositivo</h2><button className="btn" onClick={() => dialog.current?.close()} aria-label="Chiudi impostazioni app">Chiudi</button></header>

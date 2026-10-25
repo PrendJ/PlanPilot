@@ -170,7 +170,6 @@ export function DemoHome() {
         setText(initial.voice[voiceTurn.current++ % initial.voice.length]);
         setSource("voice");
         setSegments([]);
-        setMessage(t("demo.voiceSimulated"));
       }, 1500),
     );
   }
@@ -377,6 +376,11 @@ export function DemoHome() {
                 <span className="subtle">{t("home.assistant.body")}</span>
               </div>
             </div>
+            {/* Right under the action it explains: nothing is recorded, a sample sentence is typed for you. */}
+            <p className="demo-sim-note" role="status">
+              <Icon name="info" size={14} />
+              <span>{source === "voice" && text ? t("demo.voiceSimulated") : t("demo.simulatedNote")}</span>
+            </p>
             <label htmlFor="demo-thoughts" className="field-label">
               {t("home.assistant.textLabel")}
             </label>

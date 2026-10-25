@@ -1,8 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildCompactPlan } from "@/lib/ai-context";
-import { selectActions, validateAiPatch } from "@/lib/ai-patch";
-import { AiProviderError, planPatchFromText, type AiAction } from "@/lib/openrouter";
+import { InvalidAiPatchError, selectActions, validateAiPatch } from "@/lib/ai-patch";
+import { isDoneColumn } from "@/lib/board-state";
+import { AiProviderError, planPatchFromText, type AiAction, type PlanScope } from "@/lib/openrouter";
 import { recordUsage, refundAiUpdate, reserveAiUpdate } from "@/lib/plans";
 import { getWorkspaceApiKey } from "@/lib/workspace";
 import { platformModels } from "@/lib/platform-ai";
@@ -153,6 +154,25 @@ export async function createProposal(input: {
     board.columns.map(column => ({ id: column.id, title: column.title, description: column.description, cards: column.cards })),
     input.text,
   );
+  const inPlan = new Set(plan.columns.flatMap(column => column.cards.map(card => card.id)));
+  const openColumn = board.columns.find((column, index) => !isDoneColumn(column, index, board.columns.length));
+  const scope: PlanScope = {
+    columnIds: board.columns.map(column => column.id),
+    defaultColumnId: (openColumn ?? board.columns[0])?.id,
+    cards: board.columns.flatMap(column =>
+      column.cards
+        .filter(card => inPlan.has(card.id))
+        .map(card => ({
+          id: card.id,
+          columnId: column.id,
+          title: card.title,
+          description: card.description,
+          priority: card.priority,
+          dueDate: card.dueDate?.toISOString() ?? null,
+          tags: Array.isArray(card.tags) ? card.tags.map(String) : [],
+        })),
+    ),
+  };
   const { model: selectedModel, reason } = selectPlanningModel({ ...models, text: input.text, plan });
   let model = selectedModel;
   console.info("AI planning model selected", { diagnosticId, model, reason });
@@ -165,6 +185,8 @@ export async function createProposal(input: {
     metadata: { source: input.source },
   });
   let result: Awaited<ReturnType<typeof planPatchFromText>>;
+  let patch: ReturnType<typeof validateAiPatch>;
+  const allCards = board.columns.flatMap(column => column.cards);
   try {
     result = await planPatchFromText({
       apiKey,
@@ -177,6 +199,7 @@ export async function createProposal(input: {
       locale: input.workspace.locale,
       diagnosticId,
       fallbackModel: models.complexPlanModel,
+      scope,
       onUsage: async ({ model, requestId, usage }) => {
         await recordUsage({
           organizationId: input.workspace.organizationId,
@@ -190,18 +213,19 @@ export async function createProposal(input: {
         });
       },
     });
+    // Final guard before anything is stored: the same rules the apply step relies on.
+    patch = validateAiPatch(result.patch, {
+      columnIds: new Set(board.columns.map(column => column.id)),
+      cardIds: new Set(allCards.map(card => card.id)),
+    });
   } catch (error) {
     // The provider produced nothing usable: the person should not pay an update for our outage.
-    if (error instanceof AiProviderError) await refundAiUpdate(reservation.id);
+    if (error instanceof AiProviderError || error instanceof InvalidAiPatchError) await refundAiUpdate(reservation.id);
+    if (error instanceof InvalidAiPatchError) console.error("AI proposal rejected by final validation", { diagnosticId });
     throw error;
   }
-  const { patch: candidate, usage } = result;
+  const { usage } = result;
   model = result.model;
-  const allCards = board.columns.flatMap(column => column.cards);
-  const patch = validateAiPatch(candidate, {
-    columnIds: new Set(board.columns.map(column => column.id)),
-    cardIds: new Set(allCards.map(card => card.id)),
-  });
   const touched = patch.actions.map(action => action.cardId).filter((id): id is string => Boolean(id));
   const cardVersions = Object.fromEntries(allCards.filter(card => touched.includes(card.id)).map(card => [card.id, card.version]));
   const workspaceRow = await prisma.workspace.findUniqueOrThrow({ where: { id: input.workspace.id }, select: { revision: true } });

@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { ENGLISH_PAGES } from "@/lib/i18n/routes";
 
 const SESSION_COOKIES = ["boardcue_session", "voxboard_session"];
 const PROTECTED = ["/app", "/account", "/admin", "/workspaces"];
-const ENGLISH_PAGES = ["", "/pricing", "/demo", "/privacy", "/terms", "/cookies", "/subprocessors", "/ai-literacy", "/login", "/register"];
 
 /**
  * 1. English public pages live under /en (SEO): rewritten to the same routes with an explicit locale header.

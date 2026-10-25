@@ -12,7 +12,7 @@ import { getOrganizationLimits, getUsageStatus, monthlyPrice } from "@/lib/plans
 import { getTranslator } from "@/lib/i18n/server";
 import { usedSeats } from "@/lib/invites";
 import { Icon } from "@/components/Icon";
-import { PERSONAL_BOARD_NAMES } from "@/lib/onboarding";
+import { isPersonalBoard, PERSONAL_BOARD_NAMES } from "@/lib/onboarding";
 
 export const metadata: Metadata = { title: "Home", robots: { index: false } };
 
@@ -89,6 +89,8 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
     { done: Boolean(organization.firstCardMovedAt), label: t("home.checklist.move") },
   ];
   const completed = steps.filter(step => step.done).length;
+  const activeBoards = boards.filter(board => board.organizationId === organization.id && board.lifecycleStatus === "ACTIVE").length;
+  const atBoardLimit = activeBoards >= limits.workspaceLimit;
   const renewal = organization.trialEndsAt && organization.plan === "TRIAL" ? organization.trialEndsAt : null;
   const trialDaysLeft = renewal ? Math.max(0, Math.ceil((renewal.getTime() - Date.now()) / 86400000)) : null;
   return (
@@ -132,11 +134,17 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
           shared={flag("shared") === "1"}
           shareError={flag("shareError") === "1"}
           personalBoardOffer={
-            memberships.some(({ workspace }) => workspace.presetKey === "PERSONAL" && workspace.lifecycleStatus === "ACTIVE") ||
+            memberships.some(({ workspace }) => isPersonalBoard(workspace) && workspace.lifecycleStatus === "ACTIVE") ||
             membership?.role === "GUEST" ||
-            usage?.readOnly
+            usage?.readOnly ||
+            atBoardLimit
               ? null
               : { organizationId: organization.id, locale: user.locale, name: PERSONAL_BOARD_NAMES[locale === "it" ? "it" : "en"] }
+          }
+          newBoardTarget={
+            membership?.role !== "GUEST" && !usage?.readOnly && !atBoardLimit
+              ? { organizationId: organization.id, locale: locale === "en" ? "en" : organization.locale }
+              : null
           }
           boardList={
             <HomeBoards
@@ -147,6 +155,7 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
                   name: organization.name,
                   locale: organization.locale,
                   canCreate: membership?.role !== "GUEST" && !usage?.readOnly,
+                  boardLimit: atBoardLimit ? limits.workspaceLimit : null,
                 },
               ]}
               defaultTeamId={organization.id}
@@ -221,7 +230,7 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
                   <div>
                     <span>{t("home.plan.boards")}</span>
                     <strong>
-                      {boards.filter(board => board.organizationId === organization.id && board.lifecycleStatus === "ACTIVE").length}
+                      {activeBoards} / {limits.workspaceLimit}
                     </strong>
                   </div>
                   {price !== null && price > 0 && (

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { planPatchFromText, referenceClock, systemPrompt } from "@/lib/openrouter";
+import { planningResponseSchema, planPatchFromText, reconcilePatch, referenceClock, systemPrompt } from "@/lib/openrouter";
 
 const input = {
   apiKey: "synthetic-key",
@@ -184,6 +184,13 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     expect(prompt).toContain("clarification");
     expect(prompt).toContain("Return zero actions");
   });
+  it("asks for one action per task instead of the smallest set, keeping each date with its own task", () => {
+    const prompt = systemPrompt({ now: new Date("2026-10-25T09:00:00Z"), timeZone: "Europe/Rome", locale: "it" });
+    expect(prompt).not.toContain("smallest");
+    expect(prompt).toContain("exactly one action for each distinct task");
+    expect(prompt).toContain("Never merge separate tasks into one card");
+    expect(prompt).toContain("applies only to the task it refers to");
+  });
   it("honours an allowlist, an EU base URL override, and refuses non-OpenRouter hosts", async () => {
     vi.stubEnv("AI_PROVIDER_ONLY", "mistral/eu, nebius");
     vi.stubEnv("OPENROUTER_BASE_URL", "https://evil.example.com/api/v1");
@@ -265,5 +272,59 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
       provider: "Google", upstreamCode: 400, upstreamStatus: "INVALID_ARGUMENT", reason: "invalid_enum_schema",
     }));
     expect(JSON.stringify(log.mock.calls)).not.toContain("private prompt");
+  });
+});
+
+describe("planning patch reconciled with the board (fetch mocked)", () => {
+  const scope = {
+    columnIds: ["todo", "doing", "done"],
+    defaultColumnId: "todo",
+    cards: [{ id: "bank", columnId: "todo", title: "Chiamare la banca", description: "", priority: "NORMAL", dueDate: null, tags: [] }],
+  };
+  const base = { action: "update", cardId: "bank", title: null, description: null, targetColumnId: null, priority: null, dueDate: null, tags: null, reason: "" };
+  const plan = (actions: unknown[]) => ({ summary: "Aggiorno", actions, clarification: null });
+
+  it("sends the exact card and column IDs as enums, so the model cannot invent one", async () => {
+    const fetcher = vi.fn().mockResolvedValue(completion(plan([])));
+    vi.stubGlobal("fetch", fetcher);
+    await planPatchFromText({ ...input, scope });
+    const fields = JSON.parse(fetcher.mock.calls[0][1].body).response_format.json_schema.schema.properties.actions.items.properties;
+    expect(fields.cardId.anyOf).toEqual([{ type: "string", enum: ["bank"] }, { type: "null" }]);
+    expect(fields.targetColumnId.anyOf).toEqual([{ type: "string", enum: ["todo", "doing", "done"] }, { type: "null" }]);
+  });
+  it("only allows null card IDs on an empty board", () => {
+    const fields = planningResponseSchema({ columnIds: ["todo"], cards: [] }).schema.properties.actions.items.properties;
+    expect(fields.cardId).toMatchObject({ type: "null" });
+  });
+  it("keeps the reported DNS task when the model leaves the new card without a column or with an empty card ID", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(completion({ ...dnsPatch, actions: [{ ...dnsPatch.actions[0], cardId: "", targetColumnId: null }] })));
+    const result = await planPatchFromText({ ...input, scope, userText: "Oggi devo chiamare Sara NUSDV per settare il DNS" });
+    expect(result.patch.actions).toEqual([{ ...dnsPatch.actions[0], cardId: null, targetColumnId: "todo" }]);
+  });
+  it("turns a move that also edits fields into an update and drops values that repeat the card", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(completion(plan([
+      { ...base, action: "move", targetColumnId: "doing", title: "Chiamare la banca", priority: "HIGH" },
+    ]))));
+    const { patch } = await planPatchFromText({ ...input, scope });
+    expect(patch.actions).toEqual([{ ...base, action: "update", targetColumnId: "doing", priority: "HIGH" }]);
+  });
+  it("keeps a pure move a move and drops an update that changes nothing", () => {
+    const moved = reconcilePatch(plan([{ ...base, targetColumnId: "done", priority: "NORMAL" }]) as never, scope);
+    expect(moved).toEqual({ patch: plan([{ ...base, action: "move", targetColumnId: "done" }]), issues: [] });
+    expect(reconcilePatch(plan([{ ...base, title: "Chiamare la banca", targetColumnId: "todo" }]) as never, scope).patch.actions).toEqual([]);
+  });
+  it("regenerates the whole patch with the fallback model when a card or column is unknown, never keeping part of it", async () => {
+    const valid = plan([{ ...base, action: "move", targetColumnId: "done" }]);
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(completion(plan([{ ...base, action: "move", targetColumnId: "done" }, { ...base, cardId: "invented", priority: "HIGH" }])))
+      .mockResolvedValueOnce(completion(valid));
+    vi.stubGlobal("fetch", fetcher);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const result = await planPatchFromText({ ...input, model: "openai/gpt-5-nano", fallbackModel: "openai/gpt-5-mini", scope });
+    expect(result).toMatchObject({ patch: valid, model: "openai/gpt-5-mini" });
+    expect(JSON.parse(fetcher.mock.calls[1][1].body).messages[0].content).toContain("unknown_card");
+    expect(reconcilePatch(plan([{ ...base, targetColumnId: "elsewhere" }]) as never, scope).issues).toEqual([{ path: "actions.0.targetColumnId", code: "unknown_column" }]);
+    expect(reconcilePatch(plan([{ ...base, priority: "HIGH" }, { ...base, priority: "LOW" }]) as never, scope).issues).toEqual([{ path: "actions.1.cardId", code: "duplicate_card" }]);
+    expect(reconcilePatch(plan([{ ...dnsPatch.actions[0], cardId: "bank" }]) as never, scope).issues).toEqual([{ path: "actions.0.cardId", code: "existing_card_on_create" }]);
   });
 });

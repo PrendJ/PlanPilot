@@ -33,6 +33,8 @@ const EXPECTED_CATEGORIES: Record<string, number> = {
   due_date_relative: 16,
   priority: 12,
   multi_card: 16,
+  // Several new tasks in one sentence, each with its own deadline (call of 2026-10-23).
+  multi_create: 3,
   negation_noop: 12,
   hypothetical_noop: 10,
   question_or_chitchat_noop: 8,
@@ -89,9 +91,9 @@ describe("ai-eval dataset integrity", () => {
     for (const card of allCards) if (card.dueDate !== null) expect(Number.isFinite(Date.parse(card.dueDate))).toBe(true);
   });
 
-  it("has exactly 200 cases with unique, sequential ids", () => {
-    expect(cases).toHaveLength(200);
-    expect(new Set(cases.map(c => c.id)).size).toBe(200);
+  it("has exactly 203 cases with unique, sequential ids", () => {
+    expect(cases).toHaveLength(203);
+    expect(new Set(cases.map(c => c.id)).size).toBe(203);
     cases.forEach((c, i) => expect(c.id).toBe(`E${String(i + 1).padStart(3, "0")}`));
     for (const c of cases) expect(c.text.trim().length).toBeGreaterThan(0);
   });

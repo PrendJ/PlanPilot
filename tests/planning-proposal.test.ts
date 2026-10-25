@@ -80,3 +80,25 @@ describe("planning proposals with model tiers", () => {
     expect(mocks.db.aiProposal.create).not.toHaveBeenCalled();
   });
 });
+
+describe("planning proposals reconciled with the board", () => {
+  it("places the reported DNS task in the first open column when the model omits the column", async () => {
+    mocks.db.boardColumn.findMany.mockResolvedValue([
+      { id: "done-first", title: "Fatto", description: "", semanticKey: "DONE", cards: [] },
+      { id: "todo", title: "Da fare", description: "", semanticKey: "READY", cards: [] },
+      { id: "archive", title: "Archivio", description: "", semanticKey: "CUSTOM", cards: [] },
+    ]);
+    const dns = { ...patch, actions: [{ ...patch.actions[0], title: "Chiamare Sara NUSDV per settare il DNS", targetColumnId: null }] };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "gen", choices: [{ message: { content: JSON.stringify(dns) } }], usage: { cost: 0.001 } }))));
+    const proposal = await createProposal({ ...input, text: "Oggi devo chiamare Sara NUSDV per settare il DNS", source: "text" });
+    expect(proposal.actions[0]).toMatchObject({ action: "create", newTitle: "Chiamare Sara NUSDV per settare il DNS", toColumn: "Da fare" });
+    expect(mocks.refund).not.toHaveBeenCalled();
+  });
+  it("refunds the update and stores nothing when both models reference a card that is not on the board", async () => {
+    const invented = { ...patch, actions: [{ ...patch.actions[0], action: "update", cardId: "invented", priority: "HIGH" }] };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: crypto.randomUUID(), choices: [{ message: { content: JSON.stringify(invented) } }], usage: { cost: 0.0001 } }))));
+    await expect(createProposal(input)).rejects.toMatchObject({ message: "AI_INVALID_PATCH" });
+    expect(mocks.refund).toHaveBeenCalledExactlyOnceWith("reservation");
+    expect(mocks.db.aiProposal.create).not.toHaveBeenCalled();
+  });
+});

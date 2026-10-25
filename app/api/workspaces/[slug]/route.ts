@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { organizationReadOnly } from "@/lib/plans";
+import { getOrganizationLimits, organizationReadOnly } from "@/lib/plans";
 import { canManageWorkspaceAction, workspaceLifecycleChange } from "@/lib/workspace-management";
 import { getCurrentUser } from "@/lib/auth";
 import { rejectCrossOrigin } from "@/lib/security";
@@ -39,6 +39,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   if (parsed.data.action === "restore" && membership.workspace.lifecycleStatus !== "ARCHIVED")
     return apiError(request, "INVALID_INPUT", 409);
   if (parsed.data.action !== "restore" && membership.workspace.lifecycleStatus !== "ACTIVE") return apiError(request, "READ_ONLY", 409);
+  // A restored board counts like a new one: over the plan's limit, existing boards stay but none is added.
+  if (parsed.data.action === "restore") {
+    const limit = getOrganizationLimits(membership.workspace.organization).workspaceLimit;
+    const active = await prisma.workspace.count({ where: { organizationId: membership.workspace.organizationId, lifecycleStatus: "ACTIVE" } });
+    if (active >= limit) return apiError(request, "WORKSPACE_LIMIT", 402, { limit }, { limit });
+  }
   const before = {
     name: membership.workspace.name,
     lifecycleStatus: membership.workspace.lifecycleStatus,

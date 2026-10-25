@@ -22,7 +22,7 @@ Public demo: `https://boardcue.draftapps.it/demo`.
 - invites with pending list, resend/revoke, free guest role (read + comment)
 - import from Trello JSON / CSV; export CSV, JSON, Markdown, print
 - personal API tokens (`/api/v1`) and signed outgoing webhooks (JSON or Slack/Teams text)
-- plans: Pro trial (14 days); personal Pro (€4.90/month, 300 AI updates) and Family (€5/seat/month, 300 updates per seat); business Pro, Team and Business; Enterprise; AI updates quota with atomic reservation and credit packs; frozen (read-only) instead of deleted on non-payment
+- plans: Pro trial (14 days); personal Pro (€4.90/month, 300 AI updates) and Family (€4.50/seat/month, 300 updates per seat); business Pro and Team, Business on request (contact form); Enterprise; AI updates quota with atomic reservation and credit packs; frozen (read-only) instead of deleted on non-payment
 - Italian e-invoicing data collection at checkout and fiscal CSV export for the back office
 - superadmin back office with economics per seat, activation KPIs (aggregate, privacy-preserving) and licensing
 - design system "Paper/Graphite" (WCAG AA), Geist fonts, BoardCue mark, installable PWA with a quick-voice shortcut to the assistant home

@@ -18,7 +18,10 @@ export type PlanConfig = {
   seatBased: boolean;
   minSeats: number;
   memberLimit: number;
-  workspaceLimit: number;
+  /** Active boards per person (seat); the organization limit is this × its people. Anti-abuse, not a selling point. */
+  boardsPerPerson: number;
+  /** Months of change history (activity, AI update logs, proposals) kept before the hourly retention deletes it. */
+  historyMonths: number;
   aiUpdates: number;
   sellable: boolean;
   guests: boolean;
@@ -27,11 +30,18 @@ export type PlanConfig = {
   prioritySupport: boolean;
 };
 
+/**
+ * Owner decision of 2026-10-25, after docs/ANALISI_COSTO_BOARD_2026-10-25.md: base plans (trial, Pro personale, Pro)
+ * get 20 boards per person and 6 months of history; every other plan 50 boards per person and 24 months.
+ */
+export const BASE_LIMITS = { boardsPerPerson: 20, historyMonths: 6 } as const;
+export const ADVANCED_LIMITS = { boardsPerPerson: 50, historyMonths: 24 } as const;
+
 const base = {
   priceEurYearly: null,
   seatBased: false,
   minSeats: 1,
-  workspaceLimit: Infinity,
+  ...ADVANCED_LIMITS,
   sellable: false,
   guests: false,
   enforce2fa: false,
@@ -40,13 +50,23 @@ const base = {
 };
 
 export const PLANS: Record<PlanKey, PlanConfig> = {
-  TRIAL: { ...base, label: "Prova Pro", priceEur: 0, memberLimit: 1, aiUpdates: 150 },
-  PERSONAL_PRO: { ...base, label: "Pro", priceEur: 4.02, priceEurYearly: annualEur(4.02), memberLimit: 1, aiUpdates: 300, sellable: true },
+  TRIAL: { ...base, ...BASE_LIMITS, label: "Prova Pro", priceEur: 0, memberLimit: 1, aiUpdates: 150 },
+  PERSONAL_PRO: {
+    ...base,
+    ...BASE_LIMITS,
+    label: "Pro",
+    priceEur: 4.02,
+    priceEurYearly: annualEur(4.02),
+    memberLimit: 1,
+    aiUpdates: 300,
+    sellable: true,
+  },
   FAMILY: {
     ...base,
     label: "Family",
-    priceEur: 4.1,
-    priceEurYearly: annualEur(4.1),
+    // €4.50 per person per month VAT included for private customers (owner, 2026-10-23): below Pro personale.
+    priceEur: 3.69,
+    priceEurYearly: annualEur(3.69),
     seatBased: true,
     minSeats: 2,
     memberLimit: 2,
@@ -54,7 +74,7 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
     sellable: true,
     guests: true,
   },
-  PRO: { ...base, label: "Pro", priceEur: 7, priceEurYearly: annualEur(7), memberLimit: 1, aiUpdates: 800, sellable: true },
+  PRO: { ...base, ...BASE_LIMITS, label: "Pro", priceEur: 7, priceEurYearly: annualEur(7), memberLimit: 1, aiUpdates: 800, sellable: true },
   TEAM: {
     ...base,
     label: "Team",
@@ -105,7 +125,8 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
     enforce2fa: true,
     auditExport: true,
   },
-  SOLO: { ...base, label: "Solo (legacy)", priceEur: 10, memberLimit: 1, aiUpdates: 800 },
+  // Legacy single-person plan: the same limits as Pro, which replaced it.
+  SOLO: { ...base, ...BASE_LIMITS, label: "Solo (legacy)", priceEur: 10, memberLimit: 1, aiUpdates: 800 },
   // The pre-2026 flat Team price (€24 for up to 10 people), still billed by the old STRIPE_PRICE_TEAM.
   TEAM_LEGACY: { ...base, label: "Team (legacy)", priceEur: 24, memberLimit: 10, aiUpdates: 4000, guests: true },
   STUDIO: { ...base, label: "Studio (legacy)", priceEur: 59, memberLimit: 24, aiUpdates: 12000, guests: true },
@@ -187,6 +208,7 @@ export function getOrganizationLimits(organization: OrganizationEntitlementSourc
     : plan.seatBased
       ? seats
       : plan.memberLimit;
+  const people = Number.isFinite(memberLimit) ? Math.max(1, memberLimit) : Math.max(1, organization.seats || plan.minSeats);
   const aiUpdates =
     enterprise && organization.aiUpdatesOverride != null
       ? organization.aiUpdatesOverride
@@ -200,7 +222,9 @@ export function getOrganizationLimits(organization: OrganizationEntitlementSourc
     key,
     seats,
     memberLimit,
-    workspaceLimit: enterprise ? (organization.workspaceLimitOverride ?? plan.workspaceLimit) : plan.workspaceLimit,
+    // Per person: Family, Team and Business grow with their seats; the back office can override Enterprise.
+    workspaceLimit:
+      enterprise && organization.workspaceLimitOverride != null ? organization.workspaceLimitOverride : plan.boardsPerPerson * people,
     aiUpdates,
     aiBudgetUsd,
   };
@@ -243,6 +267,18 @@ export function organizationReadOnly(organization: OrganizationAccess, now = new
     Boolean(organization.readOnlyAt) ||
     organizationAccessExpired(organization, now)
   );
+}
+
+/** Plans grouped by how long their change history is kept, with the date before which it is deleted. */
+export function historyRetention(now = new Date()) {
+  const groups = new Map<number, PlanKey[]>();
+  for (const [key, plan] of Object.entries(PLANS) as Array<[PlanKey, PlanConfig]>)
+    groups.set(plan.historyMonths, [...(groups.get(plan.historyMonths) || []), key]);
+  return [...groups].map(([months, plans]) => {
+    const cutoff = new Date(now);
+    cutoff.setUTCMonth(cutoff.getUTCMonth() - months);
+    return { months, plans, cutoff };
+  });
 }
 
 export function currentPeriodKey(date = new Date()) {

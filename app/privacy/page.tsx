@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
+import { SupplierTable } from "@/components/SupplierTable";
 import { TRIAL_DAYS } from "@/lib/plans";
 
 export const metadata: Metadata = { title: "Privacy Policy" };
@@ -22,7 +23,7 @@ export default function PrivacyPage() {
         <span className="eyebrow">Privacy Policy</span>
         <h1>Privacy Policy di BoardCue</h1>
         <p className="legal-updated">
-          Ultimo aggiornamento: 23 settembre 2026 · bozza operativa da sottoporre a revisione legale professionale prima del lancio
+          Ultimo aggiornamento: 25 ottobre 2026 · bozza operativa da sottoporre a revisione legale professionale prima del lancio
           commerciale
         </p>
         <section>
@@ -101,7 +102,7 @@ export default function PrivacyPage() {
           <p>
             Per le funzioni AI il server invia il testo dell’aggiornamento e un contesto ridotto della board (solo card attive e pertinenti,
             descrizioni troncate). Le richieste passano da <strong>OpenRouter</strong> (instradamento), che le inoltra solo a endpoint di
-            provider di modelli (ad esempio Google Cloud, Microsoft Azure o Mistral AI) classificati “Zero Data Retention”: il provider non
+            provider di modelli (ad esempio OpenAI, Microsoft Azure o Mistral AI) classificati “Zero Data Retention”: il provider non
             conserva né usa i dati per addestrare modelli.
           </p>
           <p>
@@ -125,12 +126,16 @@ export default function PrivacyPage() {
             .
           </p>
         </section>
-        <section>
-          <h2>5. Destinatari e trasferimenti</h2>
+        <section id="fornitori">
+          <h2>5. Fornitori e trasferimenti</h2>
           <p>
-            Trattano dati per nostro conto i fornitori elencati nella pagina <a href="/subprocessors">Subprocessori</a>. Eventuali
-            trasferimenti extra-SEE avvengono sulla base di decisioni di adeguatezza (es. EU-US Data Privacy Framework) o clausole
-            contrattuali standard.
+            Trattano dati per nostro conto, come responsabili o sub-responsabili del trattamento (subprocessori), i fornitori elencati qui
+            sotto. Eventuali trasferimenti extra-SEE avvengono sulla base di decisioni di adeguatezza (es. EU-US Data Privacy Framework) o
+            clausole contrattuali standard.
+          </p>
+          <SupplierTable />
+          <p>
+            Comunicheremo agli owner dei team l’aggiunta o la sostituzione di un fornitore con almeno 30 giorni di anticipo, via email.
           </p>
         </section>
         <section>
@@ -153,6 +158,11 @@ export default function PrivacyPage() {
             <li>
               <strong>Registri contabili e di audit essenziali:</strong> fino a 10 anni quando richiesto dalla legge; periodo da confermare
               con consulenza fiscale.
+            </li>
+            <li>
+              <strong>Cronologia delle modifiche</strong> (attività, registro degli aggiornamenti AI e testi inviati all’AI): 6 mesi con
+              Prova, Pro personale e Pro; 24 mesi con Family, Team, Business ed Enterprise. Poi viene eliminata; board, card e commenti
+              restano.
             </li>
             <li>
               <strong>Notifiche lette:</strong> 90 giorni. <strong>Audio:</strong> mai conservato.

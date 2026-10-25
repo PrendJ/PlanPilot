@@ -220,6 +220,19 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         </div>
       ) : (
         <div className="composer-row">
+          {/* Microphone on the left, as in the home: speaking is the main way to update the board. */}
+          {dictationEnabled && (
+            <button
+              type="button"
+              className="mic-btn"
+              onClick={toggleMic}
+              disabled={disabled || Boolean(busy)}
+              aria-label={t("board.composer.dictate")}
+              title={`${t("board.composer.dictate")} (M)`}
+            >
+              <Icon name="mic" size={20} />
+            </button>
+          )}
           <label htmlFor={`composer-${slug}`} className="sr-only">
             {t("board.composer.label")}
           </label>
@@ -242,18 +255,6 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             }}
           />
           <div className="composer-actions">
-            {dictationEnabled && (
-              <button
-                type="button"
-                className="mic-btn"
-                onClick={toggleMic}
-                disabled={disabled || Boolean(busy)}
-                aria-label={t("board.composer.dictate")}
-                title={`${t("board.composer.dictate")} (M)`}
-              >
-                <Icon name="mic" size={20} />
-              </button>
-            )}
             <button
               type="button"
               className="send-btn"

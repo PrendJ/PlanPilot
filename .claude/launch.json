@@ -7,6 +7,13 @@
       "runtimeArgs": ["next", "start", "-p", "3100"],
       "env": { "DATABASE_URL": "postgresql://x@localhost:5432/x" },
       "port": 3100
+    },
+    {
+      "name": "boardcue-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3101"],
+      "env": { "DATABASE_URL": "postgresql://x@localhost:5432/x" },
+      "port": 3101
     }
   ]
 }

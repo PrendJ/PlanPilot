@@ -408,6 +408,20 @@ svg {
   border-color: var(--border);
   background: var(--surface);
 }
+/* New app version waiting: a signal dot on the "App" button, until the update is applied. */
+.pwa-install {
+  position: relative;
+}
+.pwa-install .update-dot {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--signal-solid);
+  box-shadow: 0 0 0 2px var(--bg);
+}
 .icon-btn .dot {
   position: absolute;
   top: 6px;
@@ -1252,13 +1266,42 @@ input[aria-invalid="true"] {
   gap: 24px;
   flex-wrap: wrap;
 }
-.public-footer-inner nav {
+.footer-groups {
   display: flex;
-  gap: 14px;
+  gap: clamp(24px, 5vw, 56px);
   flex-wrap: wrap;
 }
-.public-footer-inner nav a:hover {
+.footer-groups > div {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+.footer-groups a {
+  padding: 2px 0;
+}
+.footer-groups a:hover {
   color: var(--text);
+}
+.footer-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.footer-language {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+@media (max-width: 640px) {
+  .public-footer-inner {
+    flex-direction: column;
+  }
 }
 .public-footer .legal-entity {
   display: block;
@@ -1586,6 +1629,33 @@ input[aria-invalid="true"] {
 .home-audio-import:hover {
   text-decoration: underline;
 }
+.home-audio-import:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+.home-import-formats {
+  margin: -8px 0 12px;
+  font-size: 12px;
+}
+.home-google-doc {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.home-google-doc .row {
+  flex-wrap: nowrap;
+}
+.home-google-doc input {
+  flex: 1;
+  min-width: 0;
+}
+.home-google-doc p {
+  font-size: 12.5px;
+}
 .home-audio-import input {
   position: absolute;
   width: 1px;
@@ -1617,6 +1687,22 @@ input[aria-invalid="true"] {
 .home-route-row p {
   overflow-wrap: anywhere;
 }
+.home-route-row input {
+  min-width: 0;
+}
+.home-route-row .home-route-new {
+  grid-column: 2;
+}
+@media (max-width: 640px) {
+  .home-route-row {
+    grid-template-columns: minmax(0, 1fr);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .home-route-row .home-route-new {
+    grid-column: 1;
+  }
+}
 .home-pending {
   margin-top: 18px;
 }
@@ -1634,6 +1720,44 @@ input[aria-invalid="true"] {
   display: grid;
   gap: 8px;
 }
+.home-today-item {
+  display: flex;
+  align-items: stretch;
+}
+/* Done right from the home: a square check beside the task, the task itself still opens the card. */
+.home-today-done {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  border: 1px solid var(--border);
+  border-right: 0;
+  background: var(--surface);
+  color: transparent;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease),
+    color var(--motion-fast) var(--ease);
+}
+.home-today-done:hover,
+.home-today-done:focus-visible {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.home-today-done svg {
+  width: 18px;
+  height: 18px;
+  padding: 1px;
+  border: 1.5px solid var(--border-strong);
+}
+.home-today-done:hover svg,
+.home-today-done:focus-visible svg {
+  border-color: var(--success);
+}
+.home-today-item a {
+  flex: 1;
+  min-width: 0;
+}
 .home-today li a {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1641,6 +1765,26 @@ input[aria-invalid="true"] {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
+}
+.home-today-more {
+  margin-top: 10px;
+}
+.today-priority {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.today-priority.urgent {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 .home-today li a:hover {
   border-color: var(--primary);
@@ -1792,20 +1936,39 @@ input[aria-invalid="true"] {
   font-weight: 600;
   cursor: pointer;
 }
-.board-tile.new:hover {
+.board-tile.new.limit {
+  cursor: default;
+  gap: 8px;
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.board-tile.new:not(.limit):hover {
   color: var(--primary);
   border-color: var(--primary);
   box-shadow: 3px 3px 0 var(--primary-solid);
 }
 .mini-lanes {
   display: flex;
+  align-items: flex-end;
+  min-height: 32px;
   gap: 4px;
 }
+/*
+ * Mini preview of the board's columns (height = cards in the column). It used the column token, which in dark
+ * mode is darker than the card and showed as black blocks: a primary tint reads as a chart in both themes, and
+ * an empty column is an outline rather than a grey placeholder.
+ */
 .mini-lanes i {
   width: 18px;
   border-radius: var(--radius-structural);
-  background: var(--column);
+  background: color-mix(in srgb, var(--primary-solid) 30%, var(--surface));
   display: block;
+}
+.mini-lanes i[data-empty] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 .checklist-card ol {
   list-style: none;
@@ -1839,10 +2002,12 @@ input[aria-invalid="true"] {
   color: var(--text-3);
   text-decoration: line-through;
 }
+/* Outlined track: an empty gauge reads as a gauge, not as a grey placeholder (notably in dark mode). */
 .meter {
   height: 6px;
   border-radius: var(--radius-structural);
-  background: var(--surface-2);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
   overflow: hidden;
 }
 .meter > i {

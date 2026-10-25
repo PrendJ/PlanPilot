@@ -83,7 +83,7 @@ export default async function Home() {
       <main id="main" className="marketing">
         <section className="hero container">
           <div className="hero-copy">
-            <span className="eyebrow badge signal">
+            <span className="eyebrow badge primary">
               <Icon name="sparkles" size={13} />
               {t("landing.eyebrow")}
             </span>
@@ -203,7 +203,7 @@ export default async function Home() {
               {t("legal.privacy")}
             </Link>{" "}
             ·{" "}
-            <Link className="text-link" href="/subprocessors">
+            <Link className="text-link" href="/privacy#fornitori">
               {t("legal.subprocessors")}
             </Link>
           </p>
@@ -227,15 +227,18 @@ export default async function Home() {
               </Link>
             ))}
           </div>
-          <p className="subtle" style={{ textAlign: "center", marginTop: 12 }}>
-            {t("landing.pricing.vatNote", {
-              pro: price(planPriceCents("PERSONAL_PRO", "month", "consumer")),
-              family: price(planPriceCents("FAMILY", "month", "consumer")),
-            })}{" "}
-            <Link className="text-link" href="/pricing">
-              {t("landing.pricing.businessNote")}
+          <p className="subtle pricing-teaser-note">{t("landing.pricing.vatNote")}</p>
+          <div className="business-teaser">
+            <div>
+              <span className="eyebrow">{t("landing.pricing.business.eyebrow")}</span>
+              <h3>{t("landing.pricing.business.title")}</h3>
+              <p className="subtle">{t("landing.pricing.business.body")}</p>
+            </div>
+            <Link className="btn" href="/pricing?customer=business">
+              {t("landing.pricing.business.cta")}
+              <Icon name="arrowRight" size={16} />
             </Link>
-          </p>
+          </div>
         </section>
 
         <section className="section container faq">

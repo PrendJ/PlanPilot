@@ -4,6 +4,7 @@ import { classifyOwnedOrganizations, validInternalOwner } from "@/lib/lifecycle-
 import { appUrl, escapeHtml, renderEmail, sendEmail } from "@/lib/email";
 import { issueVerificationEmail } from "@/lib/verification";
 import { UNVERIFIED_GRACE_DAYS } from "@/lib/auth";
+import { pruneHistory } from "@/lib/history-retention";
 
 const THIRTY_DAYS = 30 * 86400000;
 const TEN_YEARS = 3652 * 86400000;
@@ -368,7 +369,9 @@ export async function runRetention() {
     });
   }
   const expiredArchives = await prisma.retainedRecord.deleteMany({ where: { expiresAt: { lte: now } } });
+  const history = await pruneHistory(now);
   return {
+    ...history,
     deletedWorkspaces: workspaces.length,
     deletedOrganizations: organizations.length,
     anonymizedUsers: users.length,

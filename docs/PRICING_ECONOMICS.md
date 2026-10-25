@@ -1,17 +1,17 @@
 # BoardCue — listino ed economia unitaria
 
-Aggiornato il 1 ottobre 2026 dopo la call di prodotto. Il codice in `lib/plans.ts` e `lib/stripe.ts` è la fonte per prezzi e limiti operativi. Gli importi di costo riportati sotto sono **ipotesi** da sostituire con dati di produzione prima di prendere decisioni commerciali.
+Aggiornato il 25 ottobre 2026 dopo la call del 23 ottobre (Family a €4,50, Business su contatto). Il codice in `lib/plans.ts` e `lib/stripe.ts` è la fonte per prezzi e limiti operativi. Gli importi di costo riportati sotto sono **ipotesi** da sostituire con dati di produzione prima di prendere decisioni commerciali.
 
 ## Listino attivo
 
 | Destinatari | Piano | Prezzo mensile | Prezzo annuale | Aggiornamenti AI | Posti |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Privati, IVA inclusa | Pro personale | €4,90 | €49,00 | 300/mese | 1 |
-| Privati, IVA inclusa | Family | €5,00 per posto | €50,00 per posto | 300 per posto/mese, condivisi | minimo 2 |
+| Privati, IVA inclusa | Family | €4,50 per posto | €45,00 per posto | 300 per posto/mese, condivisi | minimo 2 |
 | Aziende, IVA esclusa | Pro | €7,00 | €70,00 | 800/mese | 1 |
 | Aziende, IVA esclusa | Team | €6,00 per posto | €60,00 per posto | 600 per posto/mese, condivisi | minimo 2 |
-| Aziende, IVA esclusa | Business | €10,00 per posto | €100,00 per posto | 1.000 per posto/mese, condivisi | minimo 2 |
-| Aziende | Enterprise | su preventivo | su preventivo | su misura | da 25 |
+| Aziende | Business | su contatto (listino tecnico €10,00 per posto, non più mostrato) | su contatto | 1.000 per posto/mese, condivisi o su misura | da 2; volume da 25 |
+| Aziende | Enterprise (piano tecnico assegnato dal back office) | su preventivo | su preventivo | su misura | da 25 |
 
 L'annuale addebita **dieci mensilità**, arrotondate per difetto ai 10 centesimi a favore del cliente (con i prezzi attuali il totale è già esatto). La pagina mostra solo il totale annuo e il risparmio rispetto al mensile, mai un equivalente mensile (decisione dell'owner del 2 ottobre 2026). La prova dura 14 giorni, senza carta, con 150 aggiornamenti AI. La dettatura è inclusa; 2FA ed export dati sono disponibili anche su Pro e Family. Le board non hanno un limite numerico di piano. Il pacchetto di 1.000 aggiornamenti extra costa €6,00 IVA esclusa per aziende o €7,30 IVA inclusa per privati.
 
@@ -26,12 +26,12 @@ Applicando **solo queste ipotesi** e assumendo che ogni cliente consumi tutta la
 | Esempio mensile | Ricavo IVA esclusa stimato | AI | Stripe stimato | Infra | Contributo stimato |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Pro privato, 1 persona | €4,02 | €0,42 | €0,38 | €0,10 | **€3,12** |
-| Family privato, 2 persone | €8,20 | €0,84 | €0,52 | €0,10 | **€6,74** |
+| Family privato, 2 persone | €7,38 | €0,84 | €0,49 | €0,10 | **€5,95** |
 | Pro azienda, 1 persona | €7,00 | €1,12 | €0,44 | €0,10 | **€5,34** |
 | Team azienda, 2 persone | €12,00 | €1,68 | €0,57 | €0,10 | **€9,65** |
 | Business azienda, 2 persone | €20,00 | €2,80 | €0,79 | €0,10 | **€16,31** |
 
-Il pareggio dei soli €60 di costi fissi, con questi margini e a pieno utilizzo, richiederebbe circa **20 Pro privati** oppure **9 Family da due persone**. È un esercizio di sensibilità, non una previsione di vendite. Le stime precedenti basate su Pro privato a €8,50 non si applicano al nuovo piano.
+Il pareggio dei soli €60 di costi fissi, con questi margini e a pieno utilizzo, richiederebbe circa **20 Pro privati** oppure **11 Family da due persone**. È un esercizio di sensibilità, non una previsione di vendite. Le stime precedenti basate su Pro privato a €8,50 non si applicano al nuovo piano.
 
 ## Verifiche prima del lancio del listino
 

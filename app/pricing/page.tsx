@@ -37,6 +37,8 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
     seatBased: PLANS[key].seatBased,
     minSeats: PLANS[key].minSeats,
     aiUpdates: PLANS[key].aiUpdates,
+    boardsPerPerson: PLANS[key].boardsPerPerson,
+    historyMonths: PLANS[key].historyMonths,
     consumerPriceEur: planPriceCents(key, "month", "consumer") / 100,
     consumerPriceEurYearly: planPriceCents(key, "year", "consumer") / 100,
   }));
@@ -68,9 +70,29 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
               ? ["PERSONAL_PRO", "FAMILY"].includes(highlight)
                 ? "consumer"
                 : "business"
-              : owned?.organization.legalType === "BUSINESS"
-                ? "business"
-                : "consumer"
+              : value("customer") === "business" || value("customer") === "consumer"
+                ? (value("customer") as "business" | "consumer")
+                : owned?.organization.legalType === "BUSINESS"
+                  ? "business"
+                  : "consumer"
+          }
+          businessContact={
+            <section className="enterprise-band" id="business-contact">
+              <div>
+                <span className="eyebrow">{t("plans.BUSINESS")}</span>
+                <h2>{t("pricing.enterprise.title")}</h2>
+                <p className="subtle">{t("pricing.enterprise.body")}</p>
+                <ul className="check-list">
+                  {(["volume", "quotas", "invoice", "onboarding"] as const).map(key => (
+                    <li key={key}>
+                      <Icon name="check" size={15} />
+                      {t(`pricing.enterprise.points.${key}`)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <EnterpriseForm />
+            </section>
           }
         />
         <section className="pricing-extra">
@@ -99,23 +121,7 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
             <p className="subtle">{t("pricing.euBody")}</p>
           </div>
         </section>
-        <section className="enterprise-band" id="enterprise">
-          <div>
-            <span className="eyebrow">{t("plans.ENTERPRISE")}</span>
-            <h2>{t("pricing.enterprise.title")}</h2>
-            <p className="subtle">{t("pricing.enterprise.body")}</p>
-            <ul className="check-list">
-              {(["volume", "quotas", "invoice", "onboarding"] as const).map(key => (
-                <li key={key}>
-                  <Icon name="check" size={15} />
-                  {t(`pricing.enterprise.points.${key}`)}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <EnterpriseForm />
-        </section>
-        <section className="faq" aria-labelledby="faq-title">
+        <section className="faq section" aria-labelledby="faq-title">
           <h2 id="faq-title">{t("faq.title")}</h2>
           {faqs.map(key => (
             <details key={key}>

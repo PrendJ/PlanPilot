@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useI18n } from "./I18nProvider";
 import { api } from "./ui";
 
-/** Enterprise contact form (from 25 people). */
+/** Business contact form: Business is offered on request, from 2 people (volume terms from 25). */
 export function EnterpriseForm() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [state, setState] = useState<{ ok?: string; error?: string; bookingUrl?: string }>({});
   const [busy, setBusy] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -43,10 +43,10 @@ export function EnterpriseForm() {
         </div>
         <div className="field">
           <label htmlFor="ent-size">{t("pricing.enterprise.teamSize")}</label>
-          <input id="ent-size" name="teamSize" type="number" min={25} required />
+          <input id="ent-size" name="teamSize" type="number" min={2} required />
         </div>
       </div>
-      <input type="hidden" name="locale" value="it" />
+      <input type="hidden" name="locale" value={locale} />
       <div className="field">
         <label htmlFor="ent-needs">{t("pricing.enterprise.needs")}</label>
         <textarea id="ent-needs" name="needs" minLength={10} required placeholder={t("pricing.enterprise.needsPlaceholder")} />

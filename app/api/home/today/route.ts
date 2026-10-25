@@ -9,7 +9,7 @@ const cardSelect = {
   title: true,
   dueDate: true,
   priority: true,
-  column: { select: { title: true, semanticKey: true, position: true } },
+  column: { select: { id: true, title: true, semanticKey: true, position: true } },
   workspace: { select: { id: true, slug: true, name: true } },
 } as const;
 
@@ -47,10 +47,22 @@ export async function GET(request: Request) {
     }),
   ]);
   const workspaceIds = [...new Set([...due, ...active].map(card => card.workspace.id))];
-  const last = new Map(
-    (await prisma.boardColumn.groupBy({ by: ["workspaceId"], where: { workspaceId: { in: workspaceIds } }, _max: { position: true } })).map(
-      row => [row.workspaceId, row._max.position ?? 0],
-    ),
+  const columns = await prisma.boardColumn.findMany({
+    where: { workspaceId: { in: workspaceIds } },
+    orderBy: { position: "asc" },
+    select: { id: true, title: true, semanticKey: true, position: true, workspaceId: true },
+  });
+  const byWorkspace = new Map<string, typeof columns>();
+  for (const column of columns) byWorkspace.set(column.workspaceId, [...(byWorkspace.get(column.workspaceId) || []), column]);
+  const last = new Map([...byWorkspace].map(([id, list]) => [id, list[list.length - 1]?.position ?? 0]));
+  // Where "Done" from the home moves a card: the column marked done, else one titled like done, else the last.
+  const doneColumn = new Map(
+    [...byWorkspace].map(([id, list]) => [
+      id,
+      (list.find(column => column.semanticKey === "DONE") ??
+        list.find((column, index) => isDoneColumn({ title: column.title }, index, list.length + 1)) ??
+        list[list.length - 1])?.id ?? null,
+    ]),
   );
   // Same rule as the board: the last column, or a column titled like "done", counts as finished.
   const open = (card: (typeof due)[number]) => {
@@ -63,6 +75,8 @@ export async function GET(request: Request) {
     dueDate: card.dueDate,
     priority: card.priority,
     column: card.column.title,
+    columnId: card.column.id,
+    doneColumnId: doneColumn.get(card.workspace.id) ?? null,
     board: card.workspace.name,
     slug: card.workspace.slug,
   });

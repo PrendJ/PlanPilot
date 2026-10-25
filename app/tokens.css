@@ -4,7 +4,9 @@
  * the UI meets WCAG AA (see docs/VALUTAZIONE_COMMERCIALE_2026-09-23.md §6). Components never use raw hex.
  * Everything else follows the Draft UI Language v1.2 (docs/UI_SYSTEM.md): square structural geometry,
  * monospace technical labels, 1px borders, signal rails and rare offset accents, motion tied to state.
- * Signal (orange) marks voice/AI activity and the signature offset accent; it never means success or error.
+ * Signal (orchid, the secondary colour beside the indigo primary) marks voice/AI activity, counters and the
+ * signature offset accent; it never means success or error. It replaced orange on 2026-10-23: orange counters
+ * read as errors. Warning keeps amber and danger keeps red for real states only.
  */
 :root,
 [data-theme="light"] {
@@ -23,9 +25,9 @@
   --primary-solid: #4338e0;
   --on-primary: #ffffff;
   --primary-soft: #ecebfd;
-  --signal: #b8401a;
-  --signal-solid: #e4572e;
-  --signal-soft: #ffede5;
+  --signal: #8a2aa6;
+  --signal-solid: #a23fc0;
+  --signal-soft: #f6eafa;
   --success: #157f4a;
   --success-soft: #e6f4ec;
   --warning: #9a5b00;
@@ -60,9 +62,9 @@
   --primary-solid: #5b55f0;
   --on-primary: #ffffff;
   --primary-soft: #23234a;
-  --signal: #ff7a4d;
-  --signal-solid: #ff7a4d;
-  --signal-soft: #3a2119;
+  --signal: #e3a4f5;
+  --signal-solid: #a04cc4;
+  --signal-soft: #2f1f3a;
   --success: #4fd08f;
   --success-soft: #16301f;
   --warning: #f2b84b;

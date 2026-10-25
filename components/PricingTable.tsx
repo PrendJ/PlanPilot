@@ -14,6 +14,8 @@ type Plan = {
   seatBased: boolean;
   minSeats: number;
   aiUpdates: number;
+  boardsPerPerson: number;
+  historyMonths: number;
   consumerPriceEur: number;
   consumerPriceEurYearly: number;
 };
@@ -29,6 +31,7 @@ export function PricingTable({
   trialDays,
   verified,
   initialCustomerType = "consumer",
+  businessContact,
 }: {
   plans: Plan[];
   organizationId: string | null;
@@ -36,6 +39,8 @@ export function PricingTable({
   trialDays: number;
   verified: boolean;
   initialCustomerType?: "business" | "consumer";
+  /** Business is sold on contact: the form shows only with the business plans. */
+  businessContact?: React.ReactNode;
 }) {
   const { t, tag } = useI18n();
   const { toast } = useFeedback();
@@ -65,9 +70,16 @@ export function PricingTable({
     else toast({ message: response.data.error || t("errors.BILLING_UNAVAILABLE"), tone: "error" });
   }
 
+  const limitsOf = (key: Plan["key"]) => {
+    const plan = plans.find(item => item.key === key)!;
+    return [
+      t(plan.seatBased ? "pricing.features.boardsPerSeat" : "pricing.features.boards", { count: plan.boardsPerPerson }),
+      t("pricing.features.history", { months: plan.historyMonths }),
+    ];
+  };
   const features: Record<Plan["key"], string[]> = {
     PERSONAL_PRO: [
-      t("pricing.features.boards"),
+      ...limitsOf("PERSONAL_PRO"),
       t("pricing.features.dictation"),
       t("pricing.features.preview"),
       t("pricing.features.views"),
@@ -76,6 +88,7 @@ export function PricingTable({
     ],
     FAMILY: [
       t("pricing.features.everythingProFamily"),
+      ...limitsOf("FAMILY"),
       t("pricing.features.realtime"),
       t("pricing.features.comments"),
       t("pricing.features.guests"),
@@ -84,7 +97,7 @@ export function PricingTable({
       t("pricing.features.twofa"),
     ],
     PRO: [
-      t("pricing.features.boards"),
+      ...limitsOf("PRO"),
       t("pricing.features.dictation"),
       t("pricing.features.preview"),
       t("pricing.features.views"),
@@ -93,6 +106,7 @@ export function PricingTable({
     ],
     TEAM: [
       t("pricing.features.everythingPro"),
+      ...limitsOf("TEAM"),
       t("pricing.features.realtime"),
       t("pricing.features.comments"),
       t("pricing.features.guests"),
@@ -101,6 +115,7 @@ export function PricingTable({
     ],
     BUSINESS: [
       t("pricing.features.everythingTeam"),
+      ...limitsOf("BUSINESS"),
       t("pricing.features.enforce2fa"),
       t("pricing.features.auditExport"),
       t("pricing.features.priority"),
@@ -133,7 +148,7 @@ export function PricingTable({
       </div>
       <div className={`pricing-grid ${consumer ? "two" : ""}`}>
         {plans
-          .filter(plan => (consumer ? ["PERSONAL_PRO", "FAMILY"].includes(plan.key) : ["PRO", "TEAM", "BUSINESS"].includes(plan.key)))
+          .filter(plan => (consumer ? ["PERSONAL_PRO", "FAMILY"].includes(plan.key) : ["PRO", "TEAM"].includes(plan.key)))
           .map(plan => {
             const monthly = consumer ? plan.consumerPriceEur : plan.priceEur;
             const yearlyAmount = consumer ? plan.consumerPriceEurYearly : plan.priceEurYearly;
@@ -236,7 +251,37 @@ export function PricingTable({
               </article>
             );
           })}
+        {!consumer && (
+          <article className="pricing-card business-card">
+            <h2>{t("plans.BUSINESS")}</h2>
+            <p className="subtle">{t("pricing.audience.BUSINESS")}</p>
+            <div className="price">
+              <strong>{t("pricing.businessCard.price")}</strong>
+            </div>
+            <p className="subtle">{t("pricing.businessCard.priceNote")}</p>
+            <p className="business-card-intro">{t("pricing.businessCard.intro")}</p>
+            <ul>
+              {[
+                ...features.BUSINESS.slice(1),
+                t("pricing.enterprise.points.quotas"),
+                t("pricing.enterprise.points.invoice"),
+                t("pricing.enterprise.points.volume"),
+              ].map(feature => (
+                <li key={feature}>
+                  <Icon name="check" size={15} />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <div className="pricing-cta">
+              <a className="btn primary block" href="#business-contact">
+                {t("pricing.businessCard.cta")}
+              </a>
+            </div>
+          </article>
+        )}
       </div>
+      {!consumer && businessContact}
     </div>
   );
 }

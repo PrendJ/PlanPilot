@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { useI18n, useT } from "./I18nProvider";
 import { api, Avatar, Dialog, MenuButton, useFeedback } from "./ui";
 import { LOCALE_COOKIE } from "@/lib/i18n/core";
+import { localizedPath } from "@/lib/i18n/routes";
 
 type ThemeChoice = "system" | "light" | "dark";
 
@@ -62,6 +63,21 @@ export function ThemeMenu() {
   );
 }
 
+/** Public navigation; the page being viewed (also under /en) is marked as current. */
+export function TopbarNav({ links, label }: { links: Array<{ href: string; label: string }>; label: string }) {
+  const pathname = usePathname() || "/";
+  const current = pathname.replace(/^\/en(?=\/|$)/, "") || "/";
+  return (
+    <nav className="topbar-nav" aria-label={label}>
+      {links.map(link => (
+        <Link key={link.href} href={link.href} aria-current={!link.href.includes("#") && current === link.href ? "page" : undefined}>
+          {link.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export function LanguageSwitch({ signedIn = false }: { signedIn?: boolean }) {
   const { locale, t } = useI18n();
   const router = useRouter();
@@ -90,6 +106,34 @@ export function LanguageSwitch({ signedIn = false }: { signedIn?: boolean }) {
         ))
       }
     </MenuButton>
+  );
+}
+
+/** Footer language choice: the same page in the other language (/en for public pages), remembered in a cookie. */
+export function FooterLanguage() {
+  const { locale, t } = useI18n();
+  const router = useRouter();
+  const pathname = usePathname() || "/";
+  function choose(next: "it" | "en") {
+    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${365 * 86400}; samesite=lax`;
+    const target = localizedPath(pathname, next);
+    if (target && target !== pathname) router.push(`${target}${location.hash}`);
+    else router.refresh();
+  }
+  return (
+    <div className="footer-language">
+      <span className="footer-heading" id="footer-language">
+        <Icon name="globe" size={14} />
+        {t("language.label")}
+      </span>
+      <div className="segmented" role="group" aria-labelledby="footer-language">
+        {(["it", "en"] as const).map(code => (
+          <button key={code} type="button" lang={code} aria-pressed={locale === code} onClick={() => choose(code)}>
+            {code === "it" ? "Italiano" : "English"}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

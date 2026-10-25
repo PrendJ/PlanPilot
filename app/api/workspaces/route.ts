@@ -54,7 +54,8 @@ export async function POST(request: Request) {
   if (organizationReadOnly(membership.organization)) return apiError(request, "READ_ONLY", 423);
   const config = getOrganizationLimits(membership.organization);
   const count = await prisma.workspace.count({ where: { organizationId: body.organizationId, lifecycleStatus: "ACTIVE" } });
-  if (count >= config.workspaceLimit) return apiError(request, "WORKSPACE_LIMIT", 402);
+  if (count >= config.workspaceLimit)
+    return apiError(request, "WORKSPACE_LIMIT", 402, { limit: config.workspaceLimit }, { limit: config.workspaceLimit });
   try {
     const workspace = await createWorkspace({
       name: body.name,

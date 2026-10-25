@@ -5,7 +5,16 @@ import { getTranslator } from "@/lib/i18n/server";
 import { Brand } from "./Brand";
 import { Icon } from "./Icon";
 import { InstallAppButton } from "./PwaProvider";
-import { LanguageSwitch, NotificationsBell, SearchButton, TeamSwitcher, ThemeMenu, UserMenu, VerifyBanner } from "./TopbarClient";
+import {
+  LanguageSwitch,
+  NotificationsBell,
+  SearchButton,
+  TeamSwitcher,
+  ThemeMenu,
+  TopbarNav,
+  UserMenu,
+  VerifyBanner,
+} from "./TopbarClient";
 
 /** Server component: resolves the session once and renders the public or the app header. */
 export async function Topbar() {
@@ -17,11 +26,14 @@ export async function Topbar() {
         <Link href="/" className="topbar-brand" aria-label={t("nav.home")}>
           <Brand />
         </Link>
-        <nav className="topbar-nav" aria-label={t("nav.main")}>
-          <Link href="/#come-funziona">{t("nav.product")}</Link>
-          <Link href="/demo">{t("nav.demo")}</Link>
-          <Link href="/pricing">{t("nav.pricing")}</Link>
-        </nav>
+        <TopbarNav
+          label={t("nav.main")}
+          links={[
+            { href: "/#come-funziona", label: t("nav.product") },
+            { href: "/demo", label: t("nav.demo") },
+            { href: "/pricing", label: t("nav.pricing") },
+          ]}
+        />
         <div className="topbar-actions">
           <span className="hide-mobile">
             <LanguageSwitch />

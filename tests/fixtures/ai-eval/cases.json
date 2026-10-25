@@ -2877,5 +2877,82 @@
       ],
       "clarification": false
     }
+  },
+  {
+    "id": "E201",
+    "category": "multi_create",
+    "text": "Ricordami di chiamare la banca e di salvare il form entro stasera",
+    "expected": {
+      "actions": [
+        {
+          "action": "create",
+          "titleIncludes": [
+            "banca"
+          ]
+        },
+        {
+          "action": "create",
+          "titleIncludes": [
+            "form"
+          ],
+          "dueDate": "2026-09-23"
+        }
+      ],
+      "clarification": false
+    }
+  },
+  {
+    "id": "E202",
+    "category": "multi_create",
+    "text": "Domani mando il preventivo a Ferri, venerdì pago il commercialista e devo comprare il toner",
+    "expected": {
+      "actions": [
+        {
+          "action": "create",
+          "titleIncludes": [
+            "preventivo",
+            "ferri"
+          ],
+          "dueDate": "2026-09-24"
+        },
+        {
+          "action": "create",
+          "titleIncludes": [
+            "commercialista"
+          ],
+          "dueDate": "2026-09-25"
+        },
+        {
+          "action": "create",
+          "titleIncludes": [
+            "toner"
+          ]
+        }
+      ],
+      "clarification": false
+    }
+  },
+  {
+    "id": "E203",
+    "category": "multi_create",
+    "text": "Remind me to book the dentist and to renew the car insurance by Friday",
+    "expected": {
+      "actions": [
+        {
+          "action": "create",
+          "titleIncludes": [
+            "dentist"
+          ]
+        },
+        {
+          "action": "create",
+          "titleIncludes": [
+            "insurance"
+          ],
+          "dueDate": "2026-09-25"
+        }
+      ],
+      "clarification": false
+    }
   }
 ]

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  historyRetention,
   annualCents,
   billableSeats,
   consumerPriceCents,
@@ -56,8 +57,26 @@ describe("commercial catalogue", () => {
       enforce2fa: true,
     });
   });
-  it("never limits the number of boards on any plan", () => {
-    for (const plan of Object.values(PLANS)) expect(plan.workspaceLimit).toBe(Infinity);
+  it("limits boards per person and history: 20 boards and 6 months on base plans, 50 and 24 on the others", () => {
+    for (const key of ["TRIAL", "PERSONAL_PRO", "PRO", "SOLO"] as const)
+      expect(PLANS[key]).toMatchObject({ boardsPerPerson: 20, historyMonths: 6 });
+    for (const key of ["FAMILY", "TEAM", "BUSINESS", "ENTERPRISE", "LIFETIME", "TEAM_LEGACY", "STUDIO"] as const)
+      expect(PLANS[key]).toMatchObject({ boardsPerPerson: 50, historyMonths: 24 });
+    expect(getOrganizationLimits({ plan: "PERSONAL_PRO" }).workspaceLimit).toBe(20);
+    expect(getOrganizationLimits({ plan: "TRIAL" }).workspaceLimit).toBe(20);
+    expect(getOrganizationLimits({ plan: "FAMILY", seats: 2 }).workspaceLimit).toBe(100);
+    expect(getOrganizationLimits({ plan: "TEAM", seats: 5 }).workspaceLimit).toBe(250);
+    expect(getOrganizationLimits({ plan: "TEAM_LEGACY" }).workspaceLimit).toBe(500);
+    expect(getOrganizationLimits({ plan: "ENTERPRISE", seats: 30 }).workspaceLimit).toBe(1500);
+  });
+  it("deletes base-plan history after 6 months and the others after 24", () => {
+    const groups = historyRetention(new Date("2026-10-25T03:00:00Z"));
+    expect(groups.find(group => group.months === 6)).toMatchObject({
+      plans: ["TRIAL", "PERSONAL_PRO", "PRO", "SOLO"],
+      cutoff: new Date("2026-04-25T03:00:00Z"),
+    });
+    expect(groups.find(group => group.months === 24)?.cutoff).toEqual(new Date("2024-10-25T03:00:00Z"));
+    expect(groups.flatMap(group => group.plans).sort()).toEqual(Object.keys(PLANS).sort());
   });
   it("offers a Pro trial only", () => {
     expect(TRIAL_DAYS).toBe(14);
@@ -85,8 +104,8 @@ describe("commercial catalogue", () => {
     expect(planPriceCents("BUSINESS", "year", "business")).toBe(10000);
     expect(planPriceCents("PERSONAL_PRO", "month", "consumer")).toBe(490);
     expect(planPriceCents("PERSONAL_PRO", "year", "consumer")).toBe(4900);
-    expect(planPriceCents("FAMILY", "month", "consumer")).toBe(500);
-    expect(planPriceCents("FAMILY", "year", "consumer")).toBe(5000);
+    expect(planPriceCents("FAMILY", "month", "consumer")).toBe(450);
+    expect(planPriceCents("FAMILY", "year", "consumer")).toBe(4500);
     expect(planPriceCents("TEAM", "month", "consumer")).toBe(730);
     expect(planPriceCents("TEAM", "year", "consumer")).toBe(7300);
     expect(planPriceCents("BUSINESS", "year", "consumer")).toBe(12200);
@@ -129,7 +148,7 @@ describe("seats and limits", () => {
     expect(monthlyPrice({ plan: "TEAM", seats: 3 })).toBe(18);
     expect(monthlyPrice({ plan: "PRO", billingInterval: "year" })).toBe(5.83);
     expect(monthlyPrice({ plan: "PERSONAL_PRO", legalType: "PERSONAL" })).toBe(4.9);
-    expect(monthlyPrice({ plan: "FAMILY", legalType: "PERSONAL", seats: 2 })).toBe(10);
+    expect(monthlyPrice({ plan: "FAMILY", legalType: "PERSONAL", seats: 2 })).toBe(9);
     expect(monthlyPrice({ plan: "ENTERPRISE" })).toBeNull();
   });
 });
