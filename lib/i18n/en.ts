@@ -325,6 +325,7 @@ export const en: Messages = {
     features: {
       boards: "Up to {count} active boards",
       boardsPerSeat: "Up to {count} active boards per person",
+      boardsUnlimited: "Unlimited boards",
       history: "Change history: {months} months",
       dictation: "Voice dictation included",
       preview: "Preview, confirm and undo",

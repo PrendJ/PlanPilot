@@ -14,7 +14,8 @@ type Plan = {
   seatBased: boolean;
   minSeats: number;
   aiUpdates: number;
-  boardsPerPerson: number;
+  /** Null = unlimited boards. */
+  boardsPerPerson: number | null;
   historyMonths: number;
   consumerPriceEur: number;
   consumerPriceEurYearly: number;
@@ -73,7 +74,9 @@ export function PricingTable({
   const limitsOf = (key: Plan["key"]) => {
     const plan = plans.find(item => item.key === key)!;
     return [
-      t(plan.seatBased ? "pricing.features.boardsPerSeat" : "pricing.features.boards", { count: plan.boardsPerPerson }),
+      plan.boardsPerPerson === null
+        ? t("pricing.features.boardsUnlimited")
+        : t(plan.seatBased ? "pricing.features.boardsPerSeat" : "pricing.features.boards", { count: plan.boardsPerPerson }),
       t("pricing.features.history", { months: plan.historyMonths }),
     ];
   };

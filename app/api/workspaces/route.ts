@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { notifyBoardSoftLimit } from "@/lib/board-soft-limit";
 import { z } from "zod";
 import { getCurrentUser, getOrganizationAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -64,6 +65,11 @@ export async function POST(request: Request) {
       presetKey: body.presetKey,
       locale: body.locale,
     });
+    const { boardSoftLimit } = config;
+    if (boardSoftLimit !== null && count + 1 > boardSoftLimit)
+      after(() =>
+        notifyBoardSoftLimit({ organization: membership.organization, userId: user.id, activeBoards: count + 1, softLimit: boardSoftLimit }),
+      );
     // Only what the client needs: model ids and key references stay on the server.
     return NextResponse.json(
       { workspace: { id: workspace.id, name: workspace.name, slug: workspace.slug, organizationId: workspace.organizationId } },

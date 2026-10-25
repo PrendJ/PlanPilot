@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { notifyBoardSoftLimit } from "@/lib/board-soft-limit";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOrganizationLimits, organizationReadOnly } from "@/lib/plans";
@@ -41,9 +42,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   if (parsed.data.action !== "restore" && membership.workspace.lifecycleStatus !== "ACTIVE") return apiError(request, "READ_ONLY", 409);
   // A restored board counts like a new one: over the plan's limit, existing boards stay but none is added.
   if (parsed.data.action === "restore") {
-    const limit = getOrganizationLimits(membership.workspace.organization).workspaceLimit;
+    const { workspaceLimit: limit, boardSoftLimit } = getOrganizationLimits(membership.workspace.organization);
     const active = await prisma.workspace.count({ where: { organizationId: membership.workspace.organizationId, lifecycleStatus: "ACTIVE" } });
     if (active >= limit) return apiError(request, "WORKSPACE_LIMIT", 402, { limit }, { limit });
+    if (boardSoftLimit !== null && active + 1 > boardSoftLimit)
+      after(() =>
+        notifyBoardSoftLimit({
+          organization: membership.workspace.organization,
+          userId: user.id,
+          activeBoards: active + 1,
+          softLimit: boardSoftLimit,
+        }),
+      );
   }
   const before = {
     name: membership.workspace.name,

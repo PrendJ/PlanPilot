@@ -60,8 +60,12 @@ describe("commercial catalogue", () => {
   it("limits boards per person and history: 20 boards and 6 months on base plans, 50 and 24 on the others", () => {
     for (const key of ["TRIAL", "PERSONAL_PRO", "PRO", "SOLO"] as const)
       expect(PLANS[key]).toMatchObject({ boardsPerPerson: 20, historyMonths: 6 });
-    for (const key of ["FAMILY", "TEAM", "BUSINESS", "ENTERPRISE", "LIFETIME", "TEAM_LEGACY", "STUDIO"] as const)
-      expect(PLANS[key]).toMatchObject({ boardsPerPerson: 50, historyMonths: 24 });
+    for (const key of ["FAMILY", "TEAM", "ENTERPRISE", "LIFETIME", "TEAM_LEGACY", "STUDIO"] as const)
+      expect(PLANS[key]).toMatchObject({ boardsPerPerson: 50, boardSoftLimitPerPerson: null, historyMonths: 24 });
+    // Business: unlimited boards, soft cap of 200 per person that only alerts BoardCue admins.
+    expect(PLANS.BUSINESS).toMatchObject({ boardsPerPerson: Infinity, boardSoftLimitPerPerson: 200, historyMonths: 24 });
+    expect(getOrganizationLimits({ plan: "BUSINESS", seats: 3 })).toMatchObject({ workspaceLimit: Infinity, boardSoftLimit: 600 });
+    expect(getOrganizationLimits({ plan: "TEAM", seats: 3 }).boardSoftLimit).toBeNull();
     expect(getOrganizationLimits({ plan: "PERSONAL_PRO" }).workspaceLimit).toBe(20);
     expect(getOrganizationLimits({ plan: "TRIAL" }).workspaceLimit).toBe(20);
     expect(getOrganizationLimits({ plan: "FAMILY", seats: 2 }).workspaceLimit).toBe(100);

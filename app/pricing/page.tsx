@@ -37,7 +37,8 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
     seatBased: PLANS[key].seatBased,
     minSeats: PLANS[key].minSeats,
     aiUpdates: PLANS[key].aiUpdates,
-    boardsPerPerson: PLANS[key].boardsPerPerson,
+    // Null = unlimited (Business): Infinity does not travel to the client as a number.
+    boardsPerPerson: Number.isFinite(PLANS[key].boardsPerPerson) ? PLANS[key].boardsPerPerson : null,
     historyMonths: PLANS[key].historyMonths,
     consumerPriceEur: planPriceCents(key, "month", "consumer") / 100,
     consumerPriceEurYearly: planPriceCents(key, "year", "consumer") / 100,

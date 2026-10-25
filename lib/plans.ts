@@ -20,6 +20,8 @@ export type PlanConfig = {
   memberLimit: number;
   /** Active boards per person (seat); the organization limit is this × its people. Anti-abuse, not a selling point. */
   boardsPerPerson: number;
+  /** Above this many boards per person nothing is blocked: BoardCue admins are told, to spot abuse. Null = no soft cap. */
+  boardSoftLimitPerPerson: number | null;
   /** Months of change history (activity, AI update logs, proposals) kept before the hourly retention deletes it. */
   historyMonths: number;
   aiUpdates: number;
@@ -36,12 +38,15 @@ export type PlanConfig = {
  */
 export const BASE_LIMITS = { boardsPerPerson: 20, historyMonths: 6 } as const;
 export const ADVANCED_LIMITS = { boardsPerPerson: 50, historyMonths: 24 } as const;
+/** Business (owner, 2026-10-25): unlimited boards, with a soft cap of 200 per person that alerts BoardCue admins. */
+export const BUSINESS_BOARD_SOFT_LIMIT = 200;
 
 const base = {
   priceEurYearly: null,
   seatBased: false,
   minSeats: 1,
   ...ADVANCED_LIMITS,
+  boardSoftLimitPerPerson: null,
   sellable: false,
   guests: false,
   enforce2fa: false,
@@ -90,6 +95,8 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
   BUSINESS: {
     ...base,
     label: "Business",
+    boardsPerPerson: Infinity,
+    boardSoftLimitPerPerson: BUSINESS_BOARD_SOFT_LIMIT,
     priceEur: 10,
     priceEurYearly: annualEur(10),
     seatBased: true,
@@ -222,9 +229,10 @@ export function getOrganizationLimits(organization: OrganizationEntitlementSourc
     key,
     seats,
     memberLimit,
-    // Per person: Family, Team and Business grow with their seats; the back office can override Enterprise.
+    // Per person: Family and Team grow with their seats; Business is unlimited (soft cap only); the back office can override Enterprise.
     workspaceLimit:
       enterprise && organization.workspaceLimitOverride != null ? organization.workspaceLimitOverride : plan.boardsPerPerson * people,
+    boardSoftLimit: plan.boardSoftLimitPerPerson === null ? null : plan.boardSoftLimitPerPerson * people,
     aiUpdates,
     aiBudgetUsd,
   };

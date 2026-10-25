@@ -330,6 +330,7 @@ export const it = {
     features: {
       boards: "Fino a {count} board attive",
       boardsPerSeat: "Fino a {count} board attive a persona",
+      boardsUnlimited: "Board illimitate",
       history: "Cronologia delle modifiche: {months} mesi",
       dictation: "Dettatura vocale inclusa",
       preview: "Anteprima, conferma e annullamento",

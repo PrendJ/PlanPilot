@@ -230,7 +230,7 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
                   <div>
                     <span>{t("home.plan.boards")}</span>
                     <strong>
-                      {activeBoards} / {limits.workspaceLimit}
+                      {activeBoards} / {Number.isFinite(limits.workspaceLimit) ? limits.workspaceLimit : "∞"}
                     </strong>
                   </div>
                   {price !== null && price > 0 && (
