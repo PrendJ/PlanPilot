@@ -4,6 +4,7 @@ import { rateLimit } from "@/lib/security";
 import {
   audioFormatFor,
   isAudioDocument,
+  limitCaptureText,
   processTelegramAudio,
   telegramConfigured,
   telegramReply,
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
       data: {
         userId: linked.userId,
         source: "TELEGRAM",
-        text: (audio ? message.caption?.trim() || "" : value).slice(0, 12_000),
+        text: limitCaptureText(audio ? message.caption?.trim() || "" : value),
         status: audio ? "PENDING" : "READY",
         telegramFileId: audio?.file_id || null,
         telegramUpdateId: String(update.update_id),

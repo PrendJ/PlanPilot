@@ -1687,6 +1687,105 @@ input[aria-invalid="true"] {
 .home-route-row p {
   overflow-wrap: anywhere;
 }
+/* After "Organize" the page scrolls here; the sticky top bar must not cover the title. */
+.home-results-anchor {
+  scroll-margin-top: calc(var(--topbar-height) + 12px);
+}
+.home-counter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.home-counter span:first-child {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+.home-counter.over span {
+  color: var(--warning);
+  font-weight: 600;
+}
+/* Task review: one block per board, its tasks underneath. */
+.route-group {
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.route-group.proposed {
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+.route-group.unassigned {
+  box-shadow: inset var(--rail) 0 0 var(--warning);
+}
+.route-group-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.route-group-head strong {
+  overflow-wrap: anywhere;
+}
+.route-group-head select {
+  width: auto;
+  max-width: 220px;
+}
+.route-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.route-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+}
+.route-task + .route-task {
+  border-top: 1px solid var(--border);
+}
+.route-task input {
+  min-width: 0;
+}
+.route-task select {
+  width: auto;
+  max-width: 150px;
+}
+.route-remove {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease),
+    background var(--motion-fast) var(--ease),
+    border-color var(--motion-fast) var(--ease);
+}
+.route-remove:hover,
+.route-remove:focus-visible {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+@media (max-width: 640px) {
+  .route-task {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .route-task input {
+    grid-column: 1 / -1;
+  }
+}
 .home-route-row input {
   min-width: 0;
 }

@@ -62,3 +62,20 @@ Correzioni:
 - Valutazione: aggiunti 3 casi `multi_create` (E201–E203) al set offline, compresa la frase segnalata.
 
 Non verificato con il modello reale: manca una chiave OpenRouter locale. Dopo il rilascio eseguire `npm run ai:eval` sui casi `multi_create` e provare la frase dalla home.
+
+## Aggiornamento del 26 ottobre: lunghezza del testo e revisione per board
+
+- **Nessun taglio silenzioso.**
+  - La casella di testo non tronca più quello che incolli (prima `maxLength` lo tagliava a 12.000 caratteri senza avviso).
+  - Un contatore mostra «N / 12.000 caratteri», cioè circa 13 minuti di parlato per invio (stima: ~15 caratteri al secondo).
+  - Oltre il limite avvisa che il testo sarà diviso in parti, elaborate una dopo l'altra.
+  - L'import di documenti oltre 60.000 caratteri (~67 minuti) tiene l'inizio e dice quanti caratteri sono rimasti fuori.
+  - Le trascrizioni Telegram arrivano fino a 60.000 caratteri (prima 12.000, tagliate senza avviso); oltre, il testo stesso lo segnala.
+- **Registrazione**: si ferma da sola quando la trascrizione riempirebbe l'invio (al massimo 2 minuti come prima). Mostra il tempo disponibile; con meno di 10 secondi il microfono attende che il testo venga organizzato.
+- **Dopo «Organizza i pensieri»** la pagina scorre fino al risultato (elenco attività o anteprime).
+- **Revisione raggruppata per board**:
+  - un blocco per board con le sue attività sotto, invece della board ripetuta su ogni riga;
+  - in coda le board proposte dall'IA (con il pulsante «Crea board», che chiede conferma del nome) e le attività «Da assegnare»;
+  - ogni attività si corregge, si sposta («Sposta…» o «Sposta tutte in…») o si elimina con la X, che diventa rossa al passaggio del mouse.
+  - Si prosegue solo quando ogni attività è su una board esistente.
+- Il routing chiede all'IA di dare **lo stesso nome di board nuova** alle attività dello stesso argomento e di proporre meno board possibili.

@@ -10,9 +10,20 @@ import { useUpdateBlocker } from "./PwaProvider";
 import { ProposalPanel } from "./board/ProposalPanel";
 import type { Proposal } from "./board/types";
 import { clearSharedCapture, consumeSharedCapture } from "@/lib/share-inbox";
+import {
+  cutImport,
+  groupTasks,
+  MAX_INPUT,
+  MAX_TRANSCRIPT,
+  recordingSeconds,
+  speechMinutes,
+  splitTranscript,
+  taskRequests,
+} from "@/lib/home-capture";
 
 type BoardChoice = { id: string; name: string; slug: string; dictationEnabled?: boolean };
-type Segment = { text: string; workspaceId: string | null; newBoardName?: string | null };
+/** A task found in the notes; key is local, so rows survive edits, moves and removals. */
+type Segment = { key: string; text: string; workspaceId: string | null; newBoardName?: string | null };
 /** Select value for "put this task on a new board". */
 const NEW_BOARD = "__new__";
 type Pending = { board: BoardChoice; proposal: Proposal };
@@ -31,6 +42,160 @@ type TodayCard = {
 /** How many of today's tasks the home shows before "Show all". */
 const TODAY_PREVIEW = 5;
 const PRIORITY_RANK: Record<string, number> = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
+
+/**
+ * Review of the tasks found in the notes: one block per board with its tasks underneath, instead of repeating the
+ * board on every row. Proposed boards are created with one button; any task can be moved, edited or removed.
+ */
+function RoutingReview({
+  segments,
+  boards,
+  canCreate,
+  busy,
+  onText,
+  onAssign,
+  onRemove,
+  onCreate,
+  onCancel,
+  onConfirm,
+}: {
+  segments: Segment[];
+  boards: BoardChoice[];
+  canCreate: boolean;
+  busy: boolean;
+  onText: (key: string, value: string) => void;
+  onAssign: (keys: string[], target: { workspaceId: string } | { newBoardName: string }) => void;
+  onRemove: (key: string) => void;
+  onCreate: (keys: string[], suggestion?: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useI18n();
+  const groups = groupTasks(segments, boards);
+  const proposedNames = groups.flatMap(group => (group.kind === "proposed" ? [group.name] : []));
+  // A task is ready only on a board that exists: proposed boards must be created (or their tasks moved) first.
+  const unresolved = groups.some(group => group.kind !== "board");
+  /** Select values: b:<board id>, n:<proposed name>, or NEW_BOARD to name and create one now. */
+  const choose = (keys: string[], value: string) => {
+    if (value === NEW_BOARD) onCreate(keys);
+    else if (value.startsWith("b:")) onAssign(keys, { workspaceId: value.slice(2) });
+    else if (value.startsWith("n:")) onAssign(keys, { newBoardName: value.slice(2) });
+  };
+  const options = (exclude?: string) => (
+    <>
+      {boards
+        .filter(board => `b:${board.id}` !== exclude)
+        .map(board => (
+          <option value={`b:${board.id}`} key={board.id}>
+            {board.name}
+          </option>
+        ))}
+      {proposedNames
+        .filter(name => `n:${name}` !== exclude)
+        .map(name => (
+          <option value={`n:${name}`} key={`n:${name}`}>
+            {t("home.assistant.proposedOption", { name })}
+          </option>
+        ))}
+      {canCreate && <option value={NEW_BOARD}>{t("home.assistant.newBoardOption")}</option>}
+    </>
+  );
+  return (
+    <section className="home-routing" aria-labelledby="home-routing-title">
+      <h3 id="home-routing-title">
+        {segments.length === 1 ? t("home.assistant.routeTitleOne") : t("home.assistant.routeTitle", { count: segments.length })}
+      </h3>
+      <p className="subtle">{t("home.assistant.routeHint")}</p>
+      {groups.map(group => {
+        const keys = group.tasks.map(task => task.key);
+        const current = group.kind === "board" ? `b:${group.id}` : group.kind === "proposed" ? `n:${group.name}` : undefined;
+        return (
+          <div className={`route-group ${group.kind}`} key={current || "unassigned"}>
+            <div className="route-group-head">
+              {group.kind === "proposed" && <span className="badge primary">{t("home.assistant.proposedBadge")}</span>}
+              <strong>
+                {group.kind === "unassigned" ? t("home.assistant.unassigned") : group.name}
+                <span className="subtle">
+                  {" "}
+                  ·{" "}
+                  {group.tasks.length === 1
+                    ? t("home.assistant.taskCountOne")
+                    : t("home.assistant.taskCount", { count: group.tasks.length })}
+                </span>
+              </strong>
+              <span className="spacer" />
+              {group.kind === "proposed" && canCreate && (
+                <button type="button" className="btn sm primary" disabled={busy} onClick={() => onCreate(keys, group.name)}>
+                  <Icon name="plus" size={14} />
+                  {t("home.assistant.createBoard")}
+                </button>
+              )}
+              {group.kind !== "board" && (
+                <select
+                  aria-label={t("home.assistant.moveAll")}
+                  value=""
+                  disabled={busy}
+                  onChange={event => choose(keys, event.target.value)}
+                >
+                  <option value="">{t("home.assistant.moveAll")}</option>
+                  {options(current)}
+                </select>
+              )}
+            </div>
+            <ul>
+              {group.tasks.map(task => {
+                const label = task.text.trim() || t("home.assistant.taskLabel", { number: segments.indexOf(task) + 1 });
+                return (
+                  <li key={task.key} className="route-task">
+                    <input
+                      aria-label={t("home.assistant.taskLabel", { number: segments.indexOf(task) + 1 })}
+                      value={task.text}
+                      maxLength={2000}
+                      onChange={event => onText(task.key, event.target.value)}
+                    />
+                    <select
+                      aria-label={t("home.assistant.moveTask", { title: label })}
+                      value=""
+                      disabled={busy}
+                      onChange={event => choose([task.key], event.target.value)}
+                    >
+                      <option value="">{t("home.assistant.moveTaskShort")}</option>
+                      {options(current)}
+                    </select>
+                    <button
+                      type="button"
+                      className="route-remove"
+                      aria-label={t("home.assistant.removeTask", { title: label })}
+                      title={t("home.assistant.removeTask", { title: label })}
+                      onClick={() => onRemove(task.key)}
+                    >
+                      <Icon name="x" size={16} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
+      {unresolved && <p className="subtle">{t("home.assistant.unresolvedHint")}</p>}
+      <div className="row">
+        <button type="button" className="btn" onClick={onCancel}>
+          {t("common.cancel")}
+        </button>
+        <span className="spacer" />
+        <button
+          type="button"
+          className="btn primary"
+          disabled={busy || unresolved || segments.every(segment => !segment.text.trim())}
+          onClick={onConfirm}
+        >
+          {t("home.assistant.preview")}
+        </button>
+      </div>
+    </section>
+  );
+}
 
 /** One task of the day: opens the card in its board, or is marked done right here (it moves to the board's done column). */
 function TodayItem({ card, due, overdue, onDone }: { card: TodayCard; due?: string; overdue?: boolean; onDone: () => void }) {
@@ -59,8 +224,6 @@ function TodayItem({ card, due, overdue, onDone }: { card: TodayCard; due?: stri
 }
 type Capture = { id: string; source: string; text: string; status: string; createdAt: string; retryable?: boolean };
 
-const MAX_INPUT = 12_000;
-const MAX_TRANSCRIPT = 60_000;
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 /** Documents whose text can be imported (see lib/document-text.ts); .pages is accepted to explain how to export it. */
 const DOCUMENT_ACCEPT =
@@ -69,21 +232,6 @@ const DOCUMENT_ACCEPT =
 
 function localDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-/** Splits a long transcript on paragraph, then sentence, boundaries so each part fits one AI request. */
-export function splitTranscript(content: string, size = MAX_INPUT) {
-  const parts: string[] = [];
-  let rest = content.trim();
-  while (rest.length > size) {
-    const window = rest.slice(0, size);
-    const cut = Math.max(window.lastIndexOf("\n\n"), window.lastIndexOf("\n"), window.lastIndexOf(". ") + 1);
-    const at = cut > size * 0.5 ? cut : size;
-    parts.push(rest.slice(0, at).trim());
-    rest = rest.slice(at).trim();
-  }
-  if (rest) parts.push(rest);
-  return parts;
 }
 
 function audioName(audio: Blob, fallback?: string | null) {
@@ -127,12 +275,15 @@ export function HomeAssistant({
   const [active, setActive] = useState<TodayCard[]>([]);
   const [todayError, setTodayError] = useState(false);
   const [todayExpanded, setTodayExpanded] = useState(false);
-  const { toast } = useFeedback();
+  const { toast, prompt } = useFeedback();
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
   const [parts, setParts] = useState<{ queue: string[]; current: number; total: number } | null>(null);
   const [busy, setBusy] = useState<"" | "routing" | "transcribing" | "proposing" | "applying" | "creating">("");
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
+  const results = useRef<HTMLDivElement>(null);
+  const scrollToResults = useRef(false);
   const [notice, setNotice] = useState("");
   const [importing, setImporting] = useState(false);
   const [googleDocOpen, setGoogleDocOpen] = useState(false);
@@ -152,7 +303,12 @@ export function HomeAssistant({
   const tomorrowStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() + 1);
   const visibleToday = today.filter(card => card.dueDate && new Date(card.dueDate).getTime() < tomorrowStart.getTime());
   const dictation = boards.some(item => item.dictationEnabled);
-  const micDisabled = paused || Boolean(busy) || pending.length > 0 || !dictation;
+  // Recording time left before the transcript would fill one request; under 10 seconds the microphone waits.
+  const recordSeconds = recordingSeconds(text.trim().length);
+  const textFull = recordSeconds < 10;
+  const micDisabled = paused || Boolean(busy) || pending.length > 0 || !dictation || textFull;
+  const number = (value: number) => value.toLocaleString(tag);
+  const clock = (total: number) => `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 
   const loadToday = useCallback(async () => {
     const response = await api<{ cards: TodayCard[]; active?: TodayCard[] }>(`/api/home/today?date=${localDate(new Date())}`);
@@ -228,6 +384,13 @@ export function HomeAssistant({
     setSource("text");
     setParts({ queue, current: parts.current + 1, total: parts.total });
   }, [parts, text, pending.length, segments.length, busy]);
+  // After "Organize", bring the result (task list or previews) into view: the capture panel can scroll away.
+  useEffect(() => {
+    if (!scrollToResults.current || busy || (!segments.length && !pending.length)) return;
+    scrollToResults.current = false;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    results.current?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }, [segments.length, pending.length, busy]);
   useUpdateBlocker("home-capture", Boolean(text.trim()) || recording || Boolean(busy) || pending.length > 0);
 
   function stop(cancel = false) {
@@ -272,10 +435,6 @@ export function HomeAssistant({
     if (!file) return;
     const plain = /\.(txt|md|markdown)$/i.test(file.name) || file.type === "text/plain" || file.type === "text/markdown";
     if (plain) {
-      if (file.size > MAX_TRANSCRIPT * 4) {
-        setError(t("home.assistant.transcriptTooLong"));
-        return;
-      }
       addImportedText(await file.text());
       return;
     }
@@ -308,12 +467,18 @@ export function HomeAssistant({
 
   /** Imported text joins the draft; long documents are worked through in parts, one AI request each. */
   function addImportedText(raw: string) {
-    const content = raw.trim();
-    if (!content || content.length > MAX_TRANSCRIPT) {
+    if (!raw.trim()) {
       setError(t("home.assistant.transcriptTooLong"));
       return;
     }
     setError("");
+    // Above the import ceiling the start is kept and the person is told exactly how much was left out.
+    const { content, cut } = cutImport(raw.trim());
+    setWarning(
+      cut
+        ? t("home.assistant.importCut", { total: number(cut.total), kept: number(cut.kept), minutes: speechMinutes(MAX_TRANSCRIPT) })
+        : "",
+    );
     setSource("text");
     setSegments([]);
     const combined = text.trim() ? `${text.trim()}\n${content}` : content;
@@ -358,10 +523,12 @@ export function HomeAssistant({
       next.start(1000);
       setSeconds(0);
       setRecording(true);
+      // Stops on its own before the transcript would push the text past one request (or after 2 minutes).
+      const limit = recordSeconds;
       timer.current = setInterval(
         () =>
           setSeconds(value => {
-            if (value >= 119) stop();
+            if (value >= limit - 1) stop();
             return value + 1;
           }),
         1000,
@@ -384,7 +551,7 @@ export function HomeAssistant({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quick]);
 
-  async function propose(routed: Segment[], choices: BoardChoice[]) {
+  async function propose(routed: Array<Pick<Segment, "text" | "workspaceId">>, choices: BoardChoice[]) {
     setBusy("proposing");
     const grouped = new Map<string, string[]>();
     for (const segment of routed) {
@@ -399,16 +566,18 @@ export function HomeAssistant({
         failed.push(...groupedParts);
         continue;
       }
-      // Several tasks for the same board go as a list, so the planner keeps one card per task.
-      const content = groupedParts.length > 1 ? groupedParts.map(part => `- ${part}`).join("\n") : groupedParts[0];
-      const response = await api<{ proposal: Proposal }>(`/api/workspaces/${board.slug}/ingest`, {
-        method: "POST",
-        json: { text: content, source, autoApply: false, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-      });
-      if (response.ok) created.push({ board, proposal: response.data.proposal });
-      else {
-        failed.push(content);
-        setError(aiRequestError(response, t));
+      // Several tasks for the same board go as a list, so the planner keeps one card per task; a list longer
+      // than one request is sent in more requests rather than cut.
+      for (const content of taskRequests(groupedParts)) {
+        const response = await api<{ proposal: Proposal }>(`/api/workspaces/${board.slug}/ingest`, {
+          method: "POST",
+          json: { text: content, source, autoApply: false, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        });
+        if (response.ok) created.push({ board, proposal: response.data.proposal });
+        else {
+          failed.push(content);
+          setError(aiRequestError(response, t));
+        }
       }
     }
     setPending(current => [...current, ...created]);
@@ -418,11 +587,20 @@ export function HomeAssistant({
   }
 
   async function route() {
-    const input = text.trim();
+    let input = text.trim();
     if (!input || busy || pending.length || paused) return;
-    setBusy("routing");
     setError("");
     setNotice("");
+    // Too long for one request: the text is split into parts handled one after the other, never cut.
+    if (input.length > MAX_INPUT) {
+      const [first, ...queue] = splitTranscript(input);
+      setText(first);
+      setParts({ queue, current: 1, total: queue.length + 1 });
+      setNotice(t("home.assistant.splitNotice", { count: queue.length + 1 }));
+      input = first;
+    }
+    setBusy("routing");
+    scrollToResults.current = true;
     const response = await api<{ segments: Segment[]; boards: BoardChoice[] }>("/api/home/route", {
       method: "POST",
       json: { text: input },
@@ -437,47 +615,61 @@ export function HomeAssistant({
       dictationEnabled: boards.find(item => item.id === board.id)?.dictationEnabled,
     }));
     setBoards(routedBoards);
-    const routed = response.data.segments.map(segment => ({
+    const routed: Segment[] = response.data.segments.map((segment, index) => ({
       ...segment,
-      newBoardName: newBoardTarget && !segment.workspaceId ? (segment.newBoardName ?? null) : null,
+      key: `${Date.now()}-${index}`,
+      newBoardName: newBoardTarget && !segment.workspaceId ? segment.newBoardName?.trim() || null : null,
     }));
     // One task with a board goes straight to the preview; several tasks are listed first so each placement can be checked.
     if (routed.length === 1 && routed[0].workspaceId) void propose(routed, routedBoards);
     else setSegments(routed);
   }
 
-  /** Creates the new boards the person confirmed (one per distinct name), then previews every task on its board. */
-  async function confirmRouting() {
-    if (busy) return;
-    const names = [...new Set(segments.filter(segment => !segment.workspaceId).map(segment => segment.newBoardName?.trim() || ""))];
-    let choices = boards;
-    const createdIds = new Map<string, string>();
-    if (names.length && newBoardTarget) {
-      setBusy("creating");
-      for (const name of names) {
-        const response = await api<{ workspace: BoardChoice }>("/api/workspaces", {
-          method: "POST",
-          json: { organizationId: newBoardTarget.organizationId, name, presetKey: "GENERAL", locale: newBoardTarget.locale },
-        });
-        if (!response.ok) {
-          setBusy("");
-          setError(response.data.error || t("errors.SERVER_ERROR"));
-          return;
-        }
-        createdIds.set(name, response.data.workspace.id);
-        choices = [...choices, { ...response.data.workspace, dictationEnabled: true }];
-      }
-      setBoards(choices);
-      setBusy("");
-      router.refresh();
+  /** Moves tasks (by key) to an existing board or to a proposed new one. */
+  function assign(keys: string[], target: { workspaceId: string } | { newBoardName: string }) {
+    setSegments(current =>
+      current.map(segment =>
+        keys.includes(segment.key)
+          ? "workspaceId" in target
+            ? { ...segment, workspaceId: target.workspaceId, newBoardName: null }
+            : { ...segment, workspaceId: null, newBoardName: target.newBoardName }
+          : segment,
+      ),
+    );
+  }
+
+  /** Asks for a name (pre-filled with the suggestion) and creates the board now; its tasks then belong to it. */
+  async function createBoardFor(keys: string[], suggestion = "") {
+    if (!newBoardTarget || busy) return;
+    const name = (
+      await prompt({
+        title: t("home.assistant.newBoardPrompt"),
+        input: { label: t("home.assistant.newBoardName"), defaultValue: suggestion },
+        confirmLabel: t("home.assistant.createBoard"),
+      })
+    )?.trim();
+    if (!name) return;
+    setBusy("creating");
+    const response = await api<{ workspace: BoardChoice }>("/api/workspaces", {
+      method: "POST",
+      json: { organizationId: newBoardTarget.organizationId, name, presetKey: "GENERAL", locale: newBoardTarget.locale },
+    });
+    setBusy("");
+    if (!response.ok) {
+      setError(response.data.error || t("errors.SERVER_ERROR"));
+      return;
     }
+    setBoards(current => [...current, { ...response.data.workspace, dictationEnabled: true }]);
+    assign(keys, { workspaceId: response.data.workspace.id });
+    router.refresh();
+  }
+
+  /** Every task has an existing board (proposed boards are created first with their button): preview them all. */
+  async function confirmRouting() {
+    if (busy || groupTasks(segments, boards).some(group => group.kind !== "board")) return;
     await propose(
-      segments.map(segment => ({
-        ...segment,
-        text: segment.text.trim(),
-        workspaceId: segment.workspaceId || createdIds.get(segment.newBoardName?.trim() || "") || null,
-      })),
-      choices,
+      segments.map(segment => ({ ...segment, text: segment.text.trim() })).filter(segment => segment.text),
+      boards,
     );
   }
 
@@ -625,10 +817,12 @@ export function HomeAssistant({
               </strong>
               <span className="subtle">
                 {recording
-                  ? t("board.composer.maxDuration", { max: "2:00" })
-                  : dictation
-                    ? t("home.assistant.body")
-                    : t("home.assistant.noDictation")}
+                  ? t("board.composer.maxDuration", { max: clock(recordSeconds) })
+                  : dictation && textFull
+                    ? t("home.assistant.textFull")
+                    : dictation
+                      ? t("home.assistant.body")
+                      : t("home.assistant.noDictation")}
               </span>
             </div>
             {recording && (
@@ -645,7 +839,7 @@ export function HomeAssistant({
             ref={textArea}
             rows={3}
             value={text}
-            maxLength={MAX_INPUT}
+            aria-describedby="home-thoughts-count"
             disabled={Boolean(busy) || pending.length > 0}
             placeholder={t("home.assistant.placeholder")}
             onChange={event => {
@@ -655,6 +849,28 @@ export function HomeAssistant({
               setSelectedCaptureIds([]);
             }}
           />
+          {/* Nothing is cut: past the per-request limit the text is split into parts, and the counter says so up front. */}
+          <p
+            id="home-thoughts-count"
+            className={`home-counter ${text.trim().length > MAX_INPUT ? "over" : ""}`}
+            aria-live={text.trim().length > MAX_INPUT ? "polite" : "off"}
+          >
+            <span>{t("home.assistant.counter", { count: number(text.trim().length), max: number(MAX_INPUT) })}</span>
+            <span>
+              {text.trim().length > MAX_INPUT
+                ? t("home.assistant.counterOver", { parts: splitTranscript(text).length })
+                : t("home.assistant.counterHint", { minutes: speechMinutes(MAX_INPUT) })}
+            </span>
+          </p>
+          {warning && (
+            <div className="notice warning" role="status">
+              <Icon name="alert" />
+              <div className="notice-body">{warning}</div>
+              <button type="button" className="btn sm" onClick={() => setWarning("")}>
+                {t("common.close")}
+              </button>
+            </div>
+          )}
           {parts && (
             <p className="subtle" role="status">
               {t("home.assistant.transcriptParts", { current: parts.current, total: parts.total })}
@@ -754,70 +970,20 @@ export function HomeAssistant({
               {error}
             </p>
           )}
+          <div ref={results} className="home-results-anchor" aria-hidden="true" />
           {segments.length > 0 && (
-            <div className="home-routing">
-              <h3>{t("home.assistant.routeTitle", { count: segments.length })}</h3>
-              <p className="subtle">{t("home.assistant.routeHint")}</p>
-              {segments.map((segment, index) => {
-                const update = (patch: Partial<Segment>) =>
-                  setSegments(current => current.map((item, i) => (i === index ? { ...item, ...patch } : item)));
-                const creating = !segment.workspaceId && segment.newBoardName != null;
-                return (
-                  <div className="home-route-row" key={index}>
-                    <input
-                      aria-label={t("home.assistant.taskLabel", { number: index + 1 })}
-                      value={segment.text}
-                      maxLength={2000}
-                      onChange={event => update({ text: event.target.value })}
-                    />
-                    <select
-                      aria-label={t("home.assistant.destination")}
-                      value={segment.workspaceId || (creating ? NEW_BOARD : "")}
-                      onChange={event =>
-                        event.target.value === NEW_BOARD
-                          ? update({ workspaceId: null, newBoardName: segment.newBoardName || "" })
-                          : update({ workspaceId: event.target.value || null, newBoardName: null })
-                      }
-                    >
-                      <option value="">{t("home.assistant.chooseBoard")}</option>
-                      {boards.map(board => (
-                        <option value={board.id} key={board.id}>
-                          {board.name}
-                        </option>
-                      ))}
-                      {newBoardTarget && <option value={NEW_BOARD}>{t("home.assistant.newBoardOption")}</option>}
-                    </select>
-                    {creating && (
-                      <input
-                        className="home-route-new"
-                        aria-label={t("home.assistant.newBoardName")}
-                        placeholder={t("home.assistant.newBoardName")}
-                        value={segment.newBoardName || ""}
-                        maxLength={60}
-                        onChange={event => update({ newBoardName: event.target.value })}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-              <div className="row">
-                <button type="button" className="btn" onClick={() => setSegments([])}>
-                  {t("common.cancel")}
-                </button>
-                <span className="spacer" />
-                <button
-                  type="button"
-                  className="btn primary"
-                  disabled={
-                    Boolean(busy) ||
-                    segments.some(segment => !segment.text.trim() || (!segment.workspaceId && !segment.newBoardName?.trim()))
-                  }
-                  onClick={() => void confirmRouting()}
-                >
-                  {t("home.assistant.preview")}
-                </button>
-              </div>
-            </div>
+            <RoutingReview
+              segments={segments}
+              boards={boards}
+              canCreate={Boolean(newBoardTarget)}
+              busy={Boolean(busy)}
+              onText={(key, value) => setSegments(current => current.map(item => (item.key === key ? { ...item, text: value } : item)))}
+              onAssign={assign}
+              onRemove={key => setSegments(current => current.filter(item => item.key !== key))}
+              onCreate={(keys, suggestion) => void createBoardFor(keys, suggestion)}
+              onCancel={() => setSegments([])}
+              onConfirm={() => void confirmRouting()}
+            />
           )}
           {pending.map(item => (
             <div className="home-pending" key={item.proposal.id}>

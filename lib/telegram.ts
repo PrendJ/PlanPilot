@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { MAX_AUDIO_BYTES } from "@/lib/ai-config";
+import { MAX_TRANSCRIPT } from "@/lib/home-capture";
 import { transcribeAudio } from "@/lib/transcription";
 import { canWriteCards, workspaceReadOnly } from "@/lib/board";
 import { platformModels } from "@/lib/platform-ai";
@@ -10,6 +11,15 @@ import { getWorkspaceApiKey } from "@/lib/workspace";
 /** Automatic retries stop here (cron); manual retries from the home inbox stop at the hard cap. */
 export const AUTO_CAPTURE_ATTEMPTS = 3;
 export const MAX_CAPTURE_ATTEMPTS = 6;
+/** Same ceiling as a document import: the home splits longer text into parts, so nothing is cut below it. */
+export const MAX_CAPTURE_TEXT = MAX_TRANSCRIPT;
+
+/** Keeps a capture within the ceiling and says so in the text itself, so a cut is never silent. */
+export function limitCaptureText(text: string) {
+  if (text.length <= MAX_CAPTURE_TEXT) return text;
+  const kept = MAX_CAPTURE_TEXT - 100;
+  return `${text.slice(0, kept)}\n\n[Trascrizione tagliata: ${text.length} caratteri, conservati i primi ${kept}.]`;
+}
 
 const REPLIES = {
   it: {
@@ -231,7 +241,7 @@ export async function processTelegramAudio(captureId: string) {
     const saved = await prisma.externalCapture.updateMany({
       where: { id: captureId },
       data: {
-        text: (caption ? `${caption}\n\n${result.text.trim()}` : result.text.trim()).slice(0, 12_000),
+        text: limitCaptureText(caption ? `${caption}\n\n${result.text.trim()}` : result.text.trim()),
         status: "READY",
         telegramFileId: null,
       },
