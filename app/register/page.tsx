@@ -5,13 +5,20 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { safeNextPath } from "@/lib/navigation";
 import { getTranslator } from "@/lib/i18n/server";
+import { publicMetadata } from "@/lib/seo";
 import { AuthShell } from "@/components/AuthShell";
 import { RegisterForm } from "@/components/AuthForms";
 import { TRIAL_DAYS } from "@/lib/plans";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getTranslator();
-  return { title: { absolute: `${t("auth.register.title")} · BoardCue` }, description: t("auth.register.subtitle", { days: TRIAL_DAYS }) };
+  const { t, locale } = await getTranslator();
+  return publicMetadata({
+    path: "/register",
+    locale,
+    title: `${t("auth.register.title")} · BoardCue`,
+    description: t("auth.register.subtitle", { days: TRIAL_DAYS }),
+    absoluteTitle: true,
+  });
 }
 
 const BOARD_LANGUAGES = ["it", "en", "de", "fr", "es", "ru", "pl"];

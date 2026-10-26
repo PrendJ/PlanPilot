@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { CREDIT_PACK, PLANS, SELLABLE_PLAN_KEYS, TRIAL_DAYS, creditPackPriceCents, planPriceCents } from "@/lib/plans";
 import { getTranslator } from "@/lib/i18n/server";
+import { publicMetadata } from "@/lib/seo";
 import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
 import { PricingTable } from "@/components/PricingTable";
@@ -10,8 +11,8 @@ import { EnterpriseForm } from "@/components/PricingActions";
 import { Icon } from "@/components/Icon";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getTranslator();
-  return { title: t("pricing.title"), description: t("pricing.subtitle", { days: TRIAL_DAYS }), alternates: { canonical: "/pricing" } };
+  const { t, locale } = await getTranslator();
+  return publicMetadata({ path: "/pricing", locale, title: t("pricing.title"), description: t("pricing.subtitle", { days: TRIAL_DAYS }) });
 }
 
 export default async function Pricing({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

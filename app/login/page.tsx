@@ -4,13 +4,14 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { safeNextPath } from "@/lib/navigation";
 import { getTranslator } from "@/lib/i18n/server";
+import { NOINDEX } from "@/lib/seo";
 import { pendingTwoFactor } from "@/lib/two-factor";
 import { AuthShell } from "@/components/AuthShell";
 import { LoginForm } from "@/components/AuthForms";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslator();
-  return { title: { absolute: t("auth.login.title") } };
+  return { title: { absolute: t("auth.login.title") }, robots: NOINDEX };
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {

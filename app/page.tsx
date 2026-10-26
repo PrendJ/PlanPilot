@@ -1,10 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n/server";
 import { PLANS, SELLABLE_PLAN_KEYS, TRIAL_DAYS, planPriceCents } from "@/lib/plans";
+import { publicMetadata } from "@/lib/seo";
+import { FAQ_KEYS, landingStructuredData } from "@/lib/structured-data";
+import { JsonLd } from "@/components/JsonLd";
 import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
 import { Icon, type IconName } from "@/components/Icon";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { t, locale } = await getTranslator();
+  return publicMetadata({ path: "", locale, title: t("meta.title"), description: t("meta.description"), absoluteTitle: true });
+}
 
 /** Static illustration of the core loop: free-form capture → reviewed actions → today. */
 function LoopPreview({ t }: { t: (key: string) => string }) {
@@ -81,6 +90,7 @@ export default async function Home() {
     <div className="shell">
       <Topbar />
       <main id="main" className="marketing">
+        <JsonLd data={landingStructuredData(t, locale)} />
         <section className="hero container">
           <div className="hero-copy">
             <span className="eyebrow badge primary">
@@ -243,7 +253,7 @@ export default async function Home() {
 
         <section className="section container faq">
           <h2>{t("faq.title")}</h2>
-          {(["update", "dictation", "privacy", "trial", "frozen", "languages"] as const).map(key => (
+          {FAQ_KEYS.map(key => (
             <details key={key}>
               <summary>{t(`faq.${key}.q`)}</summary>
               <p>{t(`faq.${key}.a`, { days: TRIAL_DAYS })}</p>

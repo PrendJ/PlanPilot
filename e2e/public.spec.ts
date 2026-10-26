@@ -128,3 +128,17 @@ test("the demo sorts one thought across the personal and the work board", async 
   await expect(page.getByRole("button", { name: "Devo organizzare la cena di fine anno" })).toBeDisabled();
   expect(await page.evaluate(noOverflow)).toBe(true);
 });
+
+test("crawlers find robots.txt, a sitemap, llms.txt and per-page canonical tags", async ({ page, request }) => {
+  const robots = await (await request.get("/robots.txt")).text();
+  expect(robots).toContain("Disallow: /app");
+  expect(robots).toMatch(/Sitemap: .+\/sitemap\.xml/);
+  expect(await (await request.get("/sitemap.xml")).text()).toContain("hreflang=\"en-GB\"");
+  expect(await (await request.get("/llms.txt")).text()).toMatch(/^# BoardCue/);
+  await page.goto("/pricing");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/pricing$/);
+  await page.goto("/en");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/en$/);
+  await page.goto("/login");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+});

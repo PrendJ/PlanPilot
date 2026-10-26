@@ -2,8 +2,13 @@ import type { Metadata } from "next";
 import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
 import { CREDIT_PACK, PLANS, TRIAL_DAYS } from "@/lib/plans";
+import { pageAlternates } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Termini di servizio" };
+export const metadata: Metadata = {
+  title: "Termini di servizio",
+  description: "Condizioni d’uso di BoardCue: prova gratuita, piani e posti, pagamenti, disdetta, dati e responsabilità.",
+  alternates: pageAlternates("/terms", "it", false),
+};
 
 export default function Terms() {
   const provider = process.env.LEGAL_ENTITY_NAME || "Lorenzo Prandi – Draftapps";

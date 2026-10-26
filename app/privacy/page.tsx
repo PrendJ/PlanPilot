@@ -3,8 +3,14 @@ import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
 import { SupplierTable } from "@/components/SupplierTable";
 import { TRIAL_DAYS } from "@/lib/plans";
+import { pageAlternates } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Privacy Policy" };
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description:
+    "Come BoardCue tratta i dati personali: titolare, finalità, fornitori, conservazione, AI a zero conservazione e diritti dell’utente.",
+  alternates: pageAlternates("/privacy", "it", false),
+};
 
 export default function PrivacyPage() {
   const controller = process.env.LEGAL_ENTITY_NAME || "Lorenzo Prandi – Draftapps";

@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
+import { pageAlternates } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Usare l’AI in modo consapevole" };
+export const metadata: Metadata = {
+  title: "Usare l’AI in modo consapevole",
+  description: "Guida per owner, amministratori e membri: cosa fa l’AI di BoardCue, dove vanno i dati e come verificare ogni proposta.",
+  alternates: pageAlternates("/ai-literacy", "it", false),
+};
 
 export default function AiLiteracy() {
   return (

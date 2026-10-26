@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import { Topbar } from "@/components/Topbar";
 import { PublicFooter } from "@/components/PublicFooter";
+import { pageAlternates } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Cookie Policy" };
+export const metadata: Metadata = {
+  title: "Cookie Policy",
+  description: "I cookie e lo storage locale usati da BoardCue: solo strumenti tecnici e preferenze, nessun tracciamento pubblicitario.",
+  alternates: pageAlternates("/cookies", "it", false),
+};
 
 const cookies = [
   [

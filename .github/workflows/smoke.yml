@@ -22,5 +22,13 @@ jobs:
             code=$(curl -s -o page.html -w '%{http_code}' "$BASE_URL$path"); echo "$path -> $code"; test "$code" = 200
           done
           curl -fsS "$BASE_URL/" | grep -q 'come-funziona'
+      - name: Crawlers get robots.txt, a sitemap and llms.txt
+        run: |
+          curl -fsS "$BASE_URL/robots.txt" | grep -q "Sitemap: "
+          curl -fsS "$BASE_URL/robots.txt" | grep -q "Disallow: /app"
+          curl -fsS "$BASE_URL/sitemap.xml" | grep -q "<loc>"
+          curl -fsS "$BASE_URL/llms.txt" | grep -q "^# BoardCue"
+          curl -fsS "$BASE_URL/" | grep -q 'application/ld+json'
+          curl -fsS "$BASE_URL/" | grep -q 'rel="canonical"'
       - name: Private areas redirect to sign-in
         run: test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/app")" = 307

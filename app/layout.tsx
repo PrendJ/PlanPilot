@@ -30,7 +30,22 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(process.env.APP_URL || "https://boardcue.draftapps.it"),
     title: { default: t("meta.title"), template: "%s · BoardCue" },
     description: t("meta.description"),
-    alternates: { canonical: "/", languages: { "it-IT": "/", "en-GB": "/en" } },
+    // No canonical/hreflang here: a layout value is inherited by every page, so each public page sets its own.
+    applicationName: "BoardCue",
+    authors: [{ name: "Draftapps", url: "https://draftapps.it" }],
+    creator: "Draftapps",
+    publisher: "Draftapps",
+    category: "productivity",
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+    },
+    // Search Console / Bing Webmaster ownership tags, set per environment.
+    verification: {
+      google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+      other: process.env.BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION } : undefined,
+    },
     openGraph: {
       title: t("meta.title"),
       description: t("meta.description"),
@@ -38,6 +53,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: locale === "en" ? "en_GB" : "it_IT",
     },
+    twitter: { card: "summary_large_image", title: t("meta.title"), description: t("meta.description") },
   };
 }
 

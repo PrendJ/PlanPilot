@@ -4,11 +4,12 @@ import { Topbar } from "@/components/Topbar";
 import { DemoHome } from "@/components/DemoHome";
 import { PublicFooter } from "@/components/PublicFooter";
 import { getTranslator } from "@/lib/i18n/server";
+import { publicMetadata } from "@/lib/seo";
 import { TRIAL_DAYS } from "@/lib/plans";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getTranslator();
-  return { title: t("demo.title"), description: t("demo.subtitle"), alternates: { canonical: "/demo" } };
+  const { t, locale } = await getTranslator();
+  return publicMetadata({ path: "/demo", locale, title: t("demo.title"), description: t("demo.subtitle") });
 }
 
 export default async function DemoPage() {
