@@ -514,7 +514,10 @@ export const it = {
       routeHint:
         "Le attività sono raggruppate per board. Correggi il testo, spostale, rimuovi quelle che non servono o crea la board proposta. Poi vedrai l’anteprima di ogni modifica.",
       taskLabel: "Attività {number}",
-      newBoardOption: "+ Nuova board…",
+      newBoardOption: "Nuova board…",
+      pickerBoards: "Le tue board",
+      working: "Sto preparando le proposte per ogni board: può richiedere qualche secondo. Non chiudere la pagina.",
+      workingShort: "Preparo le proposte…",
       newBoardName: "Nome della nuova board",
       destination: "Board di destinazione",
       chooseBoard: "Scegli una board",

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { useI18n } from "./I18nProvider";
-import { aiRequestError, api, useFeedback } from "./ui";
+import { aiRequestError, api, MenuButton, useFeedback } from "./ui";
 import { useUpdateBlocker } from "./PwaProvider";
 import { ProposalPanel } from "./board/ProposalPanel";
 import type { Proposal } from "./board/types";
@@ -44,6 +44,81 @@ const TODAY_PREVIEW = 5;
 const PRIORITY_RANK: Record<string, number> = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
 
 /**
+ * Board chooser used to move a task (or a whole group) elsewhere. Values: b:<board id>, n:<proposed name> or
+ * NEW_BOARD. A menu instead of a native select so boards read as a list with their own icon, a proposed
+ * board is told apart and "new board" sits apart at the bottom.
+ */
+function BoardPicker({
+  label,
+  buttonLabel,
+  boards,
+  proposedNames = [],
+  canCreate = false,
+  disabled,
+  onPick,
+}: {
+  label: string;
+  buttonLabel: string;
+  boards: BoardChoice[];
+  proposedNames?: string[];
+  canCreate?: boolean;
+  disabled?: boolean;
+  onPick: (value: string) => void;
+}) {
+  const { t } = useI18n();
+  const content = (
+    <>
+      <Icon name="kanban" size={14} />
+      <span className="board-picker-label">{buttonLabel}</span>
+      <Icon name="chevronDown" size={14} />
+    </>
+  );
+  if (disabled)
+    return (
+      <button type="button" className="btn sm board-picker" aria-label={label} disabled>
+        {content}
+      </button>
+    );
+  return (
+    <MenuButton label={label} className="btn sm board-picker" buttonContent={content}>
+      {close => {
+        const pick = (value: string) => () => {
+          close();
+          onPick(value);
+        };
+        return (
+          <div className="board-picker-menu">
+            {boards.length > 0 && <div className="menu-label">{t("home.assistant.pickerBoards")}</div>}
+            {boards.map(board => (
+              <button type="button" role="menuitem" className="menu-item" key={board.id} onClick={pick(`b:${board.id}`)}>
+                <Icon name="kanban" size={14} />
+                <span className="board-picker-name">{board.name}</span>
+              </button>
+            ))}
+            {proposedNames.length > 0 && <div className="menu-label">{t("home.assistant.proposedBadge")}</div>}
+            {proposedNames.map(name => (
+              <button type="button" role="menuitem" className="menu-item" key={`n:${name}`} onClick={pick(`n:${name}`)}>
+                <Icon name="sparkles" size={14} />
+                <span className="board-picker-name">{name}</span>
+              </button>
+            ))}
+            {canCreate && (
+              <>
+                <div className="menu-sep" />
+                <button type="button" role="menuitem" className="menu-item" onClick={pick(NEW_BOARD)}>
+                  <Icon name="plus" size={14} />
+                  <span className="board-picker-name">{t("home.assistant.newBoardOption")}</span>
+                </button>
+              </>
+            )}
+          </div>
+        );
+      }}
+    </MenuButton>
+  );
+}
+
+/**
  * Review of the tasks found in the notes: one block per board with its tasks underneath, instead of repeating the
  * board on every row. Proposed boards are created with one button; any task can be moved, edited or removed.
  */
@@ -52,6 +127,7 @@ function RoutingReview({
   boards,
   canCreate,
   busy,
+  working,
   onText,
   onAssign,
   onRemove,
@@ -63,6 +139,8 @@ function RoutingReview({
   boards: BoardChoice[];
   canCreate: boolean;
   busy: boolean;
+  /** The AI is preparing the proposals for these tasks. */
+  working: boolean;
   onText: (key: string, value: string) => void;
   onAssign: (keys: string[], target: { workspaceId: string } | { newBoardName: string }) => void;
   onRemove: (key: string) => void;
@@ -81,24 +159,16 @@ function RoutingReview({
     else if (value.startsWith("b:")) onAssign(keys, { workspaceId: value.slice(2) });
     else if (value.startsWith("n:")) onAssign(keys, { newBoardName: value.slice(2) });
   };
-  const options = (exclude?: string) => (
-    <>
-      {boards
-        .filter(board => `b:${board.id}` !== exclude)
-        .map(board => (
-          <option value={`b:${board.id}`} key={board.id}>
-            {board.name}
-          </option>
-        ))}
-      {proposedNames
-        .filter(name => `n:${name}` !== exclude)
-        .map(name => (
-          <option value={`n:${name}`} key={`n:${name}`}>
-            {t("home.assistant.proposedOption", { name })}
-          </option>
-        ))}
-      {canCreate && <option value={NEW_BOARD}>{t("home.assistant.newBoardOption")}</option>}
-    </>
+  const picker = (keys: string[], current: string | undefined, label: string, buttonLabel: string) => (
+    <BoardPicker
+      label={label}
+      buttonLabel={buttonLabel}
+      boards={boards.filter(board => `b:${board.id}` !== current)}
+      proposedNames={proposedNames.filter(name => `n:${name}` !== current)}
+      canCreate={canCreate}
+      disabled={busy}
+      onPick={value => choose(keys, value)}
+    />
   );
   return (
     <section className="home-routing" aria-labelledby="home-routing-title">
@@ -130,17 +200,7 @@ function RoutingReview({
                   {t("home.assistant.createBoard")}
                 </button>
               )}
-              {group.kind !== "board" && (
-                <select
-                  aria-label={t("home.assistant.moveAll")}
-                  value=""
-                  disabled={busy}
-                  onChange={event => choose(keys, event.target.value)}
-                >
-                  <option value="">{t("home.assistant.moveAll")}</option>
-                  {options(current)}
-                </select>
-              )}
+              {group.kind !== "board" && picker(keys, current, t("home.assistant.moveAll"), t("home.assistant.moveAll"))}
             </div>
             <ul>
               {group.tasks.map(task => {
@@ -153,15 +213,7 @@ function RoutingReview({
                       maxLength={2000}
                       onChange={event => onText(task.key, event.target.value)}
                     />
-                    <select
-                      aria-label={t("home.assistant.moveTask", { title: label })}
-                      value=""
-                      disabled={busy}
-                      onChange={event => choose([task.key], event.target.value)}
-                    >
-                      <option value="">{t("home.assistant.moveTaskShort")}</option>
-                      {options(current)}
-                    </select>
+                    {picker([task.key], current, t("home.assistant.moveTask", { title: label }), t("home.assistant.moveTaskShort"))}
                     <button
                       type="button"
                       className="route-remove"
@@ -179,8 +231,14 @@ function RoutingReview({
         );
       })}
       {unresolved && <p className="subtle">{t("home.assistant.unresolvedHint")}</p>}
+      {working && (
+        <p className="home-working" role="status">
+          <span className="spinner" />
+          {t("home.assistant.working")}
+        </p>
+      )}
       <div className="row">
-        <button type="button" className="btn" onClick={onCancel}>
+        <button type="button" className="btn" disabled={working} onClick={onCancel}>
           {t("common.cancel")}
         </button>
         <span className="spacer" />
@@ -188,9 +246,11 @@ function RoutingReview({
           type="button"
           className="btn primary"
           disabled={busy || unresolved || segments.every(segment => !segment.text.trim())}
+          aria-busy={working}
           onClick={onConfirm}
         >
-          {t("home.assistant.preview")}
+          {working ? <span className="spinner" /> : null}
+          {working ? t("home.assistant.workingShort") : t("home.assistant.preview")}
         </button>
       </div>
     </section>
@@ -691,6 +751,8 @@ export function HomeAssistant({
       void loadCaptures();
     }
     void loadToday();
+    // The board list under the assistant (counts, recent activity) is rendered by the server: refresh it in place.
+    router.refresh();
   }
 
   async function dropProposal(item: Pending) {
@@ -706,13 +768,15 @@ export function HomeAssistant({
   /** The router can be wrong even when it is sure: any proposal can be rebuilt on another board. */
   async function moveTo(item: Pending, workspaceId: string) {
     if (!workspaceId || workspaceId === item.board.id) return;
+    setBusy("proposing");
     await dropProposal(item);
     await propose([{ text: item.proposal.inputText, workspaceId }], boards);
   }
 
   async function clarify(item: Pending, answer: string) {
+    setBusy("proposing");
     await dropProposal(item);
-    const content = `${item.proposal.inputText}\n(${t("board.proposal.clarifiedAs")}: ${answer})`;
+    const content =`${item.proposal.inputText}\n(${t("board.proposal.clarifiedAs")}: ${answer})`;
     await propose([{ text: content, workspaceId: item.board.id }], boards);
   }
 
@@ -977,6 +1041,7 @@ export function HomeAssistant({
               boards={boards}
               canCreate={Boolean(newBoardTarget)}
               busy={Boolean(busy)}
+              working={busy === "proposing"}
               onText={(key, value) => setSegments(current => current.map(item => (item.key === key ? { ...item, text: value } : item)))}
               onAssign={assign}
               onRemove={key => setSegments(current => current.filter(item => item.key !== key))}
@@ -992,21 +1057,13 @@ export function HomeAssistant({
                 <strong>{item.board.name}</strong>
                 <span className="spacer" />
                 {boards.length > 1 && (
-                  <select
-                    aria-label={t("home.assistant.changeBoard")}
-                    value=""
+                  <BoardPicker
+                    label={t("home.assistant.changeBoard")}
+                    buttonLabel={t("home.assistant.changeBoard")}
+                    boards={boards.filter(board => board.id !== item.board.id)}
                     disabled={Boolean(busy)}
-                    onChange={event => void moveTo(item, event.target.value)}
-                  >
-                    <option value="">{t("home.assistant.changeBoard")}</option>
-                    {boards
-                      .filter(board => board.id !== item.board.id)
-                      .map(board => (
-                        <option value={board.id} key={board.id}>
-                          {board.name}
-                        </option>
-                      ))}
-                  </select>
+                    onPick={value => void moveTo(item, value.slice(2))}
+                  />
                 )}
               </div>
               <ProposalPanel
@@ -1018,6 +1075,12 @@ export function HomeAssistant({
               />
             </div>
           ))}
+          {busy === "proposing" && segments.length === 0 && (
+            <p className="home-working" role="status">
+              <span className="spinner" />
+              {t("home.assistant.working")}
+            </p>
+          )}
           {personalBoardOffer && (
             <div className="home-personal-offer">
               <div>

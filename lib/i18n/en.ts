@@ -510,7 +510,10 @@ export const en: Messages = {
       routeHint:
         "Tasks are grouped by board. Fix the text, move them, remove the ones you do not need or create the proposed board. You will then preview every change.",
       taskLabel: "Task {number}",
-      newBoardOption: "+ New board…",
+      newBoardOption: "New board…",
+      pickerBoards: "Your boards",
+      working: "Preparing the proposals for each board: this can take a few seconds. Please keep the page open.",
+      workingShort: "Preparing proposals…",
       newBoardName: "New board name",
       destination: "Destination board",
       chooseBoard: "Choose a board",

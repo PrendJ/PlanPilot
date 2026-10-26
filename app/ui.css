@@ -1754,9 +1754,38 @@ input[aria-invalid="true"] {
 .route-task input {
   min-width: 0;
 }
-.route-task select {
-  width: auto;
-  max-width: 150px;
+/* Board chooser menu (move a task or a group to another board). */
+.board-picker {
+  max-width: 190px;
+  gap: 6px;
+}
+.board-picker-label,
+.board-picker-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.board-picker-menu {
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.board-picker-menu .menu-item svg {
+  flex: none;
+  color: var(--text-3);
+}
+.route-group-head .menu-wrap,
+.route-task .menu-wrap {
+  min-width: 0;
+}
+.home-working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-2);
 }
 .route-remove {
   display: grid;
