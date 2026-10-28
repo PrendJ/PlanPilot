@@ -2221,7 +2221,7 @@ input[aria-invalid="true"] {
     order: 3;
   }
   .home-task-summary {
-    order: 0;
+    display: none;
   }
   .home-main > .home-agenda {
     order: 2;

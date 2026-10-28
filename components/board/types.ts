@@ -49,6 +49,7 @@ export type BoardData = {
   me: { id: string; name: string; autoApplyAi: boolean; autoSendDictation: boolean; verified: boolean };
   pendingProposalId: string | null;
 };
+export type ProposalEdit = { index: number; title: string; description: string; tags: string[] };
 export type PreviewAction = {
   index: number;
   action: "create" | "update" | "move" | "archive";
@@ -59,6 +60,7 @@ export type PreviewAction = {
   toColumn: string | null;
   changes: Array<{ field: "priority" | "dueDate" | "tags" | "description" | "title"; from: string | null; to: string | null }>;
   reason: string;
+  editable?: { title: string; description: string; tags: string[] };
 };
 export type Proposal = {
   id: string;

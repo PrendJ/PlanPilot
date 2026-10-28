@@ -14,7 +14,7 @@ import { ListView } from "./board/ListView";
 import { CalendarView } from "./board/CalendarView";
 import { CardDialog } from "./board/CardDialog";
 import { ActivityDrawer } from "./board/ActivityDrawer";
-import { dueState, isDoneColumn, tagsOf, type BoardData, type Card, type Proposal } from "./board/types";
+import { dueState, isDoneColumn, tagsOf, type BoardData, type Card, type Proposal, type ProposalEdit } from "./board/types";
 import { WELCOME_EXAMPLES } from "@/lib/welcome";
 
 type View = "kanban" | "list" | "calendar";
@@ -194,13 +194,13 @@ export function Board({ slug }: { slug: string }) {
     [applyResult, data],
   );
 
-  async function apply(indexes: number[]) {
+  async function apply(indexes: number[], edits: ProposalEdit[]) {
     if (!proposal) return;
     setApplying(true);
     const before = data;
     const response = await api<{ receipt: { updateId: string; applied: number } }>(
       `/api/workspaces/${slug}/proposals/${proposal.id}/apply`,
-      { method: "POST", json: { actionIndexes: indexes } },
+      { method: "POST", json: { actionIndexes: indexes, edits } },
     );
     setApplying(false);
     if (!response.ok) {
@@ -472,8 +472,9 @@ export function Board({ slug }: { slug: string }) {
           {proposal ? (
             <ProposalPanel
               proposal={proposal}
+              boardName={workspace.name}
               busy={applying}
-              onApply={indexes => void apply(indexes)}
+              onApply={(indexes, edits) => void apply(indexes, edits)}
               onDiscard={() => void discard()}
               onClarify={clarify}
             />

@@ -13,7 +13,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const ctx = await boardContext(request, slug, { write: true });
   if (isResponse(ctx)) return ctx;
   const parsed = z
-    .object({ actionIndexes: z.array(z.number().int().min(0).max(29)).max(30).optional() })
+    .object({
+      actionIndexes: z.array(z.number().int().min(0).max(29)).max(30).optional(),
+      edits: z
+        .array(
+          z
+            .object({
+              index: z.number().int().min(0).max(29),
+              title: z.string().trim().min(1).max(180),
+              description: z.string().max(10000),
+              tags: z.array(z.string().trim().min(1).max(40)).max(20),
+            })
+            .strict(),
+        )
+        .max(30)
+        .optional(),
+    })
     .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   try {
@@ -22,6 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       workspace: ctx.workspace,
       userId: ctx.user.id,
       actionIndexes: parsed.data.actionIndexes,
+      edits: parsed.data.edits,
     });
     if (!replayed) await trackEvent("ai_update_applied");
     return NextResponse.json({ receipt, replayed });

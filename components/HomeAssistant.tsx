@@ -10,7 +10,7 @@ import { useI18n } from "./I18nProvider";
 import { aiRequestError, api, MenuButton, useFeedback } from "./ui";
 import { useUpdateBlocker } from "./PwaProvider";
 import { ProposalPanel } from "./board/ProposalPanel";
-import type { Proposal } from "./board/types";
+import type { Proposal, ProposalEdit } from "./board/types";
 import { clearSharedCapture, consumeSharedCapture } from "@/lib/share-inbox";
 import {
   cutImport,
@@ -711,11 +711,11 @@ export function HomeAssistant({
     );
   }
 
-  async function apply(item: Pending, indexes: number[]) {
+  async function apply(item: Pending, indexes: number[], edits: ProposalEdit[]) {
     setBusy("applying");
     const response = await api<{ receipt: { applied: number } }>(`/api/workspaces/${item.board.slug}/proposals/${item.proposal.id}/apply`, {
       method: "POST",
-      json: { actionIndexes: indexes },
+      json: { actionIndexes: indexes, edits },
     });
     setBusy("");
     if (!response.ok) {
@@ -1036,8 +1036,9 @@ export function HomeAssistant({
               </div>
               <ProposalPanel
                 proposal={item.proposal}
+                boardName={item.board.name}
                 busy={Boolean(busy)}
-                onApply={indexes => void apply(item, indexes)}
+                onApply={(indexes, edits) => void apply(item, indexes, edits)}
                 onDiscard={() => void discard(item)}
                 onClarify={answer => void clarify(item, answer)}
               />

@@ -6,7 +6,7 @@ import { useI18n } from "./I18nProvider";
 import { KanbanView } from "./board/KanbanView";
 import { ListView } from "./board/ListView";
 import { ProposalPanel } from "./board/ProposalPanel";
-import type { Card, Column, PreviewAction, Proposal } from "./board/types";
+import type { Card, Column, PreviewAction, Proposal, ProposalEdit } from "./board/types";
 import { planDemoUpdate, type DemoAction, type DemoCard, type DemoColumn } from "@/lib/demo-planner";
 import { routeDemoText, type DemoBoardKind, type DemoSegment } from "@/lib/demo-router";
 
@@ -207,6 +207,9 @@ export function DemoHome() {
           ...(action.dueDate ? [{ field: "dueDate" as const, from: current?.dueDate ?? null, to: action.dueDate }] : []),
         ],
         reason: action.reason,
+        ...((action.action === "create" || action.action === "update") && {
+          editable: { title: action.title ?? current?.title ?? "", description: current?.description ?? "", tags: current?.tags ?? [] },
+        }),
       };
     });
     return {
@@ -278,19 +281,21 @@ export function DemoHome() {
     if (!result.actions.length) setMessage(result.notes.join(" "));
   }
 
-  function apply(item: Pending, indexes: number[]) {
+  function apply(item: Pending, indexes: number[], edits: ProposalEdit[]) {
     setHistory(current => [...current, cards]);
     let next = [...cards[item.boardId]];
     const touched: string[] = [];
     item.actions.forEach((action, index) => {
       if (!indexes.includes(index)) return;
+      const edit = edits.find(value => value.index === index);
       if (action.action === "create") {
         const id = `n${Date.now()}${index}`;
         next = [
-          card(id, action.title || "Card", action.targetColumnId || "inbox", {
+          card(id, edit?.title || action.title || "Card", action.targetColumnId || "inbox", {
             priority: action.priority || "NORMAL",
             dueDate: action.dueDate,
-            tags: ["demo"],
+            tags: edit?.tags ?? ["demo"],
+            description: edit?.description ?? "",
           }),
           ...next,
         ];
@@ -301,6 +306,7 @@ export function DemoHome() {
         entry.id === action.cardId
           ? {
               ...entry,
+              ...(edit && action.action === "update" ? { title: edit.title, description: edit.description, tags: edit.tags } : {}),
               columnId: action.targetColumnId || entry.columnId,
               priority: action.priority || entry.priority,
               dueDate: action.dueDate || entry.dueDate,
@@ -513,8 +519,9 @@ export function DemoHome() {
                 </div>
                 <ProposalPanel
                   proposal={item.proposal}
+                  boardName={boardOf(item.boardId).name}
                   busy={false}
-                  onApply={indexes => apply(item, indexes)}
+                  onApply={(indexes, edits) => apply(item, indexes, edits)}
                   onDiscard={() => setPending(current => current.filter(entry => entry.id !== item.id))}
                   onClarify={() => undefined}
                 />
@@ -599,7 +606,14 @@ export function DemoHome() {
           </div>
           <div className="segmented" role="tablist" aria-label={t("board.views.label")}>
             {(["list", "kanban"] as const).map(value => (
-              <button key={value} type="button" role="tab" aria-label={t(`board.views.${value}`)} aria-selected={view === value} onClick={() => setView(value)}>
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-label={t(`board.views.${value}`)}
+                aria-selected={view === value}
+                onClick={() => setView(value)}
+              >
                 <Icon name={value} size={15} />
                 <span className="hide-mobile"> {t(`board.views.${value}`)}</span>
               </button>

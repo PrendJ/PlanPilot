@@ -7,7 +7,7 @@ vi.mock("@/lib/workspace", () => ({ getWorkspaceApiKey: () => "synthetic-key" })
 vi.mock("@/lib/platform-ai", () => ({ platformModels: async () => ({ planModel: "openai/gpt-5-nano", complexPlanModel: "openai/gpt-5-mini", transcriptionModel: "voice" }) }));
 vi.mock("@/lib/board", () => ({ markMilestone: vi.fn() }));
 vi.mock("@/lib/product-events", () => ({ trackEvent: vi.fn() }));
-import { createProposal } from "@/lib/ai-proposals";
+import { createProposal, previewActions } from "@/lib/ai-proposals";
 
 const input = {
   workspace: { id: "board", name: "Test", slug: "test", organizationId: "org", openrouterKeyEnv: "", locale: "it" },
@@ -100,5 +100,15 @@ describe("planning proposals reconciled with the board", () => {
     await expect(createProposal(input)).rejects.toMatchObject({ message: "AI_INVALID_PATCH" });
     expect(mocks.refund).toHaveBeenCalledExactlyOnceWith("reservation");
     expect(mocks.db.aiProposal.create).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("editable proposal preview", () => {
+  it("preserves the complete proposed text and tags when editing an existing card", () => {
+    const description = "Dettagli ".repeat(40);
+    const action = { ...patch.actions[0], action: "update" as const, cardId: "card", title: null, description, tags: ["nuovo"], targetColumnId: null };
+    const board = { columns: [{ id: "todo", title: "Da fare", cards: [{ id: "card", title: "Titolo originale", description: "Prima", priority: "NORMAL", dueDate: null, tags: ["vecchio"], version: 1, columnId: "todo" }] }] };
+    expect(previewActions([action], board)[0].editable).toEqual({ title: "Titolo originale", description, tags: ["nuovo"] });
   });
 });

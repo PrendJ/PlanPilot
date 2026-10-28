@@ -335,7 +335,7 @@
 .proposal-item + .proposal-item {
   border-top: 1px solid var(--border);
 }
-.proposal-item input {
+.proposal-item > input[type="checkbox"] {
   margin-top: 3px;
   width: 16px;
   height: 16px;
@@ -1244,4 +1244,32 @@
   margin-top: 10px;
   max-height: 50vh;
   overflow: auto;
+}
+
+.proposal-edit-toggle {
+  margin-top: 8px;
+}
+.proposal-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.proposal-editor label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.proposal-editor input,
+.proposal-editor textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.proposal-editor textarea {
+  min-height: 80px;
+  resize: vertical;
 }

@@ -38,6 +38,7 @@ export type PreviewAction = {
   toColumn: string | null;
   changes: Array<{ field: "priority" | "dueDate" | "tags" | "description" | "title"; from: string | null; to: string | null }>;
   reason: string;
+  editable?: { title: string; description: string; tags: string[] };
 };
 
 type BoardSnapshot = {
@@ -91,6 +92,13 @@ export function previewActions(actions: AiAction[], board: BoardSnapshot): Previ
       toColumn: moving ? (columnTitle.get(action.targetColumnId!) ?? null) : null,
       changes,
       reason: action.reason,
+      ...((action.action === "create" || action.action === "update") && {
+        editable: {
+          title: action.title ?? card?.title ?? "",
+          description: action.description ?? card?.description ?? "",
+          tags: action.tags ?? (Array.isArray(card?.tags) ? card.tags.map(String) : []),
+        },
+      }),
     };
   });
 }
@@ -261,7 +269,13 @@ export async function getProposal(proposalId: string, workspaceId: string, userI
  * Applies the selected actions of a pending proposal in one transaction. Idempotent: applying an
  * already-applied proposal returns the same receipt. Cards changed since the proposal make it stale.
  */
-export async function applyProposal(input: { proposalId: string; workspace: Workspace; userId: string; actionIndexes?: number[] }) {
+export async function applyProposal(input: {
+  proposalId: string;
+  workspace: Workspace;
+  userId: string;
+  actionIndexes?: number[];
+  edits?: Array<{ index: number; title: string; description: string; tags: string[] }>;
+}) {
   const { workspace } = input;
   return prisma.$transaction(async tx => {
     if ((await assertBoardAccess(workspace.id, tx, { userId: input.userId })) === null) throw new BoardAccessError();
@@ -277,7 +291,16 @@ export async function applyProposal(input: { proposalId: string; workspace: Work
       throw new ProposalError("PROPOSAL_EXPIRED");
     }
     const allActions = proposal.actions as unknown as AiAction[];
-    const actions = selectActions(allActions, input.actionIndexes);
+    const edits = new Map((input.edits ?? []).map(edit => [edit.index, edit]));
+    const actions = selectActions(
+      allActions.map((action, index) => {
+        const edit = edits.get(index);
+        return edit && (action.action === "create" || action.action === "update")
+          ? { ...action, title: edit.title, description: edit.description, tags: edit.tags }
+          : action;
+      }),
+      input.actionIndexes,
+    );
     const versions = proposal.cardVersions as Record<string, number>;
     const touchedIds = actions.map(action => action.cardId).filter((id): id is string => Boolean(id));
     const current = await tx.card.findMany({ where: { id: { in: touchedIds }, workspaceId: workspace.id } });
