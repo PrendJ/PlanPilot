@@ -1,6 +1,8 @@
+import { safeJson } from "@/lib/security";
+import { rejectCrossOrigin } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { getApiUser } from "@/lib/auth";
 import { hasPlatformCapability } from "@/lib/platform-access";
 import { prisma } from "@/lib/prisma";
 import { enableAutomaticUsdToEurRate, getUsdToEurRate, refreshUsdToEurRate, setManualUsdToEurRate } from "@/lib/exchange-rate";
@@ -8,7 +10,7 @@ import { enableAutomaticUsdToEurRate, getUsdToEurRate, refreshUsdToEurRate, setM
 const schema = z.object({ mode: z.enum(["AUTO", "MANUAL"]), usdToEur: z.number().finite().optional(), refresh: z.boolean().optional() });
 
 async function requireAdmin() {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   return user && hasPlatformCapability(user, "BILLING") ? user : null;
 }
 
@@ -18,9 +20,11 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   const actor = await requireAdmin();
   if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success || (parsed.data.mode === "MANUAL" && parsed.data.usdToEur === undefined)) return NextResponse.json({ error: "Indica una modalità e, per il manuale, un cambio valido." }, { status: 400 });
   try {
     const status = parsed.data.mode === "MANUAL"
@@ -33,7 +37,9 @@ export async function PATCH(request: Request) {
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   const actor = await requireAdmin();
   if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const status = await refreshUsdToEurRate();

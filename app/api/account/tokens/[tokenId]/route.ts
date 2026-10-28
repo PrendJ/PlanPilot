@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getApiUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rejectCrossOrigin } from "@/lib/security";
 import { apiError } from "@/lib/errors";
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ tokenId: string }> }) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;

@@ -1,13 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getCurrentUser, isVerified, twoFactorRequiredButMissing } from "@/lib/auth";
+import { getApiUser, isVerified, twoFactorRequiredButMissing } from "@/lib/auth";
 import { apiError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, rejectCrossOrigin } from "@/lib/security";
 import { telegramConfigured, telegramTokenHash } from "@/lib/telegram";
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const connection = await prisma.telegramConnection.findUnique({ where: { userId: user.id }, select: { connectedAt: true } });
   return NextResponse.json({
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;

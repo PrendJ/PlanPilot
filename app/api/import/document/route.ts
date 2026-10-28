@@ -1,6 +1,8 @@
+import { safeJson, boundedFormData } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { inflateRawSync } from "node:zlib";
-import { getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
+import { boundedBytes } from "@/lib/security";
+import { getApiUser, twoFactorRequiredButMissing } from "@/lib/auth";
 import { DocumentTextError, documentToText, googleDocsExportUrl } from "@/lib/document-text";
 import { apiError } from "@/lib/errors";
 import { rateLimit, rejectCrossOrigin } from "@/lib/security";
@@ -26,7 +28,7 @@ async function fetchGoogleDoc(exportUrl: string) {
       continue;
     }
     if (!response.ok || !(response.headers.get("content-type") || "").startsWith("text/plain")) return null;
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const bytes = await boundedBytes(response, MAX_GOOGLE_BYTES);
     if (bytes.length > MAX_GOOGLE_BYTES) throw new DocumentTextError("DOCUMENT_UNREADABLE");
     return new TextDecoder().decode(bytes).replace(/^﻿/, "").trim();
   }
@@ -41,14 +43,14 @@ async function fetchGoogleDoc(exportUrl: string) {
 export async function POST(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   if (await twoFactorRequiredButMissing(user)) return apiError(request, "TWO_FACTOR_SETUP_REQUIRED", 403);
   const limited = await rateLimit(`import-document:${user.id}`, 20, 60_000, request);
   if (limited) return limited;
   try {
     if ((request.headers.get("content-type") || "").includes("application/json")) {
-      const body = (await request.json().catch(() => ({}))) as { url?: unknown };
+      const body = (await safeJson(request)) as { url?: unknown };
       const exportUrl = typeof body.url === "string" ? googleDocsExportUrl(body.url) : null;
       if (!exportUrl) return apiError(request, "GOOGLE_DOC_INVALID_LINK", 400);
       const text = await fetchGoogleDoc(exportUrl).catch(error => {
@@ -59,7 +61,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ text, format: "google-docs" });
     }
     if (Number(request.headers.get("content-length") || 0) > MAX_FILE_BYTES + 64 * 1024) return apiError(request, "DOCUMENT_TOO_LARGE", 413);
-    const file = (await request.formData().catch(() => null))?.get("file");
+    const file = (await boundedFormData(request))?.get("file");
     if (!(file instanceof File) || !file.size) return apiError(request, "INVALID_INPUT", 400);
     if (file.size > MAX_FILE_BYTES) return apiError(request, "DOCUMENT_TOO_LARGE", 413);
     const { text, format } = await documentToText(file.name, new Uint8Array(await file.arrayBuffer()), inflate);

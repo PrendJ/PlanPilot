@@ -633,6 +633,8 @@ model ApiToken {
   prefix     String
   lastUsedAt DateTime?
   revokedAt  DateTime?
+  expiresAt  DateTime @default(dbgenerated("(CURRENT_TIMESTAMP + INTERVAL '90 days')"))
+  access     String @default("write")
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 

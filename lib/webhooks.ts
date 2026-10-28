@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { lookup } from "node:dns/promises";
-import net from "node:net";
+import { assertSafeWebhookUrl, postSafeWebhook } from "@/lib/safe-webhook";
+export { assertSafeWebhookUrl } from "@/lib/safe-webhook";
 import { Prisma } from "@prisma/client";
 import { appUrl } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
@@ -74,50 +74,6 @@ export async function queueWebhookEvent(
   });
 }
 
-function privateAddress(address: string) {
-  if (net.isIPv4(address)) {
-    const [a, b] = address.split(".").map(Number);
-    return (
-      a === 10 ||
-      a === 127 ||
-      a === 0 ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      a >= 224
-    );
-  }
-  const value = address.toLowerCase();
-  return (
-    value === "::1" ||
-    value === "::" ||
-    value.startsWith("fc") ||
-    value.startsWith("fd") ||
-    value.startsWith("fe80") ||
-    value.startsWith("::ffff:127.") ||
-    value.startsWith("::ffff:10.") ||
-    value.startsWith("::ffff:192.168.")
-  );
-}
-
-/** Blocks SSRF: HTTPS only, public hostnames resolving to public addresses. */
-export async function assertSafeWebhookUrl(raw: string) {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    throw new Error("INVALID_URL");
-  }
-  if (url.protocol !== "https:" || url.username || url.password) throw new Error("INVALID_URL");
-  const host = url.hostname.replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal") || (net.isIP(host) && privateAddress(host)))
-    throw new Error("INVALID_URL");
-  const records = await lookup(host, { all: true }).catch(() => []);
-  if (!records.length || records.some(record => privateAddress(record.address))) throw new Error("INVALID_URL");
-  return url;
-}
-
 const SLACK_COPY = {
   it: {
     "card.created": "Nuova card",
@@ -188,20 +144,13 @@ export async function dispatchWebhooks(limit = 25) {
     );
     const timestamp = Math.floor(Date.now() / 1000);
     try {
-      await assertSafeWebhookUrl(job.webhook.url);
-      const response = await fetch(job.webhook.url, {
-        method: "POST",
-        redirect: "error",
-        signal: AbortSignal.timeout(10_000),
-        headers: {
+      const response = await postSafeWebhook(job.webhook.url, {
           "Content-Type": "application/json",
           "User-Agent": "BoardCue-Webhooks/1",
           "X-BoardCue-Event": job.eventType,
           "X-BoardCue-Delivery": job.id,
           "X-BoardCue-Signature": `t=${timestamp},v1=${signPayload(job.webhook.secret, timestamp, body)}`,
-        },
-        body,
-      });
+      }, body);
       await prisma.webhook.update({
         where: { id: job.webhookId },
         data: { lastStatus: response.status, lastError: response.ok ? null : `HTTP ${response.status}` },

@@ -1,7 +1,8 @@
+import { safeJson } from "@/lib/security";
 import { after, NextResponse } from "next/server";
 import { notifyBoardSoftLimit } from "@/lib/board-soft-limit";
 import { z } from "zod";
-import { getCurrentUser, getOrganizationAccess } from "@/lib/auth";
+import { getApiUser, getOrganizationAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createWorkspace, SUPPORTED_LOCALES } from "@/lib/workspace";
 import { getOrganizationLimits, organizationReadOnly } from "@/lib/plans";
@@ -17,7 +18,7 @@ const schema = z.object({
 });
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const memberships = await prisma.workspaceMember.findMany({
     where: { userId: user.id, workspace: { lifecycleStatus: "ACTIVE" } },
@@ -36,11 +37,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const body = parsed.data;
   const defaultOrganization = user.defaultOrganizationId ? null : await ensureDefaultOrganization(user.id);

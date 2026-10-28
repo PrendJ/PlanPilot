@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -19,7 +20,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   const loaded = await load(request, slug, commentId);
   if (isResponse(loaded)) return loaded;
   if (loaded.comment.userId !== loaded.ctx.user.id) return apiError(request, "FORBIDDEN", 403);
-  const parsed = z.object({ body: z.string().trim().min(1).max(5000) }).safeParse(await request.json().catch(() => ({})));
+  const parsed = z.object({ body: z.string().trim().min(1).max(5000) }).safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const comment = await prisma.cardComment.update({
     where: { id: commentId },

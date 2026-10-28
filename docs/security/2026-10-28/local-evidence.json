@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-28",
+  "base": "http://127.0.0.1:55318",
+  "environment": "isolated local PostgreSQL; synthetic data only",
+  "checks": [
+    {
+      "name": "full-test-suite-with-postgres",
+      "exitCode": 0,
+      "summary": [
+        " Test Files  40 passed (40)",
+        "      Tests  395 passed (395)",
+        "   Duration  10.69s (transform 4.56s, setup 0ms, collect 31.90s, tests 5.79s, environment 14ms, prepare 18.03s)"
+      ]
+    },
+    {
+      "name": "mandatory-2fa-endpoint",
+      "path": "/api/search?q=AUDIT",
+      "status": 200,
+      "exposesCard": true,
+      "cacheControl": null
+    },
+    {
+      "name": "mandatory-2fa-endpoint",
+      "path": "/api/workspaces/audit-45955f9882/board",
+      "status": 403,
+      "exposesCard": false,
+      "cacheControl": null
+    },
+    {
+      "name": "mandatory-2fa-endpoint",
+      "path": "/app/audit-45955f9882/print",
+      "status": 200,
+      "exposesCard": true,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate"
+    },
+    {
+      "name": "mandatory-2fa-endpoint",
+      "path": "/api/organizations/cmvrzprae00037r4s0b3pyrai/export",
+      "status": 200,
+      "exposesCard": true,
+      "cacheControl": null
+    },
+    {
+      "name": "mandatory-2fa-endpoint",
+      "path": "/api/v1/boards/audit-45955f9882/cards",
+      "status": 200,
+      "exposesCard": true,
+      "cacheControl": null
+    },
+    {
+      "name": "foreign-board-metadata",
+      "status": 404,
+      "leaksTitle": true
+    },
+    {
+      "name": "invalid-session-board-metadata",
+      "status": 307,
+      "leaksTitle": true
+    },
+    {
+      "name": "forwarded-host-origin-check",
+      "normalHostStatus": 403,
+      "spoofedHostStatus": 401
+    },
+    {
+      "name": "forwarded-ip-rate-limit",
+      "statuses": [
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        401,
+        429
+      ],
+      "afterChangingHeader": 401
+    },
+    {
+      "name": "password-reset-single-use-and-revocation",
+      "simultaneousStatuses": [
+        200,
+        200
+      ],
+      "oldApiTokenStatus": 200,
+      "oldApiTokenExposesCards": true
+    },
+    {
+      "name": "pre-registration-account-retention",
+      "registrationStatus": 201,
+      "confirmationStatus": 307,
+      "attackerSessionStatus": 200,
+      "attackerPasswordStillValid": true,
+      "verified": true
+    }
+  ]
+}

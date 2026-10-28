@@ -139,7 +139,7 @@ export function Board({ slug }: { slug: string }) {
   const restoreDraft = useCallback(
     (text: string) => {
       try {
-        sessionStorage.setItem(`boardcue:draft:${slug}`, text);
+        sessionStorage.setItem(`boardcue:draft:${data!.me.id}:${slug}`, text);
       } catch {
         /* storage unavailable */
       }
@@ -479,6 +479,7 @@ export function Board({ slug }: { slug: string }) {
             />
           ) : (
             <Composer
+              userId={data.me.id}
               ref={composer}
               slug={slug}
               disabled={!workspace.canWrite}

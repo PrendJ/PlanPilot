@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { canManageWorkspace, getCurrentUser } from "@/lib/auth";
+import { canManageWorkspace, getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Topbar } from "@/components/Topbar";
 import { BoardSettings } from "@/components/BoardSettings";
@@ -14,6 +14,7 @@ export const metadata: Metadata = { title: "Impostazioni board", robots: { index
 export default async function SettingsPage({ params }: { params: Promise<{ slug: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
   const { slug } = await params;
   const workspace = await prisma.workspace.findUnique({
     where: { slug },

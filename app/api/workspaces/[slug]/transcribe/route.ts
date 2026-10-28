@@ -1,3 +1,4 @@
+import { boundedFormData } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { getUsageStatus, recordUsage } from "@/lib/plans";
 import { rateLimit } from "@/lib/security";
@@ -22,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (!quota || quota.status === "PAUSED") return apiError(request, "QUOTA_EXHAUSTED", 402);
   const apiKey = getWorkspaceApiKey(workspace);
   if (!apiKey) return apiError(request, "AI_NOT_CONFIGURED", 503);
-  const form = await request.formData().catch(() => null);
+  const form = await boundedFormData(request);
   const audio = form?.get("audio");
   if (!(audio instanceof File) || audio.size === 0) return apiError(request, "AUDIO_REQUIRED", 400);
   if (audio.size > MAX_AUDIO_BYTES) return apiError(request, "AUDIO_TOO_LARGE", 413);

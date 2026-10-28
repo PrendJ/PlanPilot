@@ -33,6 +33,7 @@ beforeEach(() => {
       return new Response(JSON.stringify({ ok: true, result: {} }));
     }),
   );
+  mocks.db.organizationMember = { findFirst: vi.fn().mockResolvedValue(null) };
   mocks.db.telegramConnection = {
     findUnique: vi.fn().mockResolvedValue({ userId: "user", chatId: "7", user: { lifecycleStatus: "ACTIVE", locale: "en" } }),
     deleteMany: vi.fn().mockResolvedValue({ count: 1 }),

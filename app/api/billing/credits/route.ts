@@ -1,6 +1,7 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser, getOrganizationAccess, isVerified } from "@/lib/auth";
+import { getApiUser, getOrganizationAccess, isVerified } from "@/lib/auth";
 import { appUrl } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { ITALIAN_INVOICE_FIELDS, creditPackPrice, stripe, stripeTaxEnabled } from "@/lib/stripe";
@@ -10,14 +11,14 @@ import { apiError } from "@/lib/errors";
 
 /** One-off pack of AI updates (never expires; used after the monthly allowance). */
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
   if (!isVerified(user)) return apiError(request, "EMAIL_NOT_VERIFIED", 403);
   const parsed = z
     .object({ organizationId: z.string().cuid(), packs: z.number().int().min(1).max(20).default(1) })
-    .safeParse(await request.json().catch(() => ({})));
+    .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const membership = await getOrganizationAccess(user.id, parsed.data.organizationId);
   if (!membership || membership.role !== "OWNER") return apiError(request, "OWNER_ONLY", 403);

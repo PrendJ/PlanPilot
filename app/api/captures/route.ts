@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
+import { getApiUser, twoFactorRequiredButMissing } from "@/lib/auth";
 import { apiError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { MAX_CAPTURE_ATTEMPTS } from "@/lib/telegram";
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   if (await twoFactorRequiredButMissing(user)) return apiError(request, "TWO_FACTOR_SETUP_REQUIRED", 403);
   const rows = await prisma.externalCapture.findMany({

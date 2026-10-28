@@ -62,7 +62,7 @@ test("real worker offers offline fallback without caching private pages or APIs"
   await page.screenshot({ path: test.info().outputPath("offline.png"), fullPage: true });
   await context.setOffline(false);
   await page.getByRole("link", { name: "Riprova ad aprire BoardCue" }).click();
-  await expect(page).toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test("waiting update neither reloads nor activates while a form is dirty", async ({ page }) => {

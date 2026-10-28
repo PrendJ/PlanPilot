@@ -8,6 +8,10 @@ function transport() {
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT || 587),
     secure: process.env.SMTP_SECURE === "true",
+    requireTLS: true,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
     auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } : undefined,
   });
 }
@@ -42,13 +46,13 @@ export function renderEmail(input: { title: string; preheader: string; paragraph
   return `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(input.title)}</title></head><body style="background:#F6F7F9;margin:0;padding:0"><span style="display:none!important;color:#F6F7F9;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(input.preheader)}</span><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F6F7F9"><tr><td align="center" style="padding:32px 16px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px"><tr><td style="padding:0 4px 16px">${logo}</td></tr></table><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#FFFFFF;border:1px solid #E1E4EA;border-radius:12px;max-width:600px"><tr><td style="padding:28px 32px 8px"><div style="color:#12151C;font-family:Arial,sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.4px">${escapeHtml(input.title)}</div></td></tr><tr><td style="padding:16px 32px 32px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${input.paragraphs.map(paragraph => `<tr><td style="color:#12151C;font-family:Arial,sans-serif;font-size:15px;line-height:24px;padding:0 0 16px">${paragraph}</td></tr>`).join("")}${action}${note}</table></td></tr></table><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px"><tr><td style="color:#5E6679;font-family:Arial,sans-serif;font-size:11px;line-height:16px;padding:16px 8px;text-align:center">${entity} · Parla. Organizza. Agisci.</td></tr></table></td></tr></table></body></html>`;
 }
 
-function usableOrigin(value: string | null | undefined) {
+function usableOrigin(value: string | null | undefined, configured = false) {
   if (!value) return null;
   try {
     const url = new URL(value);
     const wildcard = url.hostname === "0.0.0.0" || url.hostname === "::" || url.hostname === "[::]";
     const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-    if (wildcard || (process.env.NODE_ENV === "production" && local)) return null;
+    if (wildcard || !["http:", "https:"].includes(url.protocol) || url.username || url.password || (process.env.NODE_ENV === "production" && local && !configured)) return null;
     return url.origin;
   } catch {
     return null;
@@ -56,8 +60,9 @@ function usableOrigin(value: string | null | undefined) {
 }
 
 export function appUrl(path = "", request?: Request) {
-  const configured = usableOrigin(process.env.APP_URL);
-  const requested = usableOrigin(request?.url);
+  const configured = usableOrigin(process.env.APP_URL, true);
+  // In production the request host is untrusted; only explicit configuration may override the canonical origin.
+  const requested = process.env.NODE_ENV !== "production" ? usableOrigin(request?.url) : null;
   const base = configured || requested || (process.env.NODE_ENV === "production" ? CANONICAL_APP_URL : "http://localhost:3000");
   return new URL(path || "/", `${base}/`).toString().replace(/\/$/, path ? "" : "/");
 }

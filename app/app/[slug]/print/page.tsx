@@ -1,4 +1,4 @@
-import { getCurrentUser, canAccessWorkspace } from "@/lib/auth";
+import { getCurrentUser, canAccessWorkspace, twoFactorRequiredButMissing } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { PrintActions } from "@/components/PrintActions";
@@ -16,6 +16,7 @@ function readableTags(tags: unknown) {
 export default async function PrintWorkspacePage({ params }: { params: Promise<{ slug: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
 
   const { slug } = await params;
   const workspace = await prisma.workspace.findUnique({

@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ENGLISH_PAGES } from "@/lib/i18n/routes";
+import { contentSecurityPolicy } from "@/lib/content-security";
+import { trustedRequestOrigin } from "@/lib/request-origin";
 
 const SESSION_COOKIES = ["boardcue_session", "voxboard_session"];
 const PROTECTED = ["/app", "/account", "/admin", "/workspaces"];
@@ -9,20 +11,32 @@ const PROTECTED = ["/app", "/account", "/admin", "/workspaces"];
  * 2. Private areas require a session cookie; the page itself still validates the session in the database.
  */
 export function middleware(request: NextRequest) {
+  const nonce = btoa(crypto.randomUUID());
+  const csp = contentSecurityPolicy(nonce, process.env.NODE_ENV === "production");
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", csp);
+  const respond = (response: NextResponse) => {
+    response.headers.set("Content-Security-Policy", csp);
+    if (request.nextUrl.pathname.startsWith("/api/")) response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  };
+  if (request.nextUrl.pathname.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(request.method) && !trustedRequestOrigin(request))
+    return respond(NextResponse.json({ error: "Origin rejected", code: "ORIGIN_REJECTED" }, { status: 403 }));
   // Reject malformed action headers before Next's action decoder logs an exception.
   const actionId = request.headers.get("next-action");
   if (request.method === "POST" && actionId !== null && !/^[a-f0-9]{42}$/i.test(actionId)) {
-    return new NextResponse(null, { status: 400 });
+    return respond(new NextResponse(null, { status: 400 }));
   }
   const { pathname, search } = request.nextUrl;
   if (pathname === "/en" || pathname.startsWith("/en/")) {
     const rest = pathname.slice(3);
-    if (!ENGLISH_PAGES.includes(rest)) return NextResponse.next();
+    if (!ENGLISH_PAGES.includes(rest)) return respond(NextResponse.next({ request: { headers: requestHeaders } }));
     const url = request.nextUrl.clone();
     url.pathname = rest || "/";
-    const headers = new Headers(request.headers);
+    const headers = new Headers(requestHeaders);
     headers.set("x-boardcue-locale", "en");
-    return NextResponse.rewrite(url, { request: { headers } });
+    return respond(NextResponse.rewrite(url, { request: { headers } }));
   }
   if (PROTECTED.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     if (!SESSION_COOKIES.some(name => request.cookies.get(name)?.value)) {
@@ -30,19 +44,20 @@ export function middleware(request: NextRequest) {
       if (pathname === "/app" && request.nextUrl.searchParams.get("shared") === "1") {
         url.pathname = "/login";
         url.search = `?next=${encodeURIComponent("/app?shared=1")}`;
-        return NextResponse.redirect(url);
+        return respond(NextResponse.redirect(url));
       }
       // Old bookmarks and installed apps may still open the generic app entry.
       url.pathname = pathname === "/app" ? "/" : "/login";
       url.search = pathname === "/app" ? "" : `?next=${encodeURIComponent(`${pathname}${search}`)}`;
-      return NextResponse.redirect(url);
+      return respond(NextResponse.redirect(url));
     }
   }
-  return NextResponse.next();
+  return respond(NextResponse.next({ request: { headers: requestHeaders } }));
 }
 
 export const config = {
   matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icons/|sw.js|manifest.webmanifest).*)",
     { source: "/:path*", has: [{ type: "header", key: "next-action" }] },
     "/en",
     "/en/:path*",

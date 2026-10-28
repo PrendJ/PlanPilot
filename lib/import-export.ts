@@ -186,7 +186,9 @@ export function parseCsv(text: string): ImportedBoard {
 }
 
 function csvCell(value: unknown) {
-  const text = value === null || value === undefined ? "" : String(value);
+  const raw = value === null || value === undefined ? "" : String(value);
+  // Quoting alone does not prevent spreadsheet formula execution.
+  const text = /^[\s\u0000-\u001f]*[=+@-]|^[\t\r\n]/.test(raw) ? `'${raw}` : raw;
   return /[",;\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

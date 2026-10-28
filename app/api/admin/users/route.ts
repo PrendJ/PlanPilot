@@ -1,9 +1,11 @@
+import { safeJson } from "@/lib/security";
+import { rejectCrossOrigin } from "@/lib/security";
 import bcrypt from "bcryptjs";
 import { planFromPrice } from "@/lib/stripe";
 import { TRIAL_DAYS } from "@/lib/plans";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { getApiUser } from "@/lib/auth";
 import { hasPlatformCapability, platformRoleOf } from "@/lib/platform-access";
 import { prisma } from "@/lib/prisma";
 import { createOrganization } from "@/lib/workspace";
@@ -11,7 +13,7 @@ import { stripe } from "@/lib/stripe";
 import { ensureDefaultOrganization } from "@/lib/default-organization";
 
 async function requireAdmin() {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   return user && hasPlatformCapability(user, "METADATA") ? user : null;
 }
 const createSchema = z.object({
@@ -73,9 +75,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   const actor = await requireAdmin();
   if (!actor || !hasPlatformCapability(actor, "PLATFORM_ADMIN")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const parsed = createSchema.safeParse(await request.json().catch(() => ({})));
+  const parsed = createSchema.safeParse(await safeJson(request));
   if (!parsed.success) return NextResponse.json({ error: "Controlla i dati inseriti", details: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
   try {
@@ -116,13 +120,15 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   const actor = await requireAdmin();
   if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const parsed = updateSchema.safeParse(await request.json().catch(() => ({})));
+  const parsed = updateSchema.safeParse(await safeJson(request));
   if (!parsed.success) return NextResponse.json({ error: "Aggiornamento non valido" }, { status: 400 });
   const body = parsed.data;
   const superadmin = hasPlatformCapability(actor, "PLATFORM_ADMIN");
-  if (!superadmin && (body.platformRole !== undefined || body.lifetimeFree !== undefined))
+  if (!superadmin && (body.platformRole !== undefined || body.isAdmin !== undefined || body.lifetimeFree !== undefined || body.emailVerified !== undefined))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const requestedRole = body.isAdmin === undefined ? body.platformRole : body.isAdmin ? "SUPERADMIN" : "USER";
   if (body.id === actor.id && requestedRole && requestedRole !== "SUPERADMIN")

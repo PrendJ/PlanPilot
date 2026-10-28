@@ -1,6 +1,7 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser, getOrganizationAccess } from "@/lib/auth";
+import { getApiUser, getOrganizationAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { portalConfiguration, stripe } from "@/lib/stripe";
 import { appUrl } from "@/lib/email";
@@ -9,11 +10,11 @@ import { apiError } from "@/lib/errors";
 
 /** Stripe customer portal: invoices, payment method, seats, plan change, cancellation. */
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
-  const parsed = z.object({ organizationId: z.string().cuid() }).safeParse(await request.json().catch(() => ({})));
+  const parsed = z.object({ organizationId: z.string().cuid() }).safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const access = await getOrganizationAccess(user.id, parsed.data.organizationId);
   if (!access || access.role !== "OWNER") return apiError(request, "OWNER_ONLY", 403);

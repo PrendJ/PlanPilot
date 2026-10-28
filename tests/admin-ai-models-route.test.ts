@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ access: vi.fn(), save: vi.fn() }));
 vi.mock("@/lib/platform-access", () => ({ requirePlatform: mocks.access }));
-vi.mock("@/lib/security", () => ({ rejectCrossOrigin: () => null }));
+vi.mock("@/lib/security", async original => ({ ...(await original<typeof import("@/lib/security")>()), rejectCrossOrigin: () => null }));
 vi.mock("@/lib/platform-ai", async original => ({
   ...(await original<typeof import("@/lib/platform-ai")>()),
   setPlatformModels: mocks.save,
@@ -9,7 +9,7 @@ vi.mock("@/lib/platform-ai", async original => ({
 }));
 import { PATCH } from "@/app/api/admin/ai-models/route";
 const settings = { planModel: "openai/gpt-5-nano", complexPlanModel: "openai/gpt-5-mini", transcriptionModel: "openai/whisper-large-v3" };
-const request = (body: unknown) => new Request("https://boardcue.test/api/admin/ai-models", { method: "PATCH", body: JSON.stringify(body) });
+const request = (body: unknown) => new Request("https://boardcue.test/api/admin/ai-models", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.access.mockResolvedValue({ user: { id: "admin" } });

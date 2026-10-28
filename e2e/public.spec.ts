@@ -29,18 +29,18 @@ test("pricing shows the agreed plans, seats and Enterprise without SSO/SLA promi
       .locator(".price strong");
   // Private customers come first: Pro personale + Family, VAT included, never Business.
   await expect(price("Pro personale")).toHaveText("€4,90");
-  await expect(price("Family")).toHaveText("€5,00");
+  await expect(price("Family")).toHaveText("€4,50");
   await expect(page.getByRole("heading", { name: "Business", exact: true })).toHaveCount(0);
   await expect(page.getByText("IVA inclusa, fatturazione mensile").first()).toBeVisible();
   await page.getByRole("button", { name: "Aziende e professionisti", exact: true }).click();
   await expect(price("Pro")).toHaveText("€7,00");
   await expect(price("Team")).toHaveText("€6,00");
-  await expect(price("Business")).toHaveText("€10,00");
+  await expect(price("Business")).toHaveText("Su misura");
   await expect(page.getByText("IVA esclusa, fatturazione mensile").first()).toBeVisible();
   // Annual: the yearly total is shown (10 months, rounded down to ten cents), with the saving spelled out.
   await page.getByRole("button", { name: /^Annuale/ }).click();
   await expect(price("Pro")).toHaveText("€70,00");
-  await expect(price("Business")).toHaveText("€100,00");
+  await expect(price("Business")).toHaveText("Su misura");
   await expect(page.getByText(/Con il mensile pagheresti €84,00: risparmi €14,00/)).toBeVisible();
   await page.getByRole("button", { name: "Mensile", exact: true }).click();
   await expect(page.getByText("Minimo 2 posti. Gli ospiti non occupano posti.").first()).toBeVisible();
@@ -123,8 +123,8 @@ test("the demo sorts one thought across the personal and the work board", async 
   await page.getByRole("button", { name: "Chiama la banca domani e prepara il preventivo per Studio Rossi entro venerdì" }).click();
   const proposals = page.getByRole("region", { name: "Modifiche proposte dall’AI" });
   await expect(proposals).toHaveCount(2);
-  await expect(page.locator(".home-pending").filter({ hasText: "Casa e personale" })).toContainText("Chiama la banca");
-  await expect(page.locator(".home-pending").filter({ hasText: "Lavoro" })).toContainText("Preventivo per Studio Rossi");
+  await expect(proposals.filter({ hasText: "Chiama la banca" })).toHaveCount(1);
+  await expect(proposals.filter({ hasText: "Preventivo per Studio Rossi" })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Devo organizzare la cena di fine anno" })).toBeDisabled();
   expect(await page.evaluate(noOverflow)).toBe(true);
 });

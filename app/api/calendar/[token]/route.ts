@@ -3,6 +3,7 @@ import { feedTokenHash, renderCalendarFeed } from "@/lib/calendar-feed";
 import { appUrl } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/security";
+import { twoFactorRequiredButMissing } from "@/lib/auth";
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -13,9 +14,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   if (limited) return limited;
   const feed = await prisma.calendarFeed.findUnique({
     where: { tokenHash },
-    select: { userId: true, timeZone: true, user: { select: { lifecycleStatus: true, emailVerifiedAt: true } } },
+    select: { userId: true, timeZone: true, user: { select: { id: true, totpEnabledAt: true, lifecycleStatus: true, emailVerifiedAt: true } } },
   });
   if (!feed || feed.user.lifecycleStatus !== "ACTIVE" || !feed.user.emailVerifiedAt) return new Response("Not found", { status: 404 });
+  if (await twoFactorRequiredButMissing(feed.user)) return new Response("Not found", { status: 404 });
   const cards = await prisma.card.findMany({
     where: {
       archived: false,

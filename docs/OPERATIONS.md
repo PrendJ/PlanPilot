@@ -2,6 +2,8 @@
 
 > Guida per il rilascio della versione "commercial readiness" (settembre 2026). Nessun deploy viene eseguito dal repository: i passi qui sotto sono azioni del titolare.
 
+> Aggiornamento sicurezza del 28 ottobre 2026: prima del rilascio seguire anche il [rapporto di correzione](SECURITY_REMEDIATION_2026-10-28.md#applicazione-al-deployment), che descrive migrazione 0015, `TRUSTED_PROXY_HOPS`, nuove scadenze dei token e requisiti dei backup GCM.
+
 ## 1. Rilascio
 
 1. **Staging prima della produzione.** Crea in Coolify una seconda risorsa Compose dallo stesso repository (branch o tag), con database separato e `APP_URL` di staging.
@@ -41,6 +43,7 @@
 - Backup giornaliero cifrato: `BACKUP_DIR=/var/backups/boardcue BACKUP_PASSPHRASE=… scripts/backup-db.sh` (conserva 14 giorni; copia la cartella fuori dal server, es. con rclone verso uno storage UE).
 - Prova di ripristino **mensile**: `scripts/restore-test.sh` ripristina l'ultimo dump in un container temporaneo e stampa i conteggi di utenti, board e card. Annota data ed esito.
 - Conserva la passphrase in un gestore di password separato dal server.
+- Gli script richiedono Node.js 22+ sull'host e il file `scripts/backup-crypto.mjs`. I nuovi backup usano AES-256-GCM autenticato; un dump fallito non avvia retention. Il restore verifica completamente l'autenticità prima di ripristinare, mantenendo compatibilità di lettura con i precedenti dump CBC.
 
 ## 5. AI: instradamento UE senza conservazione
 

@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -35,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (isResponse(ctx)) return ctx;
   const parsed = z
     .object({ body: z.string().trim().min(1).max(5000), mentions: z.array(z.string().cuid()).max(20).default([]) })
-    .safeParse(await request.json().catch(() => ({})));
+    .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const { workspace, user } = ctx;
   const card = await prisma.card.findFirst({

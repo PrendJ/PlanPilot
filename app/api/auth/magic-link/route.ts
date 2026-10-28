@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -13,8 +14,10 @@ export async function POST(request: Request) {
   if (limited) return limited;
   const parsed = z
     .object({ email: z.string().email().max(254), next: z.string().max(2048).optional() })
-    .safeParse(await request.json().catch(() => ({})));
+    .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
+  const destinationLimit = await rateLimit(`email:magic-link:${parsed.data.email.toLowerCase()}`, 5, 60 * 60_000, request);
+  if (destinationLimit) return destinationLimit;
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email.toLowerCase() },
     select: { id: true, email: true, name: true, lifecycleStatus: true },

@@ -270,9 +270,9 @@ export async function planPatchFromText(input: PlanningInput) {
 function safeValidationIssues(error: z.ZodError): NonNullable<ProviderDiagnostic["validationIssues"]> {
   const knownFields = new Set(["summary", "actions", "clarification", "action", "cardId", "title", "description", "targetColumnId", "priority", "dueDate", "tags", "reason", "question", "options"]);
   return error.issues.slice(0, 10).map(issue => ({
-    path: issue.path.map(part => typeof part === "number" ? part : knownFields.has(part) ? part : "unknown").join(".") || "$",
+    path: issue.path.map(part => typeof part === "number" ? part : typeof part === "string" && knownFields.has(part) ? part : "unknown").join(".") || "$",
     code: issue.code,
-    ...(issue.code === "invalid_string" && issue.validation === "datetime" ? { validation: "datetime" } : {}),
+    ...(issue.code === "invalid_format" && issue.format === "datetime" ? { validation: "datetime" } : {}),
   }));
 }
 

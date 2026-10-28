@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { HomeAgenda, HomeTaskSummary } from "./HomeAgenda";
+import { groupHomeTasks, type HomeTask as TodayCard } from "@/lib/home-agenda";
 import { useI18n } from "./I18nProvider";
 import { aiRequestError, api, MenuButton, useFeedback } from "./ui";
 import { useUpdateBlocker } from "./PwaProvider";
@@ -27,22 +29,6 @@ type Segment = { key: string; text: string; workspaceId: string | null; newBoard
 /** Select value for "put this task on a new board". */
 const NEW_BOARD = "__new__";
 type Pending = { board: BoardChoice; proposal: Proposal };
-type TodayCard = {
-  id: string;
-  title: string;
-  dueDate: string | null;
-  priority: string;
-  board: string;
-  slug: string;
-  column: string;
-  columnId: string;
-  doneColumnId: string | null;
-};
-
-/** How many of today's tasks the home shows before "Show all". */
-const TODAY_PREVIEW = 5;
-const PRIORITY_RANK: Record<string, number> = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
-
 /**
  * Board chooser used to move a task (or a whole group) elsewhere. Values: b:<board id>, n:<proposed name> or
  * NEW_BOARD. A menu instead of a native select so boards read as a list with their own icon, a proposed
@@ -257,31 +243,6 @@ function RoutingReview({
   );
 }
 
-/** One task of the day: opens the card in its board, or is marked done right here (it moves to the board's done column). */
-function TodayItem({ card, due, overdue, onDone }: { card: TodayCard; due?: string; overdue?: boolean; onDone: () => void }) {
-  const { t } = useI18n();
-  return (
-    <li className="home-today-item">
-      {card.doneColumnId && (
-        <button type="button" className="home-today-done" onClick={onDone} aria-label={t("home.today.markDone", { title: card.title })}>
-          <Icon name="check" size={14} strokeWidth={3} />
-        </button>
-      )}
-      <Link href={`/app/${card.slug}?card=${card.id}`}>
-        <strong>
-          {(card.priority === "URGENT" || card.priority === "HIGH") && (
-            <span className={`today-priority ${card.priority.toLowerCase()}`}>{t(`priority.${card.priority}`)}</span>
-          )}
-          {card.title}
-        </strong>
-        <span>
-          {card.board} · {card.column}
-        </span>
-        {due && <small className={overdue ? "overdue" : ""}>{due}</small>}
-      </Link>
-    </li>
-  );
-}
 type Capture = { id: string; source: string; text: string; status: string; createdAt: string; retryable?: boolean };
 
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
@@ -303,6 +264,7 @@ function audioName(audio: Blob, fallback?: string | null) {
 }
 
 export function HomeAssistant({
+  userId,
   initialBoards,
   paused,
   quick = false,
@@ -313,6 +275,7 @@ export function HomeAssistant({
   boardList,
   sidebar,
 }: {
+  userId: string;
   initialBoards: BoardChoice[];
   paused: boolean;
   quick?: boolean;
@@ -334,7 +297,8 @@ export function HomeAssistant({
   const [today, setToday] = useState<TodayCard[]>([]);
   const [active, setActive] = useState<TodayCard[]>([]);
   const [todayError, setTodayError] = useState(false);
-  const [todayExpanded, setTodayExpanded] = useState(false);
+  const [todayLoading, setTodayLoading] = useState(true);
+  const loadedTodayDate = useRef("");
   const { toast, prompt } = useFeedback();
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [selectedCaptureIds, setSelectedCaptureIds] = useState<string[]>([]);
@@ -358,10 +322,7 @@ export function HomeAssistant({
   const textArea = useRef<HTMLTextAreaElement>(null);
   const quickStarted = useRef(false);
   const shareStarted = useRef(false);
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const tomorrowStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() + 1);
-  const visibleToday = today.filter(card => card.dueDate && new Date(card.dueDate).getTime() < tomorrowStart.getTime());
+  const taskGroups = groupHomeTasks(today);
   const dictation = boards.some(item => item.dictationEnabled);
   // Recording time left before the transcript would fill one request; under 10 seconds the microphone waits.
   const recordSeconds = recordingSeconds(text.trim().length);
@@ -371,12 +332,15 @@ export function HomeAssistant({
   const clock = (total: number) => `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 
   const loadToday = useCallback(async () => {
-    const response = await api<{ cards: TodayCard[]; active?: TodayCard[] }>(`/api/home/today?date=${localDate(new Date())}`);
+    const date = localDate(new Date());
+    const response = await api<{ cards: TodayCard[]; active?: TodayCard[] }>(`/api/home/today?date=${date}`);
     if (response.ok) {
+      loadedTodayDate.current = date;
       setToday(response.data.cards);
       setActive(response.data.active || []);
       setTodayError(false);
     } else setTodayError(true);
+    setTodayLoading(false);
   }, []);
   const loadCaptures = useCallback(async () => {
     const response = await api<{ captures: Capture[] }>("/api/captures");
@@ -385,6 +349,20 @@ export function HomeAssistant({
   useEffect(() => {
     void loadToday();
     void loadCaptures();
+    // Refresh on return and across midnight so the agenda keeps the correct calendar day.
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadToday();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    const interval = window.setInterval(() => {
+      if (loadedTodayDate.current !== localDate(new Date())) refresh();
+    }, 60_000);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      window.clearInterval(interval);
+    };
   }, [loadToday, loadCaptures]);
   useEffect(() => {
     if (!shared || shareStarted.current) return;
@@ -416,15 +394,15 @@ export function HomeAssistant({
   }, [shareError, t]);
   useEffect(() => {
     try {
-      setText(sessionStorage.getItem("boardcue:home-draft") || "");
+      setText(sessionStorage.getItem(`boardcue:home-draft:${userId}`) || "");
     } catch {
       /* storage unavailable */
     }
   }, []);
   useEffect(() => {
     try {
-      if (text) sessionStorage.setItem("boardcue:home-draft", text);
-      else sessionStorage.removeItem("boardcue:home-draft");
+      if (text) sessionStorage.setItem(`boardcue:home-draft:${userId}`, text);
+      else sessionStorage.removeItem(`boardcue:home-draft:${userId}`);
     } catch {
       /* storage unavailable */
     }
@@ -776,7 +754,7 @@ export function HomeAssistant({
   async function clarify(item: Pending, answer: string) {
     setBusy("proposing");
     await dropProposal(item);
-    const content =`${item.proposal.inputText}\n(${t("board.proposal.clarifiedAs")}: ${answer})`;
+    const content = `${item.proposal.inputText}\n(${t("board.proposal.clarifiedAs")}: ${answer})`;
     await propose([{ text: content, workspaceId: item.board.id }], boards);
   }
 
@@ -817,16 +795,6 @@ export function HomeAssistant({
       setTimeout(() => void loadCaptures(), 15_000);
     } else setError(response.data.error || t("errors.SERVER_ERROR"));
   }
-
-  const isOverdue = (card: TodayCard) => Boolean(card.dueDate && new Date(card.dueDate).getTime() < todayStart.getTime());
-  const dueLabel = (card: TodayCard) => (isOverdue(card) ? t("home.today.overdue") : t("home.today.dueToday"));
-  // Most important first: priority, then the oldest deadline. The same cards as the boards, never copies.
-  const rankedToday = [...visibleToday].sort(
-    (a, b) =>
-      (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2) ||
-      new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime(),
-  );
-  const shownToday = todayExpanded ? rankedToday : rankedToday.slice(0, TODAY_PREVIEW);
 
   /** Moves the card to its board's done column through the board API (activity log, revision, permissions). */
   async function markDone(card: TodayCard) {
@@ -1148,50 +1116,18 @@ export function HomeAssistant({
             </div>
           )}
         </div>
+        <HomeAgenda
+          groups={taskGroups}
+          active={active}
+          loading={todayLoading}
+          error={todayError}
+          onDone={card => void markDone(card)}
+          onRetry={() => void loadToday()}
+        />
         {boardList}
       </div>
       <div className="home-side">
-        <section className="panel home-today" aria-labelledby="home-today-title">
-          <span className="eyebrow">{t("home.today.eyebrow")}</span>
-          <h2 id="home-today-title">{t("home.today.title")}</h2>
-          <p className="subtle">{new Date().toLocaleDateString(tag, { weekday: "long", day: "numeric", month: "long" })}</p>
-          {todayError ? (
-            <p className="subtle">{t("home.today.error")}</p>
-          ) : visibleToday.length ? (
-            <ul id="home-today-list">
-              {shownToday.map(card => (
-                <TodayItem key={card.id} card={card} due={dueLabel(card)} overdue={isOverdue(card)} onDone={() => void markDone(card)} />
-              ))}
-            </ul>
-          ) : (
-            <div className="home-today-empty">
-              <Icon name="checkCircle" size={23} />
-              <p>{t("home.today.empty")}</p>
-            </div>
-          )}
-          {!todayError && visibleToday.length > TODAY_PREVIEW && (
-            <button
-              type="button"
-              className="btn sm block home-today-more"
-              aria-expanded={todayExpanded}
-              aria-controls="home-today-list"
-              onClick={() => setTodayExpanded(value => !value)}
-            >
-              <Icon name={todayExpanded ? "chevronUp" : "chevronDown"} size={15} />
-              {todayExpanded ? t("home.today.showLess") : t("home.today.showAll", { count: visibleToday.length })}
-            </button>
-          )}
-          {!todayError && active.length > 0 && (todayExpanded || visibleToday.length < TODAY_PREVIEW) && (
-            <>
-              <h3 className="home-today-sub">{t("home.today.activeTitle")}</h3>
-              <ul>
-                {active.map(card => (
-                  <TodayItem key={card.id} card={card} onDone={() => void markDone(card)} />
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
+        <HomeTaskSummary groups={taskGroups} loading={todayLoading} error={todayError} />
         {sidebar}
       </div>
     </div>

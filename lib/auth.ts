@@ -16,10 +16,18 @@ export function createOpaqueToken() {
   return crypto.randomBytes(32).toString("base64url");
 }
 
-export async function createSession(userId: string) {
+export class CredentialsChangedError extends Error {}
+type CredentialSnapshot = { passwordHash: string; totpEnabledAt: Date | null };
+
+export async function createSession(userId: string, expected?: CredentialSnapshot) {
   const token = createOpaqueToken();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400000);
-  await prisma.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt } });
+  await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+    const current = await tx.user.findUnique({ where: { id: userId } });
+    if (!current || current.lifecycleStatus !== "ACTIVE" || (expected && (current.passwordHash !== expected.passwordHash || current.totpEnabledAt?.getTime() !== expected.totpEnabledAt?.getTime()))) throw new CredentialsChangedError();
+    await tx.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt } });
+  });
   return { token, expiresAt };
 }
 
@@ -30,8 +38,8 @@ export async function setSessionCookie(token: string, expiresAt: Date) {
   jar.set(COOKIE, token, { ...cookieBase(), expires: expiresAt });
 }
 
-export async function startSession(userId: string) {
-  const session = await createSession(userId);
+export async function startSession(userId: string, expected?: CredentialSnapshot) {
+  const session = await createSession(userId, expected);
   await setSessionCookie(session.token, session.expiresAt);
   return session;
 }
@@ -70,6 +78,13 @@ export async function getCurrentUser() {
   return (await getCurrentSession())?.user ?? null;
 }
 
+/** API access is denied until the organization's enrollment policy is satisfied.
+ * Enrollment and logout deliberately use getCurrentSession instead. */
+export async function getApiUser() {
+  const user = await getCurrentUser();
+  return user && !(await twoFactorRequiredButMissing(user)) ? user : null;
+}
+
 export function isVerified(user: { emailVerifiedAt: Date | null }) {
   return Boolean(user.emailVerifiedAt);
 }
@@ -91,7 +106,9 @@ export async function userFromApiToken(request: Request) {
   const match = header.match(/^Bearer\s+(bc_[A-Za-z0-9_-]{20,})$/);
   if (!match) return null;
   const token = await prisma.apiToken.findUnique({ where: { tokenHash: hashToken(match[1]) }, include: { user: true } });
-  if (!token || token.revokedAt || token.user.lifecycleStatus !== "ACTIVE" || !token.user.emailVerifiedAt) return null;
+  if (!token || token.revokedAt || token.expiresAt <= new Date() || token.user.lifecycleStatus !== "ACTIVE" || !token.user.emailVerifiedAt
+    || await twoFactorRequiredButMissing(token.user)) return null;
+  if (token.access !== "write" && !["GET", "HEAD"].includes(request.method)) return null;
   if (!token.lastUsedAt || Date.now() - token.lastUsedAt.getTime() > 60_000)
     await prisma.apiToken.update({ where: { id: token.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
   return token.user;

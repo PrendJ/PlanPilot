@@ -1,12 +1,12 @@
 import { after, NextResponse } from "next/server";
-import { getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
+import { getApiUser, twoFactorRequiredButMissing } from "@/lib/auth";
 import { apiError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, rejectCrossOrigin } from "@/lib/security";
 import { MAX_CAPTURE_ATTEMPTS, processTelegramAudio } from "@/lib/telegram";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;

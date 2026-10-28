@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
@@ -31,13 +32,15 @@ export async function POST(request: Request) {
   if (originError) return originError;
   const limited = await rateLimit(`register:${clientIp(request)}`, 5, 60 * 60_000, request);
   if (limited) return limited;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const body = parsed.data;
   const email = body.email.toLowerCase();
+  const destinationLimit = await rateLimit(`email:register:${parsed.data.email.toLowerCase()}`, 5, 60 * 60_000, request);
+  if (destinationLimit) return destinationLimit;
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    // Same response as a new account: registration never reveals whether an address is known.
+    // Never overwrite existing credentials; mailbox ownership is established separately.
     const delivery = existing.emailVerifiedAt
       ? await issueExistingAccountEmail(existing, request, body.next)
       : await issueVerificationEmail(existing, request, body.next);

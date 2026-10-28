@@ -1,6 +1,8 @@
+import { safeJson } from "@/lib/security";
+import { rejectCrossOrigin } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
+import { getApiUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const schema = z
@@ -15,10 +17,12 @@ const schema = z
   .refine(value => Object.keys(value).length > 0);
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ organizationId: string }> }) {
-  const actor = await getCurrentUser();
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
+  const actor = await getApiUser();
   if (!actor?.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { organizationId } = await params;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return NextResponse.json({ error: "Aggiornamento non valido" }, { status: 400 });
   const before = await prisma.organization.findUnique({
     where: { id: organizationId },

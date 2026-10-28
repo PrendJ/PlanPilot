@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -51,7 +52,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   const ctx = await boardContext(request, slug, { write: true });
   if (isResponse(ctx)) return ctx;
   const { workspace, user } = ctx;
-  const parsed = cardPatchSchema.safeParse(await request.json().catch(() => ({})));
+  const parsed = cardPatchSchema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400, { details: parsed.error.flatten() });
   const body = parsed.data;
   const before = await prisma.card.findFirst({ where: { id: cardId, workspaceId: workspace.id }, include: { assignees: true } });

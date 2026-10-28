@@ -61,7 +61,7 @@ describe("OpenRouter adapter (fetch mocked, no live provider)", () => {
     expect(log).toHaveBeenCalledWith("OpenRouter planning failed", expect.objectContaining({
       phase: "schema", providerRequestId: "gen-test", validationIssues: expect.arrayContaining([
         { path: "actions.0.title", code: "too_big" },
-        { path: "actions.0.dueDate", code: "invalid_string", validation: "datetime" },
+        { path: "actions.0.dueDate", code: "invalid_format", validation: "datetime" },
         { path: "$", code: "unrecognized_keys" },
       ]),
     }));

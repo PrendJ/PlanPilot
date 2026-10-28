@@ -1,4 +1,5 @@
 "use client";
+import { clearPrivateBrowserStorage } from "@/lib/private-browser-storage";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -48,7 +49,7 @@ type User = {
   emailDigest: boolean;
   referralCode: string | null;
 };
-type Token = { id: string; name: string; prefix: string; lastUsedAt: string | null; createdAt: string };
+type Token = { id: string; name: string; prefix: string; lastUsedAt: string | null; createdAt: string; expiresAt: string; access: "read" | "write" };
 
 export function AccountCenter({
   user,
@@ -158,7 +159,7 @@ export function AccountCenter({
     const form = event.currentTarget;
     const response = await api<{ token: Token; secret: string }>("/api/account/tokens", {
       method: "POST",
-      json: { name: new FormData(form).get("name") },
+      json: { name: new FormData(form).get("name"), access: new FormData(form).get("access") },
     });
     if (!response.ok) {
       fail(response.data.error);
@@ -521,7 +522,7 @@ export function AccountCenter({
               className="btn"
               onClick={async () => {
                 const response = await api("/api/auth/logout", { method: "POST", json: { all: true } });
-                if (response.ok) window.location.replace("/login");
+                if (response.ok) { clearPrivateBrowserStorage(); window.location.replace("/login"); }
                 else toast({ message: t("errors.SERVER_ERROR"), tone: "error" });
               }}
             >
@@ -546,6 +547,10 @@ export function AccountCenter({
               aria-label={t("account.api.name")}
               style={{ maxWidth: 320 }}
             />
+            <select name="access" aria-label={t("account.api.permissions")} defaultValue="write">
+              <option value="read">{t("account.api.readOnly")}</option>
+              <option value="write">{t("account.api.readWrite")}</option>
+            </select>
             <button className="btn" disabled={!user.verified}>
               <Icon name="key" size={15} />
               {t("account.api.create")}
@@ -581,6 +586,8 @@ export function AccountCenter({
                   <span>
                     {token.prefix}… ·{" "}
                     {token.lastUsedAt ? t("account.api.lastUsed", { date: date(token.lastUsedAt) }) : t("account.api.neverUsed")}
+                    {` · ${t("account.api.expires", { date: date(token.expiresAt) })}`}
+                    {` · ${t(token.access === "read" ? "account.api.readOnly" : "account.api.readWrite")}`}
                   </span>
                 </div>
                 <button type="button" className="btn sm danger" onClick={() => void revokeToken(token)}>

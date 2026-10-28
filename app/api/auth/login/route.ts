@@ -1,8 +1,9 @@
+import { safeJson } from "@/lib/security";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { startSession } from "@/lib/auth";
+import { CredentialsChangedError, startSession } from "@/lib/auth";
 import { clientIp, rateLimit, rejectCrossOrigin } from "@/lib/security";
 import { ensureDefaultOrganization } from "@/lib/default-organization";
 import { beginTwoFactor } from "@/lib/two-factor";
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
   if (originError) return originError;
   const limited = await rateLimit(`login:${clientIp(request)}`, 10, 15 * 60_000, request);
   if (limited) return limited;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_CREDENTIALS", 401);
   const email = parsed.data.email.toLowerCase();
   // Per-account limit too: stops slow distributed guessing on one address.
@@ -25,10 +26,12 @@ export async function POST(request: Request) {
   if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) return apiError(request, "INVALID_CREDENTIALS", 401);
   if (user.lifecycleStatus !== "ACTIVE") return apiError(request, "ACCOUNT_INACTIVE", 403);
   await ensureDefaultOrganization(user.id);
+  try {
   if (user.totpEnabledAt) {
-    await beginTwoFactor(user.id);
+    await beginTwoFactor(user.id, user.passwordHash);
     return NextResponse.json({ ok: true, twoFactorRequired: true });
   }
-  await startSession(user.id);
+  await startSession(user.id, user);
   return NextResponse.json({ ok: true, twoFactorRequired: false });
+  } catch (error) { if (error instanceof CredentialsChangedError) return apiError(request, "INVALID_CREDENTIALS", 401); throw error; }
 }

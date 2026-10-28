@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +13,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   if (isResponse(ctx)) return ctx;
   const parsed = z
     .object({ active: z.boolean().optional(), test: z.boolean().optional() })
-    .safeParse(await request.json().catch(() => ({})));
+    .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const webhook = await prisma.webhook.findFirst({ where: { id: webhookId, workspaceId: ctx.workspace.id } });
   if (!webhook) return apiError(request, "NOT_FOUND", 404);

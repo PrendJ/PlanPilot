@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -29,13 +30,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { slug } = await params;
   const ctx = await boardContext(request, slug, { manage: true });
   if (isResponse(ctx)) return ctx;
+  if (!ctx.user.emailVerifiedAt) return apiError(request, "EMAIL_NOT_VERIFIED", 403);
   const parsed = z
     .object({
       url: z.string().url().max(500),
       format: z.enum(["json", "slack"]).default("json"),
       events: z.array(z.enum(WEBHOOK_EVENTS)).max(WEBHOOK_EVENTS.length).default([]),
     })
-    .safeParse(await request.json().catch(() => ({})));
+    .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   try {
     await assertSafeWebhookUrl(parsed.data.url);

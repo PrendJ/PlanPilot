@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const mocks = vi.hoisted(() => ({ context: vi.fn(), quota: vi.fn(), recordUsage: vi.fn(), trackEvent: vi.fn() }));
 vi.mock("@/lib/api-context", () => ({ boardContext: mocks.context, isResponse: (value: unknown) => value instanceof NextResponse }));
-vi.mock("@/lib/security", () => ({ rateLimit: async () => null }));
+vi.mock("@/lib/security", async original => ({ ...(await original<typeof import("@/lib/security")>()), rateLimit: async () => null }));
 vi.mock("@/lib/workspace", () => ({ getWorkspaceApiKey: () => "synthetic-key" }));
 vi.mock("@/lib/platform-ai", () => ({ platformModels: async () => ({ transcriptionModel: "mistralai/voxtral-mini-transcribe" }) }));
 vi.mock("@/lib/plans", () => ({ getUsageStatus: mocks.quota, recordUsage: mocks.recordUsage }));

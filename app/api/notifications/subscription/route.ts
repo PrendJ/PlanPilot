@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentSession } from "@/lib/auth";
+import { getCurrentSession, twoFactorRequiredButMissing } from "@/lib/auth";
 import { pushConfig, pushSubscriptionSchema } from "@/lib/push-config";
 import { rateLimit, rejectCrossOrigin, safeJson } from "@/lib/security";
 
 export async function GET() {
   const session = await getCurrentSession();
   if (!session) return NextResponse.json({ error: "Accedi per gestire le notifiche." }, { status: 401 });
+  if (await twoFactorRequiredButMissing(session.user)) return NextResponse.json({ code: "TWO_FACTOR_SETUP_REQUIRED" }, { status: 403 });
   const config = pushConfig();
   const subscribed = config
     ? Boolean(await prisma.pushSubscription.findFirst({ where: { sessionId: session.id }, select: { id: true } }))
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
   if (origin) return origin;
   const session = await getCurrentSession();
   if (!session) return NextResponse.json({ error: "Accedi per attivare le notifiche." }, { status: 401 });
+  if (await twoFactorRequiredButMissing(session.user)) return NextResponse.json({ code: "TWO_FACTOR_SETUP_REQUIRED" }, { status: 403 });
   if (!pushConfig()) return NextResponse.json({ error: "Notifiche non ancora configurate." }, { status: 503 });
   const limited = await rateLimit(`push:${session.id}`, 10, 60000, request);
   if (limited) return limited;

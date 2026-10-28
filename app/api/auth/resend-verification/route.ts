@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -11,8 +12,10 @@ export async function POST(request: Request) {
   if (originError) return originError;
   const limited = await rateLimit(`verify-resend:${clientIp(request)}`, 5, 60 * 60_000, request);
   if (limited) return limited;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return NextResponse.json({ ok: true });
+  const destinationLimit = await rateLimit(`email:resend-verification:${parsed.data.email.toLowerCase()}`, 5, 60 * 60_000, request);
+  if (destinationLimit) return destinationLimit;
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
   const delivery = user
     ? user.emailVerifiedAt

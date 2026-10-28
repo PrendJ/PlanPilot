@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-28",
+  "baseCommit": "14fd7c57fa077bf6018a5064393f82f70e6b8ad4",
+  "node": "v24.18.0",
+  "platform": "win32",
+  "files": [
+    {
+      "path": "package.json",
+      "sha256": "f5193e23b07d8359642949910dd073d71b1a646673424e41f617a6de17d1aae5"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "e2b9699c6d7bbe3b52b9e086c9c4529a17c0bb255986cc2739429bc6295e7340"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "70f36e9fb1aa99508567568e420406565cedb28fb8d5f8ea10390d4324156afd"
+    },
+    {
+      "path": "middleware.ts",
+      "sha256": "8c769a948e72f4a01d8ea7ed6d984cb3755562b3a28e90ae6aec2897fa06a43d"
+    },
+    {
+      "path": "lib/security.ts",
+      "sha256": "7f5c1b32d6e752b4817b9f3b3ff57b7f97b00d434896e21131719003ac994d2a"
+    },
+    {
+      "path": "lib/auth.ts",
+      "sha256": "bb4daa33effbfd6110f1142efcc3f65945aee3720cce62933685479ca2b8082a"
+    },
+    {
+      "path": "lib/two-factor.ts",
+      "sha256": "e95c37ef657b3558d3acee208da171aa6e8e5b4b6ca69c57ae2a245e4e07ebb9"
+    },
+    {
+      "path": "lib/webhooks.ts",
+      "sha256": "9f99b96c8cedd9dfaeec19cb2db99a7f90b0be9c6c93fa2214c2462733a4f561"
+    },
+    {
+      "path": "lib/import-export.ts",
+      "sha256": "ee85176481d134eb6f901410820b300fea25ca07ce51ab420eb9b49362fdd33b"
+    },
+    {
+      "path": "app/api/admin/users/route.ts",
+      "sha256": "364671f127a2bee9eaeb0cd2458348e012fd7d908c3dddd531ea2381be3ec2bd"
+    },
+    {
+      "path": "app/api/auth/register/route.ts",
+      "sha256": "1f5453c82e6d21b0034e6ab77790a90b8502596a4a82caeb0bd01861bc91d497"
+    },
+    {
+      "path": "app/api/auth/verify/route.ts",
+      "sha256": "6dd9ff46b11b9217060fe504aa70a6fd437982409cda97231d3e833398ddfb82"
+    },
+    {
+      "path": "app/api/auth/reset-password/route.ts",
+      "sha256": "6d20a76c82c1feb2bcfd1946057e0d7be4979e213140fe897a7ad6831f5dd165"
+    },
+    {
+      "path": "app/api/search/route.ts",
+      "sha256": "40637c3c98400376c89de203cd05630df79d8c966e78185c983f8baa7b725c7a"
+    },
+    {
+      "path": "app/api/organizations/[organizationId]/export/route.ts",
+      "sha256": "0cd3012aebbcf0c983bc237defbcb68a501dbae56f867f1633a17263e7a03f37"
+    },
+    {
+      "path": "app/api/workspaces/[slug]/members/[userId]/route.ts",
+      "sha256": "cbdfecff985588260ca523d54d59fa331d93479794a2a085a200ab78a5d1d5cf"
+    },
+    {
+      "path": "app/app/[slug]/page.tsx",
+      "sha256": "f50bf2a887f8ba70eccc4707292171f8b512b217d1681cbe419f52e754f6a8c9"
+    },
+    {
+      "path": "app/app/[slug]/print/page.tsx",
+      "sha256": "35d470c48171d60c4a9af13932b827a78d35a4fef79ab3719f8617393a326bc3"
+    },
+    {
+      "path": "scripts/backup-db.sh",
+      "sha256": "940592fe949c1fd1c38018406bac6fb19271e1cb586fcfa3db4281f9aa3b45b4"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -31,7 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (limited) return limited;
   const parsed = z
     .object({ email: z.string().email().max(254), role: z.enum(INVITE_ROLES).default("MEMBER") })
-    .safeParse(await request.json().catch(() => ({})));
+    .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const { workspace, user } = ctx;
   const email = parsed.data.email.toLowerCase();

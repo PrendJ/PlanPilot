@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getApiUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/errors";
 
 /** Cross-board search over card titles, descriptions and tags, limited to boards the person belongs to. */
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const q = (new URL(request.url).searchParams.get("q") || "").trim().slice(0, 100);
   if (q.length < 2) return NextResponse.json({ results: [] });

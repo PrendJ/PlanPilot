@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Topbar } from "@/components/Topbar";
 import { AdminPanel } from "@/components/AdminPanel";
@@ -10,6 +10,7 @@ import { platformModelOptionsWithPricing, platformModels } from "@/lib/platform-
 export default async function AdminPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
   if (!hasPlatformCapability(user, "METADATA")) redirect("/app");
   const role = platformRoleOf(user);
   const [users, workspaces, analytics, aiModels, aiModelOptions] = await Promise.all([

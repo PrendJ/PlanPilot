@@ -35,6 +35,8 @@ export function Dialog({
   const requestClose = useCallback(() => {
     if (!confirmClose || confirmClose()) onClose();
   }, [confirmClose, onClose]);
+  const requestCloseRef = useRef(requestClose);
+  requestCloseRef.current = requestClose;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const node = ref.current;
@@ -43,7 +45,7 @@ export function Dialog({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
-        requestClose();
+        requestCloseRef.current();
       }
       if (event.key !== "Tab" || !node) return;
       const items = [...node.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(item => item.offsetParent !== null);
@@ -65,7 +67,7 @@ export function Dialog({
       document.body.style.overflow = overflow;
       previous?.focus?.();
     };
-  }, [requestClose]);
+  }, []);
   return (
     <div
       className="dialog-backdrop"

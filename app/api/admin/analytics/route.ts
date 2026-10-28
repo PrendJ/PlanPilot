@@ -1,3 +1,4 @@
+import { rejectCrossOrigin } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { requirePlatform } from "@/lib/platform-access";
 import { getAdminAnalytics } from "@/lib/admin-analytics";

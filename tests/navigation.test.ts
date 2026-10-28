@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { appUrl } from "@/lib/email";
 import { safeNextPath } from "@/lib/navigation";
 
@@ -18,6 +18,13 @@ describe("safe post-auth navigation", () => {
 });
 
 describe("public action URLs", () => {
+  it("ignores request host poisoning in production while honoring an explicit local test origin", () => {
+    vi.stubEnv("NODE_ENV", "production"); vi.stubEnv("APP_URL", "");
+    expect(appUrl("/login", new Request("https://attacker.example/api/auth/verify"))).toBe("https://boardcue.draftapps.it/login");
+    vi.stubEnv("APP_URL", "http://127.0.0.1:3127");
+    expect(appUrl("/login")).toBe("http://127.0.0.1:3127/login");
+    vi.unstubAllEnvs();
+  });
   it("never exposes a wildcard server address to the user", () => {
     process.env.APP_URL = "http://0.0.0.0:3000";
     expect(appUrl("/login?verified=1", new Request("https://boardcue.example/api/auth/verify"))).toBe(
@@ -35,7 +42,8 @@ describe("public action URLs", () => {
 
 import { rejectCrossOrigin } from "@/lib/security";
 describe("cross-origin guard", () => {
-  it("accepts same-origin requests behind a proxy and rejects foreign origins", () => {
+  it("accepts the configured origin and rejects untrusted forwarded hosts", () => {
+    vi.stubEnv("APP_URL", "https://boardcue.example");
     const internal = (origin: string, host: string) =>
       new Request("http://0.0.0.0:3000/api/x", { method: "POST", headers: { origin, host } });
     expect(rejectCrossOrigin(internal("https://boardcue.example", "boardcue.example"))).toBeNull();
@@ -49,5 +57,6 @@ describe("cross-origin guard", () => {
     ).toBeNull();
     expect(rejectCrossOrigin(internal("https://evil.example", "boardcue.example"))?.status).toBe(403);
     expect(rejectCrossOrigin(new Request("http://0.0.0.0:3000/api/x", { method: "POST" }))).toBeNull();
+    vi.unstubAllEnvs();
   });
 });

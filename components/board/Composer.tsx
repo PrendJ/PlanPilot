@@ -13,6 +13,7 @@ const BARS = 24;
 export type ComposerHandle = { focus: () => void; toggleMic: () => void; setText: (value: string) => void };
 
 type Props = {
+  userId: string;
   slug: string;
   disabled: boolean;
   dictationEnabled: boolean;
@@ -25,11 +26,11 @@ type Props = {
 
 /** Text + voice input for AI updates. The draft survives reloads (per board, this tab only). */
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
-  { slug, disabled, dictationEnabled, quotaPaused, autoSendDictation, examples, onResult, onError },
+  { userId, slug, disabled, dictationEnabled, quotaPaused, autoSendDictation, examples, onResult, onError },
   ref,
 ) {
   const t = useT();
-  const storageKey = `boardcue:draft:${slug}`;
+  const storageKey = `boardcue:draft:${userId}:${slug}`;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<"" | "transcribing" | "thinking">("");
   const [recording, setRecording] = useState(false);

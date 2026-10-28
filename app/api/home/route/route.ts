@@ -1,6 +1,7 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
+import { getApiUser, twoFactorRequiredButMissing } from "@/lib/auth";
 import { canWriteCards, workspaceReadOnly } from "@/lib/board";
 import { apiError } from "@/lib/errors";
 import { getUsageStatus, recordUsage } from "@/lib/plans";
@@ -14,14 +15,14 @@ const schema = z.object({ text: z.string().trim().min(1).max(12000) });
 
 /** Only board names, team names and kind plus the submitted text are sent for routing; card data is loaded by the chosen board later. */
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
   if (await twoFactorRequiredButMissing(user)) return apiError(request, "TWO_FACTOR_SETUP_REQUIRED", 403);
   const limited = await rateLimit(`home-route:${user.id}`, 20, 60_000, request);
   if (limited) return limited;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const memberships = await prisma.workspaceMember.findMany({
     where: { userId: user.id, workspace: { lifecycleStatus: "ACTIVE" } },

@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requirePlatform } from "@/lib/platform-access";
@@ -19,7 +20,7 @@ export async function PATCH(request: Request) {
   if (originError) return originError;
   const access = await requirePlatform("PLATFORM_ADMIN");
   if ("error" in access) return access.error;
-  const parsed = schema.safeParse(await request.json().catch(() => null));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return NextResponse.json({ error: "Indica un modello di pianificazione e uno di dettatura." }, { status: 400 });
   if (!isAllowedPlanningModel(parsed.data.planModel)) return NextResponse.json({ error: "Modello di pianificazione non consentito" }, { status: 400 });
   if (parsed.data.complexPlanModel !== undefined && !isAllowedPlanningModel(parsed.data.complexPlanModel)) return NextResponse.json({ error: "Modello di pianificazione complessa non consentito" }, { status: 400 });

@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { v1Board, v1Error } from "@/lib/api-v1";
@@ -37,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { slug } = await params;
   const ctx = await v1Board(request, slug, true);
   if (ctx instanceof NextResponse) return ctx;
-  const parsed = cardCreateSchema.omit({ assigneeIds: true }).safeParse(await request.json().catch(() => ({})));
+  const parsed = cardCreateSchema.omit({ assigneeIds: true }).safeParse(await safeJson(request));
   if (!parsed.success) return v1Error(400, "INVALID_INPUT", "Invalid card payload");
   const body = parsed.data;
   if (!(await prisma.boardColumn.findFirst({ where: { id: body.columnId, workspaceId: ctx.workspace.id }, select: { id: true } })))

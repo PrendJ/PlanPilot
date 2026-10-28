@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { hashToken, startSession } from "@/lib/auth";
+import { CredentialsChangedError, hashToken, startSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { appUrl } from "@/lib/email";
 import { safeNextPath } from "@/lib/navigation";
 import { beginTwoFactor } from "@/lib/two-factor";
 import { ensureDefaultOrganization } from "@/lib/default-organization";
+import { claimEmailIdentity, lockIdentity } from "@/lib/identity";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -17,15 +18,21 @@ export async function GET(request: Request) {
   const record = await prisma.loginToken.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
   if (!record || record.usedAt || record.expiresAt < new Date() || record.user.lifecycleStatus !== "ACTIVE")
     return login({ magic: "invalid" });
-  const claimed = await prisma.loginToken.updateMany({ where: { id: record.id, usedAt: null }, data: { usedAt: new Date() } });
-  if (!claimed.count) return login({ magic: "invalid" });
-  // Opening the link proves control of the mailbox.
-  if (!record.user.emailVerifiedAt) await prisma.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } });
+  const result = await prisma.$transaction(async tx => {
+    await lockIdentity(tx, record.userId);
+    const claimed = await tx.loginToken.updateMany({ where: { id: record.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
+    if (!claimed.count) return null;
+    return { setup: await claimEmailIdentity(tx, record.userId) };
+  });
+  if (!result) return login({ magic: "invalid" });
+  if (result.setup) return NextResponse.redirect(appUrl(`/reset-password?token=${encodeURIComponent(result.setup)}&verified=1`, request));
   await ensureDefaultOrganization(record.userId);
+  try {
   if (record.user.totpEnabledAt) {
-    await beginTwoFactor(record.userId);
+    await beginTwoFactor(record.userId, record.user.passwordHash);
     return login({ twofactor: "1" });
   }
-  await startSession(record.userId);
+  await startSession(record.userId, record.user);
   return NextResponse.redirect(appUrl(next, request));
+  } catch (error) { if (error instanceof CredentialsChangedError) return login({ magic: "invalid" }); throw error; }
 }

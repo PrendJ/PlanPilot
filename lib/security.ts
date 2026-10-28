@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { errorMessage } from "@/lib/errors";
 import { requestLocale } from "@/lib/i18n/server";
+import { isIP } from "node:net";
+import { trustedRequestOrigin } from "@/lib/request-origin";
 
 type Bucket = { count: number; resetAt: number };
 const globalBuckets = globalThis as typeof globalThis & { boardcueRateLimits?: Map<string, Bucket> };
@@ -9,11 +11,22 @@ const buckets = globalBuckets.boardcueRateLimits || new Map<string, Bucket>();
 globalBuckets.boardcueRateLimits = buckets;
 
 export function clientIp(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
+  // Opt in only when ingress appends the actual peer address and app is private.
+  // Count from the trusted end, never from attacker-controlled entries on the left.
+  const hops = Number(process.env.TRUSTED_PROXY_HOPS || 0);
+  if (!Number.isSafeInteger(hops) || hops < 1 || hops > 5) return "unknown";
+  const chain = (request.headers.get("x-forwarded-for") || "").split(",").map(value => value.trim());
+  const ip = chain[chain.length - hops];
+  return ip && isIP(ip) ? ip : "unknown";
 }
 
 function memoryHit(key: string, windowMs: number) {
   const now = Date.now();
+  if (buckets.size >= 10_000) {
+    for (const [entry, bucket] of buckets) if (bucket.resetAt <= now) buckets.delete(entry);
+    // One bounded overflow bucket fails closed during a store outage.
+    if (!buckets.has(key) && buckets.size >= 10_000) key = "overflow";
+  }
   const current = buckets.get(key);
   if (!current || current.resetAt <= now) {
     const fresh = { count: 1, resetAt: now + windowMs };
@@ -57,27 +70,45 @@ export async function purgeRateLimits() {
 }
 
 export function rejectCrossOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return null;
-  if (origin === new URL(request.url).origin) return null;
-  // Behind a proxy (or the standalone server) request.url may carry an internal host: compare with the Host seen by the browser.
-  try {
-    const originHost = new URL(origin).host;
-    const hosts = [request.headers.get("x-forwarded-host"), request.headers.get("host")]
-      .filter(Boolean)
-      .flatMap(value => value!.split(",").map(item => item.trim()));
-    if (hosts.includes(originHost)) return null;
-  } catch {
-    // Malformed Origin header: fall through to rejection.
-  }
-  try {
-    if (process.env.APP_URL && origin === new URL(process.env.APP_URL).origin) return null;
-  } catch {
-    // A malformed deployment URL must not break every form submission.
-  }
+  if (trustedRequestOrigin(request)) return null;
   return NextResponse.json({ error: errorMessage("ORIGIN_REJECTED", requestLocale(request)), code: "ORIGIN_REJECTED" }, { status: 403 });
 }
 
-export function safeJson<T = unknown>(request: Request): Promise<T | Record<string, never>> {
-  return request.json().catch(() => ({}));
+export async function boundedBytes(request: Pick<Request, "headers" | "body">, maxBytes = 256 * 1024) {
+  if (Number(request.headers.get("content-length") || 0) > maxBytes) throw new Error("BODY_TOO_LARGE");
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("BODY_TIMEOUT")), 10_000); });
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { value, done } = await Promise.race([reader.read(), deadline]);
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) throw new Error("BODY_TOO_LARGE");
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return bytes;
+  } finally { clearTimeout(timer); void reader.cancel().catch(() => undefined); }
+}
+
+export async function boundedText(request: Request, maxBytes = 256 * 1024) {
+  return new TextDecoder().decode(await boundedBytes(request, maxBytes));
+}
+
+export async function safeJson<T = Record<string, unknown>>(request: Request, maxBytes = 256 * 1024): Promise<T | Record<string, never>> {
+  if (!(request.headers.get("content-type") || "").toLowerCase().startsWith("application/json")) return {};
+  try { return JSON.parse(await boundedText(request, maxBytes)) as T; } catch { return {}; }
+}
+
+export async function boundedFormData(request: Request, maxBytes = 11 * 1024 * 1024) {
+  try {
+    const bytes = await boundedBytes(request, maxBytes);
+    return await new Response(new Blob([bytes]), { headers: { "Content-Type": request.headers.get("content-type") || "" } }).formData();
+  } catch { return null; }
 }

@@ -35,7 +35,7 @@ const storage = [
   ["theme", "Tema chiaro, scuro o di sistema."],
   ["boardcue_cookie_notice_v1", "Ricorda che hai chiuso questo avviso."],
   ["boardcue:view:<board>", "Vista preferita della board (kanban, lista, calendario)."],
-  ["boardcue:draft:<board>", "Bozza non inviata dell’aggiornamento (session storage, solo in questa scheda)."],
+  ["boardcue:draft:<utente>:<board>", "Bozza non inviata dell’aggiornamento, separata per account (session storage, solo in questa scheda)."],
 ] as const;
 
 export default function CookiesPage() {

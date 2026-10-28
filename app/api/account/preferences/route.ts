@@ -1,6 +1,7 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser, getOrganizationAccess } from "@/lib/auth";
+import { getApiUser, getOrganizationAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rejectCrossOrigin } from "@/lib/security";
 import { apiError } from "@/lib/errors";
@@ -16,11 +17,11 @@ const schema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const { defaultOrganizationId, ...rest } = parsed.data;
   if (defaultOrganizationId && !(await getOrganizationAccess(user.id, defaultOrganizationId))) return apiError(request, "FORBIDDEN", 403);

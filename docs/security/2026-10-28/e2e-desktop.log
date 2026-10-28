@@ -1,0 +1,223 @@
+[WebServer] (node:37676) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 22 tests using 2 workers
+
+(node:40980) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22088) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  2 [desktop-1440] › e2e\public.spec.ts:5:5 › visitors can explore the demo before choosing to log in (1.9s)
+  ok  3 [desktop-1440] › e2e\public.spec.ts:15:5 › landing explains the loop and leads to the Pro trial (618ms)
+  x   4 [desktop-1440] › e2e\public.spec.ts:23:5 › pricing shows the agreed plans, seats and Enterprise without SSO/SLA promises (5.5s)
+(node:35924) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  5 [desktop-1440] › e2e\public.spec.ts:55:5 › English pages are served under /en (550ms)
+  ok  6 [desktop-1440] › e2e\public.spec.ts:61:5 › the demo previews a change and moves the existing card instead of duplicating it (1.5s)
+  ok  7 [desktop-1440] › e2e\public.spec.ts:75:5 › registration is usable without horizontal overflow (342ms)
+  ok  8 [desktop-1440] › e2e\public.spec.ts:82:5 › authentication outcomes are explained (446ms)
+  ok  9 [desktop-1440] › e2e\public.spec.ts:89:5 › login offers a passwordless link (385ms)
+  ok 10 [desktop-1440] › e2e\public.spec.ts:95:5 › external post-login redirects are discarded (330ms)
+  ok 11 [desktop-1440] › e2e\public.spec.ts:100:5 › an incomplete reset link offers a recovery path (346ms)
+  ok 12 [desktop-1440] › e2e\public.spec.ts:106:5 › private areas redirect to sign-in (652ms)
+  ok 13 [desktop-1440] › e2e\public.spec.ts:111:5 › favicon and PWA icons are served, with cache-busting URLs (475ms)
+  x  14 [desktop-1440] › e2e\public.spec.ts:121:5 › the demo sorts one thought across the personal and the work board (545ms)
+(node:43976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 15 [desktop-1440] › e2e\public.spec.ts:132:5 › crawlers find robots.txt, a sitemap, llms.txt and per-page canonical tags (767ms)
+  ok 16 [desktop-1440] › e2e\pwa.spec.ts:24:5 › app guide has keyboard focus, escape dismissal and fits the viewport (647ms)
+  x  17 [desktop-1440] › e2e\pwa.spec.ts:41:5 › real worker offers offline fallback without caching private pages or APIs (6.0s)
+(node:38308) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 18 [desktop-1440] › e2e\pwa.spec.ts:68:5 › waiting update neither reloads nor activates while a form is dirty (450ms)
+  ok 19 [desktop-1440] › e2e\pwa.spec.ts:79:5 › explicit update sends activation only after user action (444ms)
+  ok 20 [desktop-1440] › e2e\pwa.spec.ts:87:5 › notification permission denial is explained without saving a subscription (574ms)
+  -  21 [desktop-1440] › e2e\pwa.spec.ts:161:7 › authenticated board with synthetic PostgreSQL fixture › draft blocks update, manual card save works and offline errors retain text
+  x   1 [desktop-1440] › e2e\app.spec.ts:4:5 › sign-up lands on a ready board; cards, settings and security work (30.7s)
+(node:42888) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -  22 [desktop-1440] › e2e\app.spec.ts:76:5 › the signed-in home fits narrow mobile screens
+
+
+  1) [desktop-1440] › e2e\app.spec.ts:4:5 › sign-up lands on a ready board; cards, settings and security work 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('menuitem', { name: 'Completato' }).or(locator('.menu-item').filter({ hasText: 'Completato' })).first()
+        - locator resolved to <button type="button" class="menu-item">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not stable
+        - retrying click action
+        - waiting 20ms
+        - waiting for element to be visible, enabled and stable
+        - element is not stable
+      2 × retrying click action
+          - waiting 100ms
+          - waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <aside class="cookie-notice" aria-label="Informativa cookie">…</aside> intercepts pointer events
+      13 × retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <span>Nessun cookie pubblicitario, di profilazione o di…</span> from <aside class="cookie-notice" aria-label="Informativa cookie">…</aside> subtree intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <aside class="cookie-notice" aria-label="Informativa cookie">…</aside> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <aside class="cookie-notice" aria-label="Informativa cookie">…</aside> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+           - waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <aside class="cookie-notice" aria-label="Informativa cookie">…</aside> intercepts pointer events
+      - retrying click action
+        - waiting 500ms
+
+
+      40 |     .or(page.locator(".menu-item", { hasText: "Completato" }))
+      41 |     .first()
+    > 42 |     .click();
+         |      ^
+      43 |   const done = page.locator("section.column").filter({ has: page.getByRole("heading", { name: "Completato" }) });
+      44 |   await expect(done.getByText("Card creata dal test")).toBeVisible();
+      45 |
+        at C:\Users\loren\Documents\GitHub\PlanPilot\e2e\app.spec.ts:42:6
+
+    Error Context: test-results\app-sign-up-lands-on-a-rea-fedbb--settings-and-security-work-desktop-1440\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\app-sign-up-lands-on-a-rea-fedbb--settings-and-security-work-desktop-1440\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\app-sign-up-lands-on-a-rea-fedbb--settings-and-security-work-desktop-1440\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [desktop-1440] › e2e\public.spec.ts:23:5 › pricing shows the agreed plans, seats and Enterprise without SSO/SLA promises 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  locator('.pricing-card').filter({ has: getByRole('heading', { name: 'Family', exact: true }) }).locator('.price strong')
+    Expected: "€5,00"
+    Received: "€4,50"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" with timeout 5000ms
+      - waiting for locator('.pricing-card').filter({ has: getByRole('heading', { name: 'Family', exact: true }) }).locator('.price strong')
+        14 × locator resolved to <strong>…</strong>
+           - unexpected value "€4,50"
+
+
+      30 |   // Private customers come first: Pro personale + Family, VAT included, never Business.
+      31 |   await expect(price("Pro personale")).toHaveText("€4,90");
+    > 32 |   await expect(price("Family")).toHaveText("€5,00");
+         |                                 ^
+      33 |   await expect(page.getByRole("heading", { name: "Business", exact: true })).toHaveCount(0);
+      34 |   await expect(page.getByText("IVA inclusa, fatturazione mensile").first()).toBeVisible();
+      35 |   await page.getByRole("button", { name: "Aziende e professionisti", exact: true }).click();
+        at C:\Users\loren\Documents\GitHub\PlanPilot\e2e\public.spec.ts:32:33
+
+    Error Context: test-results\public-pricing-shows-the-a-05273-se-without-SSO-SLA-promises-desktop-1440\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\public-pricing-shows-the-a-05273-se-without-SSO-SLA-promises-desktop-1440\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\public-pricing-shows-the-a-05273-se-without-SSO-SLA-promises-desktop-1440\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [desktop-1440] › e2e\public.spec.ts:121:5 › the demo sorts one thought across the personal and the work board 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.home-pending').filter({ hasText: 'Casa e personale' })
+    Expected substring: "Chiama la banca"
+    Error: strict mode violation: locator('.home-pending').filter({ hasText: 'Casa e personale' }) resolved to 2 elements:
+        1) <div class="home-pending">…</div> aka getByText('Casa e personaleSposta su un’altra boardLavoroSistema / proposta AIModifiche')
+        2) <div class="home-pending">…</div> aka getByText('LavoroSposta su un’altra boardCasa e personaleSistema / proposta AIModifiche')
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for locator('.home-pending').filter({ hasText: 'Casa e personale' })
+
+
+      124 |   const proposals = page.getByRole("region", { name: "Modifiche proposte dall’AI" });
+      125 |   await expect(proposals).toHaveCount(2);
+    > 126 |   await expect(page.locator(".home-pending").filter({ hasText: "Casa e personale" })).toContainText("Chiama la banca");
+          |                                                                                       ^
+      127 |   await expect(page.locator(".home-pending").filter({ hasText: "Lavoro" })).toContainText("Preventivo per Studio Rossi");
+      128 |   await expect(page.getByRole("button", { name: "Devo organizzare la cena di fine anno" })).toBeDisabled();
+      129 |   expect(await page.evaluate(noOverflow)).toBe(true);
+        at C:\Users\loren\Documents\GitHub\PlanPilot\e2e\public.spec.ts:126:87
+
+    Error Context: test-results\public-the-demo-sorts-one--a5edf-personal-and-the-work-board-desktop-1440\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\public-the-demo-sorts-one--a5edf-personal-and-the-work-board-desktop-1440\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\public-the-demo-sorts-one--a5edf-personal-and-the-work-board-desktop-1440\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [desktop-1440] › e2e\pwa.spec.ts:41:5 › real worker offers offline fallback without caching private pages or APIs 
+
+    Error: expect(page).toHaveURL(expected) failed
+
+    Expected pattern: /\/login/
+    Received string:  "http://localhost:3127/"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toHaveURL" with timeout 5000ms
+        13 × locator resolved to <html lang="it" data-theme="light">…</html>
+           - unexpected value "http://localhost:3127/"
+
+
+      63 |   await context.setOffline(false);
+      64 |   await page.getByRole("link", { name: "Riprova ad aprire BoardCue" }).click();
+    > 65 |   await expect(page).toHaveURL(/\/login/);
+         |                      ^
+      66 | });
+      67 |
+      68 | test("waiting update neither reloads nor activates while a form is dirty", async ({ page }) => {
+        at C:\Users\loren\Documents\GitHub\PlanPilot\e2e\pwa.spec.ts:65:22
+
+    Error Context: test-results\pwa-real-worker-offers-off-d610a-ching-private-pages-or-APIs-desktop-1440\error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\pwa-real-worker-offers-off-d610a-ching-private-pages-or-APIs-desktop-1440\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\pwa-real-worker-offers-off-d610a-ching-private-pages-or-APIs-desktop-1440\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4 failed
+    [desktop-1440] › e2e\app.spec.ts:4:5 › sign-up lands on a ready board; cards, settings and security work 
+    [desktop-1440] › e2e\public.spec.ts:23:5 › pricing shows the agreed plans, seats and Enterprise without SSO/SLA promises 
+    [desktop-1440] › e2e\public.spec.ts:121:5 › the demo sorts one thought across the personal and the work board 
+    [desktop-1440] › e2e\pwa.spec.ts:41:5 › real worker offers offline fallback without caching private pages or APIs 
+  2 skipped
+  16 passed (35.5s)

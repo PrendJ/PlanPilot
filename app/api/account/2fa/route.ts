@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
@@ -10,11 +11,15 @@ import { apiError } from "@/lib/errors";
 import { decryptSecret, encryptionConfigured, encryptSecret } from "@/lib/crypto";
 import { generateRecoveryCodes, generateTotpSecret, otpauthUri, verifyTotp } from "@/lib/totp";
 import { checkUserCode } from "@/lib/two-factor";
+import { identitySessionIsCurrent, lockIdentity } from "@/lib/identity";
 
 /** Step 1: create a pending secret (inactive until confirmed with a valid code). */
 export async function GET(request: Request) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   const session = await getCurrentSession();
   if (!session) return apiError(request, "UNAUTHORIZED", 401);
+  if (!session.user.emailVerifiedAt) return apiError(request, "EMAIL_NOT_VERIFIED", 403);
   if (!encryptionConfigured()) return apiError(request, "SERVER_ERROR", 503);
   if (session.user.totpEnabledAt)
     return NextResponse.json({
@@ -22,7 +27,12 @@ export async function GET(request: Request) {
       recoveryCodesLeft: Array.isArray(session.user.totpRecoveryCodes) ? session.user.totpRecoveryCodes.length : 0,
     });
   const secret = generateTotpSecret();
-  await prisma.user.update({ where: { id: session.userId }, data: { totpSecretEnc: encryptSecret(secret), totpLastStep: null } });
+  const prepared = await prisma.$transaction(async tx => {
+    await lockIdentity(tx, session.userId);
+    if (!(await identitySessionIsCurrent(tx, session))) return { count: 0 };
+    return tx.user.updateMany({ where: { id: session.userId, totpEnabledAt: null }, data: { totpSecretEnc: encryptSecret(secret), totpLastStep: null } });
+  });
+  if (!prepared.count) return apiError(request, "TWO_FACTOR_INVALID", 409);
   const uri = otpauthUri({ secret, account: session.user.email });
   const qr = await QRCode.toString(uri, {
     type: "svg",
@@ -37,11 +47,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await getCurrentSession();
   if (!session) return apiError(request, "UNAUTHORIZED", 401);
+  if (!session.user.emailVerifiedAt) return apiError(request, "EMAIL_NOT_VERIFIED", 403);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
   const limited = await rateLimit(`2fa-setup:${session.userId}`, 10, 15 * 60_000, request);
   if (limited) return limited;
-  const parsed = z.object({ code: z.string().trim().min(6).max(20) }).safeParse(await request.json().catch(() => ({})));
+  const parsed = z.object({ code: z.string().trim().min(6).max(20) }).safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "TWO_FACTOR_INVALID", 400);
   const user = session.user;
   if (!user.totpSecretEnc) return apiError(request, "TWO_FACTOR_INVALID", 400);
@@ -53,11 +64,15 @@ export async function POST(request: Request) {
     await prisma.user.update({ where: { id: user.id }, data: { totpLastStep: step } });
   }
   const { codes, hashes } = generateRecoveryCodes();
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { totpEnabledAt: user.totpEnabledAt || new Date(), totpRecoveryCodes: hashes } }),
-    // Enabling 2FA invalidates other sessions opened with the password alone.
-    prisma.session.deleteMany({ where: { userId: user.id, id: { not: session.id } } }),
-  ]);
+  const enabled = await prisma.$transaction(async tx => {
+    await lockIdentity(tx, session.userId);
+    if (!(await identitySessionIsCurrent(tx, session))) return false;
+    const updated = await tx.user.updateMany({ where: { id: user.id, totpSecretEnc: user.totpSecretEnc, totpEnabledAt: user.totpEnabledAt }, data: { totpEnabledAt: user.totpEnabledAt || new Date(), totpRecoveryCodes: hashes } });
+    if (!updated.count) return false;
+    await tx.session.deleteMany({ where: { userId: user.id, id: { not: session.id } } });
+    return true;
+  });
+  if (!enabled) return apiError(request, "TWO_FACTOR_INVALID", 409);
   return NextResponse.json({ enabled: true, recoveryCodes: codes });
 }
 
@@ -67,9 +82,11 @@ export async function DELETE(request: Request) {
   if (!session) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
+  const limited = await rateLimit(`2fa-disable:${session.userId}`, 5, 15 * 60_000, request);
+  if (limited) return limited;
   const parsed = z
     .object({ password: z.string().min(1).max(200), code: z.string().trim().min(6).max(20) })
-    .safeParse(await request.json().catch(() => ({})));
+    .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const user = session.user;
   if (!(await bcrypt.compare(parsed.data.password, user.passwordHash))) return apiError(request, "INVALID_CREDENTIALS", 400);
@@ -79,9 +96,15 @@ export async function DELETE(request: Request) {
     select: { id: true },
   });
   if (required) return apiError(request, "TWO_FACTOR_SETUP_REQUIRED", 409);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { totpEnabledAt: null, totpSecretEnc: null, totpRecoveryCodes: Prisma.DbNull, totpLastStep: null },
+  const disabled = await prisma.$transaction(async tx => {
+    await lockIdentity(tx, session.userId);
+    if (!(await identitySessionIsCurrent(tx, session))) return false;
+    const updated = await tx.user.updateMany({
+      where: { id: user.id, totpSecretEnc: user.totpSecretEnc, totpEnabledAt: user.totpEnabledAt },
+      data: { totpEnabledAt: null, totpSecretEnc: null, totpRecoveryCodes: Prisma.DbNull, totpLastStep: null },
+    });
+    return updated.count > 0;
   });
+  if (!disabled) return apiError(request, "UNAUTHORIZED", 401);
   return NextResponse.json({ enabled: false });
 }

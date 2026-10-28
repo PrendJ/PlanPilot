@@ -1,6 +1,7 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser, isVerified, twoFactorRequiredButMissing } from "@/lib/auth";
+import { getApiUser, isVerified, twoFactorRequiredButMissing } from "@/lib/auth";
 import { newFeedToken, feedTokenHash, validTimeZone } from "@/lib/calendar-feed";
 import { appUrl } from "@/lib/email";
 import { apiError } from "@/lib/errors";
@@ -8,14 +9,14 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit, rejectCrossOrigin } from "@/lib/security";
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const feed = await prisma.calendarFeed.findUnique({ where: { userId: user.id }, select: { timeZone: true, createdAt: true } });
   return NextResponse.json({ connected: Boolean(feed), timeZone: feed?.timeZone || null });
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   if (await twoFactorRequiredButMissing(user)) return apiError(request, "TWO_FACTOR_SETUP_REQUIRED", 403);
   const limited = await rateLimit(`calendar-feed:${user.id}`, 5, 60_000, request);
   if (limited) return limited;
-  const parsed = z.object({ timeZone: z.string().refine(validTimeZone) }).safeParse(await request.json().catch(() => ({})));
+  const parsed = z.object({ timeZone: z.string().refine(validTimeZone) }).safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const token = newFeedToken();
   await prisma.calendarFeed.upsert({
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, twoFactorRequiredButMissing } from "@/lib/auth";
+import { getApiUser, twoFactorRequiredButMissing } from "@/lib/auth";
 import { isDoneColumn } from "@/lib/board-state";
 import { apiError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -14,18 +14,18 @@ const cardSelect = {
 } as const;
 
 /**
- * The user's day across every board: overdue and due-today work, plus undated work in progress.
+ * The user's agenda across every board: overdue, today, the next seven days and undated work in progress.
  * Cards assigned only to other people are left out. The browser applies the exact local-day boundary.
  */
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   if (await twoFactorRequiredButMissing(user)) return apiError(request, "TWO_FACTOR_SETUP_REQUIRED", 403);
   const localDate = new URL(request.url).searchParams.get("date") || "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate) || !Number.isFinite(Date.parse(`${localDate}T00:00:00Z`)))
     return apiError(request, "INVALID_INPUT", 400);
   // The 14-hour buffer covers every current UTC offset; the browser applies its exact local-day boundary.
-  const cutoff = new Date(Date.parse(`${localDate}T00:00:00Z`) + 38 * 3_600_000);
+  const cutoff = new Date(Date.parse(`${localDate}T00:00:00Z`) + (7 * 24 + 38) * 3_600_000);
   const base = {
     archived: false,
     column: { semanticKey: { not: "DONE" } },
@@ -36,13 +36,11 @@ export async function GET(request: Request) {
     prisma.card.findMany({
       where: { ...base, dueDate: { not: null, lt: cutoff } },
       orderBy: [{ dueDate: "asc" }, { priority: "desc" }],
-      take: 300,
       select: cardSelect,
     }),
     prisma.card.findMany({
       where: { ...base, dueDate: null, column: { semanticKey: "ACTIVE" } },
       orderBy: { updatedAt: "desc" },
-      take: 20,
       select: cardSelect,
     }),
   ]);
@@ -59,9 +57,11 @@ export async function GET(request: Request) {
   const doneColumn = new Map(
     [...byWorkspace].map(([id, list]) => [
       id,
-      (list.find(column => column.semanticKey === "DONE") ??
+      (
+        list.find(column => column.semanticKey === "DONE") ??
         list.find((column, index) => isDoneColumn({ title: column.title }, index, list.length + 1)) ??
-        list[list.length - 1])?.id ?? null,
+        list[list.length - 1]
+      )?.id ?? null,
     ]),
   );
   // Same rule as the board: the last column, or a column titled like "done", counts as finished.
@@ -80,5 +80,5 @@ export async function GET(request: Request) {
     board: card.workspace.name,
     slug: card.workspace.slug,
   });
-  return NextResponse.json({ cards: due.filter(open).slice(0, 150).map(view), active: active.filter(open).map(view) });
+  return NextResponse.json({ cards: due.filter(open).map(view), active: active.filter(open).map(view) });
 }

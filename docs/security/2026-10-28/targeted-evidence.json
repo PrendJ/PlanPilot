@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-28",
+  "checks": [
+    {
+      "name": "platform-role-escalation",
+      "initialRole": "SUPPORT",
+      "status": 200,
+      "finalRole": "SUPERADMIN",
+      "isAdmin": true
+    },
+    {
+      "name": "admin-cross-origin-plain-text-post",
+      "status": 201,
+      "createdUser": true
+    },
+    {
+      "name": "platform-role-escalation",
+      "initialRole": "BILLING",
+      "status": 200,
+      "finalRole": "SUPERADMIN",
+      "isAdmin": true
+    },
+    {
+      "name": "ssrf-ipv6-mapped-validation",
+      "url": "https://127.0.0.1",
+      "accepted": false
+    },
+    {
+      "name": "ssrf-ipv6-mapped-validation",
+      "url": "https://[::1]",
+      "accepted": false
+    },
+    {
+      "name": "ssrf-ipv6-mapped-validation",
+      "url": "https://[::ffff:127.0.0.1]",
+      "accepted": true,
+      "normalized": "https://[::ffff:7f00:1]/"
+    },
+    {
+      "name": "ssrf-ipv6-mapped-validation",
+      "url": "https://[::ffff:169.254.169.254]",
+      "accepted": true,
+      "normalized": "https://[::ffff:a9fe:a9fe]/"
+    },
+    {
+      "name": "ssrf-ipv6-mapped-validation",
+      "url": "https://[::ffff:192.168.1.1]",
+      "accepted": true,
+      "normalized": "https://[::ffff:c0a8:101]/"
+    },
+    {
+      "name": "csv-formula-injection",
+      "output": "﻿titolo,descrizione\r\n=1+1,@SUM(1+1)\r\n"
+    },
+    {
+      "name": "recovery-code-concurrent-reuse",
+      "successfulClaims": 2,
+      "results": [
+        true,
+        true
+      ]
+    },
+    {
+      "name": "last-owner-concurrent-demotion",
+      "statuses": [
+        200,
+        200
+      ],
+      "remainingOwners": 0
+    },
+    {
+      "name": "browser-fixture",
+      "email": "pre-hijack-45955f9882@example.invalid",
+      "boardPath": "/app/la-mia-prima-board",
+      "printPath": "/app/la-mia-prima-board/print",
+      "password": "synthetic-attacker-password"
+    }
+  ]
+}

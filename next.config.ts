@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 import { PRIVATE_PATHS } from "./lib/seo";
 
-const scriptSources = process.env.NODE_ENV === "production"
-  ? "'self' 'unsafe-inline' https://js.stripe.com"
-  : "'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com";
-
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
@@ -19,7 +15,6 @@ const nextConfig: NextConfig = {
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy", value: "camera=(), geolocation=(), microphone=(self)" },
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-      { key: "Content-Security-Policy", value: `default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://checkout.stripe.com; img-src 'self' data: https:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src ${scriptSources}; connect-src 'self' https://openrouter.ai https://api.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com` },
       ...(process.env.NODE_ENV === "production" ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
     ] }];
   },

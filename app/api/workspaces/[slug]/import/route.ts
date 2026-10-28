@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { slug } = await params;
   const ctx = await boardContext(request, slug, { manage: true });
   if (isResponse(ctx)) return ctx;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request, 16 * 1024 * 1024));
   if (!parsed.success) return apiError(request, "IMPORT_INVALID", 400);
   let board: ImportedBoard;
   try {

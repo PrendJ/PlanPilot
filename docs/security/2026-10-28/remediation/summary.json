@@ -1,0 +1,37 @@
+{
+  "scope": "Local checkout only; no production deployment",
+  "typecheck": "passed",
+  "postgresTests": {
+    "passed": 425,
+    "skipped": 0,
+    "files": 44
+  },
+  "productionBuild": "passed",
+  "browserTests": {
+    "projects": [
+      "desktop-1440",
+      "mobile-375"
+    ],
+    "passed": 51,
+    "skipped": 11,
+    "failed": 0,
+    "workers": 1
+  },
+  "npmAudit": {
+    "total": 0
+  },
+  "limitations": [
+    "Local Windows/Node 24/PostgreSQL 18; deployment Linux/Node 22/PostgreSQL 16 requires staging verification",
+    "No authenticated production validation",
+    "No actual production backup restore"
+  ],
+  "evidence": [
+    "verification.log",
+    "typecheck.log",
+    "npm-audit.json",
+    "source-snapshot.json",
+    "browser-login.png",
+    "csp-login.png",
+    "required-enrollment.png"
+  ]
+}

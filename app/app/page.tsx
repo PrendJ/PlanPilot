@@ -128,6 +128,7 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
           </div>
         )}
         <HomeAssistant
+          userId={user.id}
           initialBoards={captureBoards}
           paused={!captureBoards.length}
           quick={flag("quick") === "1"}

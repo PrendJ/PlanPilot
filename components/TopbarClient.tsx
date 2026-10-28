@@ -1,4 +1,5 @@
 "use client";
+import { clearPrivateBrowserStorage } from "@/lib/private-browser-storage";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -397,6 +398,7 @@ export function UserMenu({ name, email, isAdmin }: { name: string; email: string
       toast({ message: t("errors.SERVER_ERROR"), tone: "error" });
       return;
     }
+    clearPrivateBrowserStorage();
     window.location.replace("/");
   }
   async function language(next: "it" | "en") {

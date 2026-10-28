@@ -8,7 +8,9 @@ import { Board } from "@/components/Board";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const workspace = await prisma.workspace.findUnique({ where: { slug }, select: { name: true } });
+  const user = await getCurrentUser();
+  if (!user || await twoFactorRequiredButMissing(user)) return { title: "Board", robots: { index: false } };
+  const workspace = await prisma.workspace.findFirst({ where: { slug, lifecycleStatus: "ACTIVE", members: { some: { userId: user.id } } }, select: { name: true } });
   return { title: workspace?.name || "Board", robots: { index: false } };
 }
 

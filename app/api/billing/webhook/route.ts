@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { fiscalDataFromSession, planFromPrice, stripe } from "@/lib/stripe";
 import { trackEvent } from "@/lib/product-events";
+import { boundedText } from "@/lib/security";
 
 const ACTIVE = ["active", "trialing", "past_due"];
 
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
   if (!signature || !secret) return NextResponse.json({ error: "Webhook not configured" }, { status: 400 });
   let event: Stripe.Event;
   try {
-    event = stripe().webhooks.constructEvent(await request.text(), signature, secret);
+    event = stripe().webhooks.constructEvent(await boundedText(request), signature, secret);
   } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }

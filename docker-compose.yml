@@ -25,6 +25,7 @@ services:
     environment:
       DATABASE_URL: postgresql://boardcue:${POSTGRES_PASSWORD}@db:5432/boardcue?schema=public
       APP_URL: ${APP_URL:-https://boardcue.draftapps.it}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_WORKSPACE_KEYS: ${OPENROUTER_WORKSPACE_KEYS:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}

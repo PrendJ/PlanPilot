@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ db: {} as any, send: vi.fn(), session: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: mocks.db }));
 vi.mock("web-push", () => ({ default: { sendNotification: mocks.send } }));
-vi.mock("@/lib/auth", () => ({ getCurrentSession: mocks.session }));
+vi.mock("@/lib/auth", () => ({ twoFactorRequiredButMissing: async () => false, getCurrentSession: mocks.session }));
 import { allowedPushEndpoint, pushConfig, pushSubscriptionSchema } from "@/lib/push-config";
 import { queueProjectPush, dispatchProjectPush } from "@/lib/push";
 import { GET, POST, DELETE } from "@/app/api/notifications/subscription/route";

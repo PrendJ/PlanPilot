@@ -599,7 +599,7 @@ export function DemoHome() {
           </div>
           <div className="segmented" role="tablist" aria-label={t("board.views.label")}>
             {(["list", "kanban"] as const).map(value => (
-              <button key={value} type="button" role="tab" aria-selected={view === value} onClick={() => setView(value)}>
+              <button key={value} type="button" role="tab" aria-label={t(`board.views.${value}`)} aria-selected={view === value} onClick={() => setView(value)}>
                 <Icon name={value} size={15} />
                 <span className="hide-mobile"> {t(`board.views.${value}`)}</span>
               </button>

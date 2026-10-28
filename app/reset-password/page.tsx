@@ -10,7 +10,7 @@ export default async function ResetPage({ searchParams }: { searchParams: Promis
   const token = String(Array.isArray(query.token) ? query.token[0] : query.token || "");
   const { t } = await getTranslator();
   return (
-    <AuthShell title={t("auth.reset.title")} subtitle={t("auth.reset.subtitle")}>
+    <AuthShell title={t("auth.reset.title")} subtitle={t(query.verified === "1" ? "auth.reset.verified" : "auth.reset.subtitle")}>
       <ResetForm token={token} />
     </AuthShell>
   );

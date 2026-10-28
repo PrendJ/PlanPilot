@@ -1939,6 +1939,239 @@ input[aria-invalid="true"] {
   margin-top: 24px;
   color: var(--text-2);
 }
+/* The full agenda lives above the boards; the sidebar only carries counts. */
+.home-agenda-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.home-agenda-heading h2,
+.home-task-summary h2 {
+  font-size: 20px;
+}
+.home-agenda-heading p,
+.home-task-summary > p {
+  margin-top: 6px;
+}
+.home-agenda-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.home-agenda-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 24px 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.home-agenda-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.home-agenda-tabs button[aria-pressed="true"] {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.home-agenda-tabs button span,
+.home-agenda-count {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.home-agenda-group + .home-agenda-group {
+  margin-top: 24px;
+}
+.home-agenda-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.home-agenda-count {
+  padding: 2px 7px;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.home-agenda-group.overdue h3 {
+  color: var(--danger);
+}
+.home-agenda ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.home-agenda-task {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  background: var(--surface);
+}
+.home-agenda-task.overdue {
+  border-left-color: var(--danger);
+}
+.home-agenda-task:focus-within,
+.home-agenda-task:hover {
+  background: var(--surface-2);
+}
+.home-agenda-done {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+}
+.home-agenda-done svg {
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+}
+.home-agenda-done:hover,
+.home-agenda-done:focus-visible {
+  color: var(--success);
+  background: var(--success-soft);
+}
+.home-agenda-task-link {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 16px;
+  padding: 14px 12px;
+}
+.home-agenda-task-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
+.home-agenda-task-copy strong {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.home-agenda-task-copy > span {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.home-agenda-task-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.home-agenda-task-meta time {
+  white-space: nowrap;
+}
+.home-agenda-task-meta .today-priority {
+  margin: 0;
+}
+.home-agenda-task.overdue time {
+  color: var(--danger);
+}
+.home-agenda-active {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+  padding-top: 16px;
+}
+.home-agenda-active summary {
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 13px;
+  padding: 8px 0;
+}
+.home-agenda-active summary span {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+}
+.home-agenda-active[open] summary {
+  margin-bottom: 8px;
+}
+.home-agenda-status,
+.home-agenda-empty {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px 0;
+  color: var(--text-2);
+}
+.home-agenda-empty > svg {
+  color: var(--success);
+  flex: none;
+}
+.home-agenda-empty p {
+  margin-top: 4px;
+}
+.home-task-stats {
+  display: grid;
+  margin: 20px 0 0;
+}
+.home-task-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.home-task-stat dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.home-task-stat dd {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--primary);
+}
+.home-task-stat.overdue dd {
+  color: var(--danger);
+}
+.home-task-stat.upcoming dd {
+  color: var(--text-2);
+}
+.home-summary-note {
+  font-size: 12px;
+}
 .list-card-open {
   display: grid;
   gap: 3px;
@@ -1987,11 +2220,45 @@ input[aria-invalid="true"] {
   .home-main > section {
     order: 3;
   }
+  .home-task-summary {
+    order: 0;
+  }
+  .home-main > .home-agenda {
+    order: 2;
+  }
+  .home-task-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .home-task-stat {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+  .home-task-stat dt svg {
+    display: none;
+  }
   .home-side > .stack {
     order: 4;
   }
 }
 @media (max-width: 560px) {
+  .home-agenda-task-link {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .home-agenda-task-meta {
+    justify-content: flex-start;
+  }
+  .home-agenda-task-meta > svg {
+    margin-left: auto;
+  }
+  .home-agenda-icon {
+    display: none;
+  }
+  .home-agenda-tabs button {
+    flex: 1 1 160px;
+  }
   .home-route-row {
     grid-template-columns: 1fr;
   }

@@ -1,33 +1,28 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { z } from "zod";
+import { getApiUser } from "@/lib/auth";
 import { hasPlatformCapability } from "@/lib/platform-access";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
+import { mutateMembership } from "@/lib/membership-mutation";
+import { rejectCrossOrigin, safeJson } from "@/lib/security";
 
-async function requireAdmin() {
-  const user = await getCurrentUser();
-  return user && hasPlatformCapability(user, "SUPPORT") ? user : null;
+async function change(request: Request, remove: boolean) {
+  const origin = rejectCrossOrigin(request); if (origin) return origin;
+  const actor = await getApiUser();
+  if (!actor || !hasPlatformCapability(actor, "SUPPORT")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const parsed = z.object({ userId: z.string().cuid(), workspaceId: z.string().cuid(), role: z.enum(["OWNER", "ADMIN", "MEMBER"]).default("MEMBER") }).safeParse(await safeJson(request));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid membership" }, { status: 400 });
+  try {
+    const membership = await prisma.$transaction(async tx => {
+      const result = await mutateMembership(tx, { ...parsed.data, actorId: actor.id, role: remove ? undefined : parsed.data.role, platform: true });
+      await tx.adminAuditEvent.create({ data: { actorId: actor.id, action: remove ? "WORKSPACE_MEMBERSHIP_REMOVED" : "WORKSPACE_MEMBERSHIP_UPSERTED", targetType: "USER", targetId: parsed.data.userId, metadata: parsed.data } });
+      return result;
+    });
+    return NextResponse.json({ ok: true, membership });
+  } catch (error) {
+    if (error instanceof Error && ["LAST_OWNER", "MEMBER_LIMIT", "FORBIDDEN", "NOT_FOUND", "READ_ONLY"].includes(error.message)) return NextResponse.json({ error: error.message }, { status: 409 });
+    throw error;
+  }
 }
-
-export async function POST(request: Request) {
-  const actor = await requireAdmin(); if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const parsed = z.object({ userId: z.string().cuid(), workspaceId: z.string().cuid(), role: z.enum(["OWNER", "ADMIN", "MEMBER"]).default("MEMBER") }).safeParse(await request.json().catch(() => ({}))); if (!parsed.success) return NextResponse.json({ error: "Utente, workspace e ruolo validi sono richiesti" }, { status: 400 });
-  const { userId, workspaceId, role } = parsed.data;
-  const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { organizationId: true } }); if (!workspace || !(await prisma.user.findUnique({ where: { id: userId }, select: { id: true } }))) return NextResponse.json({ error: "Utente o workspace non trovato" }, { status: 404 });
-  const membership = await prisma.$transaction(async (tx) => { await tx.organizationMember.upsert({ where: { organizationId_userId: { organizationId: workspace.organizationId, userId } }, create: { organizationId: workspace.organizationId, userId, role: role === "OWNER" ? "ADMIN" : role }, update: {} }); const result = await tx.workspaceMember.upsert({
-    where: { workspaceId_userId: { workspaceId, userId } },
-    update: { role },
-    create: { workspaceId, userId, role },
-    include: { user: { select: { id: true, name: true, email: true } }, workspace: { select: { id: true, name: true, slug: true } } },
-  }); await tx.adminAuditEvent.create({ data: { actorId: actor.id, action: "WORKSPACE_MEMBERSHIP_UPSERTED", targetType: "USER", targetId: userId, metadata: { workspaceId, role } } }); return result; });
-  return NextResponse.json({ membership });
-}
-
-export async function DELETE(request: Request) {
-  const actor = await requireAdmin(); if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const parsed = z.object({ userId: z.string().cuid(), workspaceId: z.string().cuid() }).safeParse(await request.json().catch(() => ({}))); if (!parsed.success) return NextResponse.json({ error: "Utente e workspace richiesti" }, { status: 400 }); const { userId, workspaceId } = parsed.data;
-  const target = await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId, userId } } }); if (!target) return NextResponse.json({ ok: true });
-  if (target.role === "OWNER" && await prisma.workspaceMember.count({ where: { workspaceId, role: "OWNER" } }) <= 1) return NextResponse.json({ error: "L'ultimo owner non può essere rimosso" }, { status: 400 });
-  await prisma.$transaction([prisma.workspaceMember.delete({ where: { id: target.id } }), prisma.adminAuditEvent.create({ data: { actorId: actor.id, action: "WORKSPACE_MEMBERSHIP_REMOVED", targetType: "USER", targetId: userId, metadata: { workspaceId } } })]);
-  return NextResponse.json({ ok: true });
-}
+export async function POST(request: Request) { return change(request, false); }
+export async function DELETE(request: Request) { return change(request, true); }

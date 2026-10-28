@@ -1,7 +1,14 @@
 import { test, expect } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
+const testUrl = process.env.BOARDCUE_TEST_DATABASE_URL;
+if (testUrl) {
+  const url = new URL(testUrl);
+  if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || !/^\/boardcue_test_[a-zA-Z0-9_]+$/.test(url.pathname) || url.searchParams.has("host")) throw new Error("Disposable local database required");
+}
 
 // Full signed-in journey on the real server + database (no AI provider needed).
 test("sign-up lands on a ready board; cards, settings and security work", async ({ page }, testInfo) => {
+  test.skip(!testUrl, "Requires the disposable local database");
   test.skip(!["desktop-1440", "chromium"].includes(testInfo.project.name), "Desktop journey");
   const email = `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.invalid`;
   await page.goto("/register");
@@ -14,12 +21,20 @@ test("sign-up lands on a ready board; cards, settings and security work", async 
   await expect(page.getByText("Prova a raccontare com’è andata")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ho finito di aggiornare il sito web" })).toBeVisible();
   await expect(page.getByText("Conferma il tuo indirizzo")).toBeVisible();
+  await page.getByRole("button", { name: "Ho capito", exact: true }).click();
   // Boards open on the list view; the card menu used below lives in the Kanban view.
   await page.getByRole("tab", { name: /Kanban/ }).click();
 
   await page.getByRole("button", { name: "Nuova card" }).click();
   const dialog = page.getByRole("dialog", { name: "Nuova card" });
   await dialog.getByLabel("Titolo").fill("Card creata dal test");
+  const description = dialog.getByLabel("Descrizione");
+  await description.pressSequentially("Descrizione completa");
+  await expect(description).toBeFocused();
+  await expect(description).toHaveValue("Descrizione completa");
+  await page.keyboard.press("Escape");
+  await expect(dialog.getByRole("alert")).toContainText("Hai modifiche non salvate");
+  await expect(description).toHaveValue("Descrizione completa");
   await dialog.getByPlaceholder("Aggiungi una voce e premi Invio").fill("Prima voce");
   await dialog.getByPlaceholder("Aggiungi una voce e premi Invio").press("Enter");
   await dialog.getByRole("button", { name: "Crea card" }).click();
@@ -43,6 +58,10 @@ test("sign-up lands on a ready board; cards, settings and security work", async 
 
   await page.goto("/account");
   await expect(page.getByRole("heading", { name: "Verifica in due passaggi" })).toBeVisible();
+  // Enrollment requires mailbox proof. The dedicated security tests cover the real claim flow.
+  const db = new PrismaClient({ datasourceUrl: testUrl });
+  try { await db.user.update({ where: { email }, data: { emailVerifiedAt: new Date() } }); } finally { await db.$disconnect(); }
+  await page.reload();
   await page.getByRole("button", { name: "Attiva la verifica in due passaggi" }).click();
   await expect(page.getByRole("img", { name: "Codice QR per l’app di autenticazione" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -50,10 +69,14 @@ test("sign-up lands on a ready board; cards, settings and security work", async 
   await page.goto("/app");
   await expect(page.getByRole("heading", { name: "Aggiungi un pensiero" })).toBeVisible();
   const captureBox = await page.locator(".home-capture").boundingBox();
+  const agendaBox = await page.locator(".home-agenda").boundingBox();
   const boardsBox = await page.getByRole("heading", { name: "Board", exact: true }).boundingBox();
   expect(captureBox).not.toBeNull();
   expect(boardsBox).not.toBeNull();
-  expect(boardsBox!.y - (captureBox!.y + captureBox!.height)).toBeLessThan(40);
+  expect(agendaBox).not.toBeNull();
+  expect(agendaBox!.y).toBeGreaterThan(captureBox!.y + captureBox!.height);
+  expect(boardsBox!.y).toBeGreaterThan(agendaBox!.y + agendaBox!.height);
+  await expect(page.locator(".home-task-stat")).toHaveCount(3);
   await page.getByRole("button", { name: "Menu account" }).click();
   await page.getByRole("button", { name: "Esci" }).click();
   await expect(page).toHaveURL(/\/$/);

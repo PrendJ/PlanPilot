@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { escapeHtml, renderEmail, sendEmail } from "@/lib/email";
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
   if (originError) return originError;
   const limited = await rateLimit(`sales:${clientIp(request)}`, 5, 60 * 60_000, request);
   if (limited) return limited;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return NextResponse.json({ error: "Controlla i dati inseriti" }, { status: 400 });
   const b = parsed.data;
   const to = process.env.SALES_EMAIL;

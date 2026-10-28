@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit } from "@/lib/security";
@@ -37,7 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (isResponse(ctx)) return ctx;
   const limited = await rateLimit(`ai:${ctx.user.id}`, 20, 60_000, request);
   if (limited) return limited;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const { text, source } = parsed.data;
   try {

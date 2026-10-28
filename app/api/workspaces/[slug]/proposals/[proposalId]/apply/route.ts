@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { boardContext, isResponse } from "@/lib/api-context";
@@ -13,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (isResponse(ctx)) return ctx;
   const parsed = z
     .object({ actionIndexes: z.array(z.number().int().min(0).max(29)).max(30).optional() })
-    .safeParse(await request.json().catch(() => ({})));
+    .safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   try {
     const { receipt, replayed } = await applyProposal({

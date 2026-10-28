@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { rateLimit } from "@/lib/security";
+import { rateLimit, boundedText } from "@/lib/security";
+import { twoFactorRequiredButMissing } from "@/lib/auth";
 import {
   audioFormatFor,
   isAudioDocument,
@@ -33,7 +34,8 @@ const HOUR = 3600_000;
 export async function POST(request: Request) {
   if (!telegramConfigured()) return new Response("Not found", { status: 404 });
   if (!validTelegramSecret(request.headers.get("x-telegram-bot-api-secret-token"))) return new Response("Unauthorized", { status: 401 });
-  const raw = await request.text();
+  const raw = await boundedText(request, 50_000).catch(() => null);
+  if (raw === null) return new Response("Too large", { status: 413 });
   if (raw.length > 50_000) return new Response("Too large", { status: 413 });
   let update: { update_id?: number; message?: TelegramMessage };
   try {
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
     return new Response("OK");
   }
   const connection = await prisma.telegramConnection.findUnique({ where: { chatId }, include: { user: true } });
-  const linked = connection?.user.lifecycleStatus === "ACTIVE" ? connection : null;
+  const linked = connection?.user.lifecycleStatus === "ACTIVE" && !(await twoFactorRequiredButMissing(connection.user)) ? connection : null;
   const locale = linked?.user.locale || message.from?.language_code;
   const say = (key: Parameters<typeof telegramReply>[1]) => telegramSay(chatId, telegramReply(locale, key));
   if (/^\/unlink(?:@\w+)?$/.test(value)) {

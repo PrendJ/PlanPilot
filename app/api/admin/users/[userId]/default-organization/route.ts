@@ -1,9 +1,12 @@
+import { rejectCrossOrigin } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { requirePlatform } from "@/lib/platform-access";
 import { ensureDefaultOrganization } from "@/lib/default-organization";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(_: Request, { params }: { params: Promise<{ userId: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ userId: string }> }) {
+  const originError = rejectCrossOrigin(request);
+  if (originError) return originError;
   const access = await requirePlatform("PLATFORM_ADMIN");
   if ("error" in access) return access.error;
   const { userId } = await params;

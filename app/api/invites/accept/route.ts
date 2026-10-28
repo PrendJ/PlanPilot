@@ -1,6 +1,7 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser, hashToken } from "@/lib/auth";
+import { getApiUser, hashToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rejectCrossOrigin } from "@/lib/security";
 import { apiError } from "@/lib/errors";
@@ -9,9 +10,11 @@ import { getOrganizationLimits } from "@/lib/plans";
 export async function POST(request: Request) {
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
-  const parsed = z.object({ token: z.string().min(20) }).safeParse(await request.json().catch(() => ({})));
+  // Invitors also know the invitation token: it is not independent mailbox proof.
+  if (!user.emailVerifiedAt) return apiError(request, "EMAIL_NOT_VERIFIED", 403);
+  const parsed = z.object({ token: z.string().min(20) }).safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVITE_INVALID", 400);
   const invite = await prisma.workspaceInvite.findUnique({
     where: { tokenHash: hashToken(parsed.data.token) },
@@ -25,6 +28,10 @@ export async function POST(request: Request) {
       // Seats are re-checked at acceptance under a lock: several pending invites cannot overfill the plan.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`seats:${invite.organizationId}`}))`;
       const organization = await tx.organization.findUniqueOrThrow({ where: { id: invite.organizationId } });
+      if (organization.lifecycleStatus !== "ACTIVE") throw new Error("INVITE_INVALID");
+      if (invite.workspaceId && !(await tx.workspace.findFirst({ where: { id: invite.workspaceId, lifecycleStatus: "ACTIVE" } }))) throw new Error("INVITE_INVALID");
+      const claimed = await tx.workspaceInvite.updateMany({ where: { id: invite.id, tokenHash: hashToken(parsed.data.token), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date() } });
+      if (!claimed.count) throw new Error("INVITE_INVALID");
       const existing = await tx.organizationMember.findUnique({
         where: { organizationId_userId: { organizationId: invite.organizationId, userId: user.id } },
       });
@@ -43,14 +50,13 @@ export async function POST(request: Request) {
         await tx.workspaceMember.upsert({
           where: { workspaceId_userId: { workspaceId: invite.workspaceId, userId: user.id } },
           create: { workspaceId: invite.workspaceId, userId: user.id, role: invite.role },
-          update: { role: invite.role },
+          // An old invite must never demote an existing owner/member.
+          update: {},
         });
-      await tx.workspaceInvite.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } });
-      // The token was delivered to this mailbox: that proves the address.
-      if (!user.emailVerifiedAt) await tx.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
     });
   } catch (error) {
     if (error instanceof Error && error.message === "MEMBER_LIMIT") return apiError(request, "MEMBER_LIMIT", 402);
+    if (error instanceof Error && error.message === "INVITE_INVALID") return apiError(request, "INVITE_INVALID", 400);
     throw error;
   }
   return NextResponse.json({ ok: true, destination: invite.workspace ? `/app/${invite.workspace.slug}` : "/app" });

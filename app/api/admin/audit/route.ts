@@ -1,3 +1,4 @@
+import { rejectCrossOrigin } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requirePlatform } from "@/lib/platform-access";

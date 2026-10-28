@@ -1,10 +1,11 @@
+import { safeJson } from "@/lib/security";
 import { after, NextResponse } from "next/server";
 import { notifyBoardSoftLimit } from "@/lib/board-soft-limit";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOrganizationLimits, organizationReadOnly } from "@/lib/plans";
 import { canManageWorkspaceAction, workspaceLifecycleChange } from "@/lib/workspace-management";
-import { getCurrentUser } from "@/lib/auth";
+import { getApiUser } from "@/lib/auth";
 import { rejectCrossOrigin } from "@/lib/security";
 import { apiError } from "@/lib/errors";
 import { SUPPORTED_LOCALES } from "@/lib/workspace";
@@ -22,11 +23,11 @@ const schema = z.discriminatedUnion("action", [
 ]);
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user) return apiError(request, "UNAUTHORIZED", 401);
   const originError = rejectCrossOrigin(request);
   if (originError) return originError;
-  const parsed = schema.safeParse(await request.json().catch(() => ({})));
+  const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const { slug } = await params;
   const membership = await prisma.workspaceMember.findFirst({

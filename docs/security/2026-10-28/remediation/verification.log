@@ -1,0 +1,285 @@
+Temporary loopback PostgreSQL started; synthetic data only.
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "boardcue_test_integration", schema "public" at "127.0.0.1:54440"
+
+15 migrations found in prisma/migrations
+
+Applying migration `0001_legacy_baseline`
+Applying migration `0002_commercial_saas`
+Applying migration `0003_superadmin_economics`
+Applying migration `0004_exchange_rate_settings`
+Applying migration `0005_organization_access_expiry`
+Applying migration `0006_platform_backoffice`
+Applying migration `0007_default_organization`
+Applying migration `0008_account_email_lifecycle`
+Applying migration `0009_enterprise_entitlements`
+Applying migration `0010_web_push`
+Applying migration `0011_commercial_readiness`
+Applying migration `0012_capture_integrations`
+Applying migration `0013_platform_ai_capture_attempts`
+Applying migration `0014_planning_model_tiers`
+Applying migration `0015_security_token_expiry`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 0001_legacy_baseline/
+    └─ migration.sql
+  └─ 0002_commercial_saas/
+    └─ migration.sql
+  └─ 0003_superadmin_economics/
+    └─ migration.sql
+  └─ 0004_exchange_rate_settings/
+    └─ migration.sql
+  └─ 0005_organization_access_expiry/
+    └─ migration.sql
+  └─ 0006_platform_backoffice/
+    └─ migration.sql
+  └─ 0007_default_organization/
+    └─ migration.sql
+  └─ 0008_account_email_lifecycle/
+    └─ migration.sql
+  └─ 0009_enterprise_entitlements/
+    └─ migration.sql
+  └─ 0010_web_push/
+    └─ migration.sql
+  └─ 0011_commercial_readiness/
+    └─ migration.sql
+  └─ 0012_capture_integrations/
+    └─ migration.sql
+  └─ 0013_platform_ai_capture_attempts/
+    └─ migration.sql
+  └─ 0014_planning_model_tiers/
+    └─ migration.sql
+  └─ 0015_security_token_expiry/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.5 C:/Users/loren/Documents/GitHub/PlanPilot
+
+
+ Test Files  44 passed (44)
+      Tests  425 passed (425)
+   Start at  13:45:20
+   Duration  4.82s (tests 49%, import 42%, transform 6%, worker 2%)
+
+    Isolate  44 workers spawned · ~417ms startup each (spawn + environment, per file)
+             at least ~1.25s faster with isolate: false — reuses workers across files instead of one per file
+
+   ▲ Next.js 15.5.28
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 7.0s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/72) ...
+   Generating static pages (18/72) 
+   Generating static pages (36/72) 
+   Generating static pages (54/72) 
+ ✓ Generating static pages (72/72)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                 Size  First Load JS
+┌ ƒ /                                                    3.74 kB         152 kB
+├ ƒ /_not-found                                             1 kB         104 kB
+├ ƒ /accept-invite                                         189 B         151 kB
+├ ƒ /account                                             8.29 kB         156 kB
+├ ƒ /admin                                               11.3 kB         159 kB
+├ ƒ /ai-literacy                                         3.74 kB         152 kB
+├ ƒ /api/account                                           340 B         103 kB
+├ ƒ /api/account/2fa                                       340 B         103 kB
+├ ƒ /api/account/password                                  340 B         103 kB
+├ ƒ /api/account/preferences                               340 B         103 kB
+├ ƒ /api/account/tokens                                    340 B         103 kB
+├ ƒ /api/account/tokens/[tokenId]                          340 B         103 kB
+├ ƒ /api/admin/ai-models                                   340 B         103 kB
+├ ƒ /api/admin/analytics                                   340 B         103 kB
+├ ƒ /api/admin/audit                                       340 B         103 kB
+├ ƒ /api/admin/billing                                     340 B         103 kB
+├ ƒ /api/admin/billing/fiscal-export                       340 B         103 kB
+├ ƒ /api/admin/economics/exchange-rate                     340 B         103 kB
+├ ƒ /api/admin/licenses                                    340 B         103 kB
+├ ƒ /api/admin/lifecycle                                   340 B         103 kB
+├ ƒ /api/admin/memberships                                 340 B         103 kB
+├ ƒ /api/admin/organizations/[organizationId]              340 B         103 kB
+├ ƒ /api/admin/users                                       340 B         103 kB
+├ ƒ /api/admin/users/[userId]/default-organization         340 B         103 kB
+├ ƒ /api/auth/forgot-password                              340 B         103 kB
+├ ƒ /api/auth/login                                        340 B         103 kB
+├ ƒ /api/auth/login/2fa                                    340 B         103 kB
+├ ƒ /api/auth/logout                                       340 B         103 kB
+├ ƒ /api/auth/magic                                        340 B         103 kB
+├ ƒ /api/auth/magic-link                                   340 B         103 kB
+├ ƒ /api/auth/register                                     340 B         103 kB
+├ ƒ /api/auth/resend-verification                          340 B         103 kB
+├ ƒ /api/auth/reset-password                               340 B         103 kB
+├ ƒ /api/auth/verify                                       340 B         103 kB
+├ ƒ /api/billing/checkout                                  340 B         103 kB
+├ ƒ /api/billing/credits                                   340 B         103 kB
+├ ƒ /api/billing/portal                                    340 B         103 kB
+├ ƒ /api/billing/webhook                                   340 B         103 kB
+├ ƒ /api/calendar/[token]                                  340 B         103 kB
+├ ƒ /api/captures                                          340 B         103 kB
+├ ƒ /api/captures/[id]                                     340 B         103 kB
+├ ƒ /api/captures/[id]/retry                               340 B         103 kB
+├ ƒ /api/cron/captures                                     340 B         103 kB
+├ ƒ /api/cron/exchange-rate                                340 B         103 kB
+├ ƒ /api/cron/notifications                                340 B         103 kB
+├ ƒ /api/cron/retention                                    340 B         103 kB
+├ ƒ /api/health                                            340 B         103 kB
+├ ƒ /api/home/route                                          0 B            0 B
+├ ƒ /api/home/today                                        340 B         103 kB
+├ ƒ /api/import/document                                   340 B         103 kB
+├ ƒ /api/integrations/calendar                             340 B         103 kB
+├ ƒ /api/integrations/telegram                             340 B         103 kB
+├ ƒ /api/integrations/telegram/webhook                     340 B         103 kB
+├ ƒ /api/invites/accept                                    340 B         103 kB
+├ ƒ /api/notifications                                     340 B         103 kB
+├ ƒ /api/notifications/subscription                        340 B         103 kB
+├ ƒ /api/organizations/[organizationId]                    340 B         103 kB
+├ ƒ /api/organizations/[organizationId]/export             340 B         103 kB
+├ ƒ /api/organizations/[organizationId]/usage              340 B         103 kB
+├ ƒ /api/sales/enterprise                                  340 B         103 kB
+├ ƒ /api/search                                            340 B         103 kB
+├ ƒ /api/v1/boards                                         340 B         103 kB
+├ ƒ /api/v1/boards/[slug]/cards                            340 B         103 kB
+├ ƒ /api/v1/boards/[slug]/updates                          340 B         103 kB
+├ ƒ /api/workspaces                                        340 B         103 kB
+├ ƒ /api/workspaces/[slug]                                 340 B         103 kB
+├ ƒ /api/workspaces/[slug]/activity                        340 B         103 kB
+├ ƒ /api/workspaces/[slug]/board                           340 B         103 kB
+├ ƒ /api/workspaces/[slug]/cards                           340 B         103 kB
+├ ƒ /api/workspaces/[slug]/cards/[cardId]                  340 B         103 kB
+├ ƒ /api/workspaces/[slug]/cards/[cardId]/comments         340 B         103 kB
+├ ƒ /api/workspaces/[slug]/columns                         340 B         103 kB
+├ ƒ /api/workspaces/[slug]/columns/[columnId]              340 B         103 kB
+├ ƒ /api/workspaces/[slug]/comments/[commentId]            340 B         103 kB
+├ ƒ /api/workspaces/[slug]/events                          340 B         103 kB
+├ ƒ /api/workspaces/[slug]/export                          340 B         103 kB
+├ ƒ /api/workspaces/[slug]/import                          340 B         103 kB
+├ ƒ /api/workspaces/[slug]/ingest                          340 B         103 kB
+├ ƒ /api/workspaces/[slug]/invites                         340 B         103 kB
+├ ƒ /api/workspaces/[slug]/invites/[inviteId]              340 B         103 kB
+├ ƒ /api/workspaces/[slug]/members/[userId]                340 B         103 kB
+├ ƒ /api/workspaces/[slug]/proposals/[proposalId]          340 B         103 kB
+├ ƒ /api/workspaces/[slug]/proposals/[proposalId]/apply    340 B         103 kB
+├ ƒ /api/workspaces/[slug]/transcribe                      340 B         103 kB
+├ ƒ /api/workspaces/[slug]/updates/[updateId]/undo         340 B         103 kB
+├ ƒ /api/workspaces/[slug]/webhooks                        340 B         103 kB
+├ ƒ /api/workspaces/[slug]/webhooks/[webhookId]            340 B         103 kB
+├ ƒ /app                                                 11.2 kB         164 kB
+├ ƒ /app/[slug]                                          11.2 kB         168 kB
+├ ƒ /app/[slug]/print                                      404 B         103 kB
+├ ƒ /app/[slug]/settings                                 4.18 kB         157 kB
+├ ƒ /app/integrations                                      195 B         153 kB
+├ ƒ /app/quick                                             340 B         103 kB
+├ ƒ /cookies                                             3.74 kB         152 kB
+├ ƒ /demo                                                7.68 kB         164 kB
+├ ƒ /forgot-password                                       189 B         151 kB
+├ ○ /icon.svg                                                0 B            0 B
+├ ƒ /llms.txt                                              340 B         103 kB
+├ ƒ /login                                                 189 B         151 kB
+├ ○ /opengraph-image                                       340 B         103 kB
+├ ƒ /pricing                                             6.27 kB         154 kB
+├ ƒ /privacy                                             3.74 kB         152 kB
+├ ƒ /register                                              188 B         151 kB
+├ ƒ /reset-password                                        189 B         151 kB
+├ ƒ /robots.txt                                            340 B         103 kB
+├ ƒ /share                                                 340 B         103 kB
+├ ƒ /sitemap.xml                                           340 B         103 kB
+├ ƒ /subprocessors                                         340 B         103 kB
+├ ƒ /terms                                               3.74 kB         152 kB
+├ ○ /twitter-image                                         340 B         103 kB
+└ ƒ /workspaces                                            340 B         103 kB
++ First Load JS shared by all                             103 kB
+  ├ chunks/1255-dc3ddf72a1dc71a7.js                      46.6 kB
+  ├ chunks/4bd1b696-f785427dddbba9fb.js                  54.2 kB
+  └ other shared chunks (total)                             2 kB
+
+
+ƒ Middleware                                             35.1 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+PWA service worker generated for build 897de2461dfab97b21bc
+[WebServer] (node:32184) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 62 tests using 1 worker
+
+(node:19240) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   1 [mobile-375] › e2e\app.spec.ts:10:5 › sign-up lands on a ready board; cards, settings and security work
+  ok  2 [mobile-375] › e2e\app.spec.ts:88:5 › the signed-in home fits narrow mobile screens (1.8s)
+  ok  3 [mobile-375] › e2e\public.spec.ts:5:5 › visitors can explore the demo before choosing to log in (1.1s)
+  ok  4 [mobile-375] › e2e\public.spec.ts:15:5 › landing explains the loop and leads to the Pro trial (503ms)
+  ok  5 [mobile-375] › e2e\public.spec.ts:23:5 › pricing shows the agreed plans, seats and Enterprise without SSO/SLA promises (806ms)
+  ok  6 [mobile-375] › e2e\public.spec.ts:55:5 › English pages are served under /en (491ms)
+  ok  7 [mobile-375] › e2e\public.spec.ts:61:5 › the demo previews a change and moves the existing card instead of duplicating it (2.1s)
+  ok  8 [mobile-375] › e2e\public.spec.ts:75:5 › registration is usable without horizontal overflow (348ms)
+  ok  9 [mobile-375] › e2e\public.spec.ts:82:5 › authentication outcomes are explained (478ms)
+  ok 10 [mobile-375] › e2e\public.spec.ts:89:5 › login offers a passwordless link (443ms)
+  ok 11 [mobile-375] › e2e\public.spec.ts:95:5 › external post-login redirects are discarded (314ms)
+  ok 12 [mobile-375] › e2e\public.spec.ts:100:5 › an incomplete reset link offers a recovery path (354ms)
+  ok 13 [mobile-375] › e2e\public.spec.ts:106:5 › private areas redirect to sign-in (644ms)
+  ok 14 [mobile-375] › e2e\public.spec.ts:111:5 › favicon and PWA icons are served, with cache-busting URLs (503ms)
+  ok 15 [mobile-375] › e2e\public.spec.ts:121:5 › the demo sorts one thought across the personal and the work board (530ms)
+  ok 16 [mobile-375] › e2e\public.spec.ts:132:5 › crawlers find robots.txt, a sitemap, llms.txt and per-page canonical tags (793ms)
+  ok 17 [mobile-375] › e2e\pwa.spec.ts:24:5 › app guide has keyboard focus, escape dismissal and fits the viewport (551ms)
+  ok 18 [mobile-375] › e2e\pwa.spec.ts:41:5 › real worker offers offline fallback without caching private pages or APIs (1.1s)
+  ok 19 [mobile-375] › e2e\pwa.spec.ts:68:5 › waiting update neither reloads nor activates while a form is dirty (406ms)
+  ok 20 [mobile-375] › e2e\pwa.spec.ts:79:5 › explicit update sends activation only after user action (657ms)
+  ok 21 [mobile-375] › e2e\pwa.spec.ts:87:5 › notification permission denial is explained without saving a subscription (543ms)
+  ok 22 [mobile-375] › e2e\pwa.spec.ts:161:7 › authenticated board with synthetic PostgreSQL fixture › draft blocks update, manual card save works and offline errors retain text (1.3s)
+  -  23 [mobile-375] › e2e\security.spec.ts:50:7 › security regressions on a real server › limited platform roles cannot promote themselves through either field
+  -  24 [mobile-375] › e2e\security.spec.ts:58:7 › security regressions on a real server › required enrollment blocks search, print, export and old API tokens
+  -  25 [mobile-375] › e2e\security.spec.ts:72:7 › security regressions on a real server › foreign and invalid sessions cannot learn private metadata
+  -  26 [mobile-375] › e2e\security.spec.ts:78:7 › security regressions on a real server › API tokens expire and read-only tokens cannot write cards
+  -  27 [mobile-375] › e2e\security.spec.ts:90:7 › security regressions on a real server › admin writes reject foreign origins and plain text JSON
+  -  28 [mobile-375] › e2e\security.spec.ts:97:7 › security regressions on a real server › a reset token works once under concurrency and revokes old credentials
+  -  29 [mobile-375] › e2e\security.spec.ts:106:7 › security regressions on a real server › first mailbox proof retires pre-registration access and lets the owner set a password
+  -  30 [mobile-375] › e2e\security.spec.ts:124:7 › security regressions on a real server › concurrent owner changes preserve at least one owner
+  -  31 [mobile-375] › e2e\security.spec.ts:132:7 › security regressions on a real server › production scripts carry matching nonces and arbitrary inline scripts are blocked
+(node:22384) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 32 [desktop-1440] › e2e\app.spec.ts:10:5 › sign-up lands on a ready board; cards, settings and security work (4.3s)
+  -  33 [desktop-1440] › e2e\app.spec.ts:88:5 › the signed-in home fits narrow mobile screens
+  ok 34 [desktop-1440] › e2e\public.spec.ts:5:5 › visitors can explore the demo before choosing to log in (1.1s)
+  ok 35 [desktop-1440] › e2e\public.spec.ts:15:5 › landing explains the loop and leads to the Pro trial (466ms)
+  ok 36 [desktop-1440] › e2e\public.spec.ts:23:5 › pricing shows the agreed plans, seats and Enterprise without SSO/SLA promises (771ms)
+  ok 37 [desktop-1440] › e2e\public.spec.ts:55:5 › English pages are served under /en (401ms)
+  ok 38 [desktop-1440] › e2e\public.spec.ts:61:5 › the demo previews a change and moves the existing card instead of duplicating it (1.5s)
+  ok 39 [desktop-1440] › e2e\public.spec.ts:75:5 › registration is usable without horizontal overflow (365ms)
+  ok 40 [desktop-1440] › e2e\public.spec.ts:82:5 › authentication outcomes are explained (567ms)
+  ok 41 [desktop-1440] › e2e\public.spec.ts:89:5 › login offers a passwordless link (402ms)
+  ok 42 [desktop-1440] › e2e\public.spec.ts:95:5 › external post-login redirects are discarded (359ms)
+  ok 43 [desktop-1440] › e2e\public.spec.ts:100:5 › an incomplete reset link offers a recovery path (350ms)
+  ok 44 [desktop-1440] › e2e\public.spec.ts:106:5 › private areas redirect to sign-in (670ms)
+  ok 45 [desktop-1440] › e2e\public.spec.ts:111:5 › favicon and PWA icons are served, with cache-busting URLs (557ms)
+  ok 46 [desktop-1440] › e2e\public.spec.ts:121:5 › the demo sorts one thought across the personal and the work board (536ms)
+  ok 47 [desktop-1440] › e2e\public.spec.ts:132:5 › crawlers find robots.txt, a sitemap, llms.txt and per-page canonical tags (859ms)
+  ok 48 [desktop-1440] › e2e\pwa.spec.ts:24:5 › app guide has keyboard focus, escape dismissal and fits the viewport (625ms)
+  ok 49 [desktop-1440] › e2e\pwa.spec.ts:41:5 › real worker offers offline fallback without caching private pages or APIs (1.2s)
+  ok 50 [desktop-1440] › e2e\pwa.spec.ts:68:5 › waiting update neither reloads nor activates while a form is dirty (420ms)
+  ok 51 [desktop-1440] › e2e\pwa.spec.ts:79:5 › explicit update sends activation only after user action (460ms)
+  ok 52 [desktop-1440] › e2e\pwa.spec.ts:87:5 › notification permission denial is explained without saving a subscription (581ms)
+  ok 53 [desktop-1440] › e2e\pwa.spec.ts:161:7 › authenticated board with synthetic PostgreSQL fixture › draft blocks update, manual card save works and offline errors retain text (1.3s)
+  ok 54 [desktop-1440] › e2e\security.spec.ts:50:7 › security regressions on a real server › limited platform roles cannot promote themselves through either field (667ms)
+  ok 55 [desktop-1440] › e2e\security.spec.ts:58:7 › security regressions on a real server › required enrollment blocks search, print, export and old API tokens (546ms)
+  ok 56 [desktop-1440] › e2e\security.spec.ts:72:7 › security regressions on a real server › foreign and invalid sessions cannot learn private metadata (44ms)
+  ok 57 [desktop-1440] › e2e\security.spec.ts:78:7 › security regressions on a real server › API tokens expire and read-only tokens cannot write cards (52ms)
+  ok 58 [desktop-1440] › e2e\security.spec.ts:90:7 › security regressions on a real server › admin writes reject foreign origins and plain text JSON (325ms)
+  ok 59 [desktop-1440] › e2e\security.spec.ts:97:7 › security regressions on a real server › a reset token works once under concurrency and revokes old credentials (946ms)
+  ok 60 [desktop-1440] › e2e\security.spec.ts:106:7 › security regressions on a real server › first mailbox proof retires pre-registration access and lets the owner set a password (2.5s)
+  ok 61 [desktop-1440] › e2e\security.spec.ts:124:7 › security regressions on a real server › concurrent owner changes preserve at least one owner (295ms)
+  ok 62 [desktop-1440] › e2e\security.spec.ts:132:7 › security regressions on a real server › production scripts carry matching nonces and arbitrary inline scripts are blocked (423ms)
+
+  11 skipped
+  51 passed (54.8s)
+Temporary PostgreSQL stopped. No application or production database was used.

@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { slug } = await params;
   const ctx = await boardContext(request, slug, { manage: true });
   if (isResponse(ctx)) return ctx;
-  const parsed = createSchema.safeParse(await request.json().catch(() => ({})));
+  const parsed = createSchema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const { workspace, user } = ctx;
   try {
@@ -53,7 +54,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   const { slug } = await params;
   const ctx = await boardContext(request, slug, { manage: true });
   if (isResponse(ctx)) return ctx;
-  const parsed = reorderSchema.safeParse(await request.json().catch(() => ({})));
+  const parsed = reorderSchema.safeParse(await safeJson(request));
   if (!parsed.success || new Set(parsed.data.columnIds).size !== parsed.data.columnIds.length)
     return apiError(request, "INVALID_INPUT", 400);
   const { workspace, user } = ctx;

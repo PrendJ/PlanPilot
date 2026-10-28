@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const state = vi.hoisted(() => ({ db: null as any, send: vi.fn(), session: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({ prisma: new Proxy({}, { get: (_target, key) => { const value = state.db?.[key]; return typeof value === "function" ? value.bind(state.db) : value; } }) }));
 vi.mock("web-push", () => ({ default: { sendNotification: state.send } }));
-vi.mock("@/lib/auth", () => ({ getCurrentSession: state.session }));
+vi.mock("@/lib/auth", () => ({ twoFactorRequiredButMissing: async () => false, getCurrentSession: state.session }));
 import { queueProjectPush, dispatchProjectPush } from "@/lib/push";
 import { POST as subscribe } from "@/app/api/notifications/subscription/route";
 const url = process.env.BOARDCUE_TEST_DATABASE_URL;

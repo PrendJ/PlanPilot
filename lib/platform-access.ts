@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getApiUser } from "@/lib/auth";
 
 export type PlatformRoleKey = "USER" | "SUPPORT" | "BILLING" | "SUPERADMIN";
 export type PlatformCapability = "METADATA" | "SUPPORT" | "BILLING" | "LICENSE" | "LIFECYCLE" | "PLATFORM_ADMIN";
@@ -20,7 +20,7 @@ export function hasPlatformCapability(user: { platformRole?: string | null; isAd
 }
 
 export async function requirePlatform(capability: PlatformCapability) {
-  const user = await getCurrentUser();
+  const user = await getApiUser();
   if (!user || !hasPlatformCapability(user, capability)) return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) } as const;
   return { user } as const;
 }

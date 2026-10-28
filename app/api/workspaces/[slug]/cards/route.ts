@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { assertBoardAccess, BoardAccessError, bumpRevision, cardInclude, isBoardConflict, logActivity, placeCard } from "@/lib/board";
@@ -11,7 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const { slug } = await params;
   const ctx = await boardContext(request, slug, { write: true });
   if (isResponse(ctx)) return ctx;
-  const parsed = cardCreateSchema.safeParse(await request.json().catch(() => ({})));
+  const parsed = cardCreateSchema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400, { details: parsed.error.flatten() });
   const body = parsed.data;
   const { workspace, user } = ctx;

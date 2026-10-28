@@ -7,6 +7,8 @@ import { platformModels } from "@/lib/platform-ai";
 import { getUsageStatus, recordUsage } from "@/lib/plans";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceApiKey } from "@/lib/workspace";
+import { twoFactorRequiredButMissing } from "@/lib/auth";
+import { boundedBytes } from "@/lib/security";
 
 /** Automatic retries stop here (cron); manual retries from the home inbox stop at the hard cap. */
 export const AUTO_CAPTURE_ATTEMPTS = 3;
@@ -200,7 +202,7 @@ export async function processTelegramAudio(captureId: string) {
     return;
   }
   const connection = await prisma.telegramConnection.findUnique({ where: { userId: capture.userId }, include: { user: true } });
-  if (!connection || connection.user.lifecycleStatus !== "ACTIVE") {
+  if (!connection || connection.user.lifecycleStatus !== "ACTIVE" || await twoFactorRequiredButMissing(connection.user)) {
     await prisma.externalCapture.deleteMany({ where: { id: captureId } });
     return;
   }
@@ -233,7 +235,7 @@ export async function processTelegramAudio(captureId: string) {
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok || Number(response.headers.get("content-length") || 0) > MAX_AUDIO_BYTES) throw new Error("AUDIO_UNAVAILABLE");
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const buffer = Buffer.from(await boundedBytes(response, MAX_AUDIO_BYTES));
     if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) throw new Error("AUDIO_UNAVAILABLE");
     const model = (await platformModels()).transcriptionModel;
     const result = await transcribeAudio({ apiKey: getWorkspaceApiKey(workspace)!, model, audio: buffer, format, language: workspace.locale });

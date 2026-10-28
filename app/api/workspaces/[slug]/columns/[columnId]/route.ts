@@ -1,3 +1,4 @@
+import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
   const { slug, columnId } = await params;
   const ctx = await boardContext(request, slug, { manage: true });
   if (isResponse(ctx)) return ctx;
-  const parsed = patchSchema.safeParse(await request.json().catch(() => ({})));
+  const parsed = patchSchema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const { workspace, user } = ctx;
   const column = await prisma.boardColumn.findFirst({ where: { id: columnId, workspaceId: workspace.id } });
@@ -53,7 +54,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ s
   const { slug, columnId } = await params;
   const ctx = await boardContext(request, slug, { manage: true });
   if (isResponse(ctx)) return ctx;
-  const parsed = deleteSchema.safeParse(await request.json().catch(() => ({})));
+  const parsed = deleteSchema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
   const { workspace, user } = ctx;
   const columns = await prisma.boardColumn.findMany({ where: { workspaceId: workspace.id }, orderBy: { position: "asc" } });
