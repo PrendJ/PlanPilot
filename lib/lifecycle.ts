@@ -106,6 +106,7 @@ export async function changeLifecycle(input: {
               create: { organizationId: organization.id, userId: replacement.id, role: "OWNER" },
               update: { role: "OWNER" },
             }),
+            prisma.spaceMember.deleteMany({ where: { userId: user.id, space: { organizationId: organization.id } } }),
             prisma.organizationMember.deleteMany({ where: { organizationId: organization.id, userId: user.id } }),
             prisma.workspaceMember.deleteMany({ where: { userId: user.id, workspace: { organizationId: organization.id } } }),
           ]);

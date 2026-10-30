@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useI18n } from "../I18nProvider";
+import { reopenColumn } from "@/lib/board-state";
+import { Icon } from "../Icon";
 import { Avatar } from "../ui";
 import { checklistOf, dueState, formatDue, isDoneColumn, type Card, type Column } from "./types";
 
@@ -9,12 +11,33 @@ type SortKey = "title" | "column" | "priority" | "dueDate" | "updatedAt";
 const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 } as const;
 
 /** Sortable table of every visible card: useful to scan deadlines and priorities across columns. */
-export function ListView({ columns, onOpen }: { columns: Column[]; onOpen: (card: Card) => void }) {
+export function ListView({
+  columns,
+  allColumns,
+  canWrite,
+  onOpen,
+  onMove,
+}: {
+  columns: Column[];
+  allColumns: Column[];
+  canWrite: boolean;
+  onOpen: (card: Card) => void;
+  onMove: (card: Card, columnId: string) => void;
+}) {
   const { t, tag } = useI18n();
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "dueDate", dir: 1 });
   const rows = useMemo(() => {
     const all = columns.flatMap((column, index) =>
-      column.cards.map(card => ({ card, column, done: isDoneColumn(column, index, columns.length), columnIndex: index })),
+      column.cards.map(card => ({
+        card,
+        column,
+        done: isDoneColumn(
+          column,
+          allColumns.findIndex(item => item.id === column.id),
+          allColumns.length,
+        ),
+        columnIndex: index,
+      })),
     );
     const value = (row: (typeof all)[number]): string | number => {
       switch (sort.key) {
@@ -31,7 +54,8 @@ export function ListView({ columns, onOpen }: { columns: Column[]; onOpen: (card
       }
     };
     return [...all].sort((a, b) => (value(a) < value(b) ? -1 : value(a) > value(b) ? 1 : 0) * sort.dir);
-  }, [columns, sort]);
+  }, [columns, allColumns, sort]);
+  const doneColumn = allColumns.find(column => isDoneColumn(column));
   const header = (key: SortKey, label: string) => (
     <th aria-sort={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
       <button
@@ -55,53 +79,101 @@ export function ListView({ columns, onOpen }: { columns: Column[]; onOpen: (card
       <table className="table">
         <thead>
           <tr>
+            <th>
+              <span className="sr-only">{tag.startsWith("it") ? "Completamento" : "Completion"}</span>
+            </th>
             {header("title", t("board.card.title"))}
-            {header("column", t("board.card.column"))}
+            {header("column", tag.startsWith("it") ? "Stato" : "Status")}
             {header("priority", t("board.card.priority"))}
             {header("dueDate", t("board.card.dueDate"))}
             <th>{t("board.card.assignees")}</th>
             {header("updatedAt", t("board.list.updated"))}
           </tr>
         </thead>
-        <tbody>
-          {rows.map(({ card, column, done }) => {
-            const due = dueState(card.dueDate, new Date(), done);
-            return (
-              <tr key={card.id}>
-                <td className="title">
-                  <button type="button" className="list-card-open" onClick={() => onOpen(card)}>
-                    <strong>{card.title}</strong>
-                    {card.description && <span className="list-card-summary">{card.description}</span>}
-                    {checklistOf(card).length > 0 && (
-                      <small>
-                        {t("board.card.checklist")} {checklistOf(card).filter(item => item.done).length}/{checklistOf(card).length}
-                      </small>
-                    )}
-                  </button>
-                </td>
-                <td>{column.title}</td>
-                <td>
-                  {card.priority !== "NORMAL" ? (
-                    <span className={`prio prio-${card.priority}`}>{t(`priority.${card.priority}`)}</span>
-                  ) : (
-                    <span className="subtle">{t("priority.NORMAL")}</span>
-                  )}
-                </td>
-                <td>
-                  {card.dueDate ? <span className={`due ${due}`}>{formatDue(card.dueDate, tag)}</span> : <span className="subtle">—</span>}
-                </td>
-                <td>
-                  <span className="avatar-stack">
-                    {card.assignees.map(item => (
-                      <Avatar key={item.user.id} name={item.user.name} size="sm" />
-                    ))}
-                  </span>
-                </td>
-                <td className="subtle">{new Date(card.updatedAt).toLocaleDateString(tag, { day: "numeric", month: "short" })}</td>
+        {[false, true].map(groupDone => {
+          const group = rows.filter(row => row.done === groupDone);
+          if (!group.length) return null;
+          return (
+            <tbody key={String(groupDone)}>
+              <tr>
+                <th colSpan={7} scope="rowgroup">
+                  {tag.startsWith("it") ? (groupDone ? "Completate" : "Aperte") : groupDone ? "Completed" : "Open"}
+                </th>
               </tr>
-            );
-          })}
-        </tbody>
+              {group.map(({ card, column, done }) => {
+                const due = dueState(card.dueDate, new Date(), done);
+                const openColumn = reopenColumn(allColumns, card.previousColumnId);
+                return (
+                  <tr
+                    key={card.id}
+                    onClick={event => {
+                      if (!(event.target as HTMLElement).closest("button, input, a, select")) onOpen(card);
+                    }}
+                  >
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={done}
+                        disabled={!canWrite || !(done ? openColumn : doneColumn) || (done ? openColumn : doneColumn)?.id === column.id}
+                        aria-label={
+                          done
+                            ? tag.startsWith("it")
+                              ? `Riapri ${card.title}`
+                              : `Reopen ${card.title}`
+                            : t("home.today.markDone", { title: card.title })
+                        }
+                        onChange={() => {
+                          const target = done ? openColumn : doneColumn;
+                          if (target) onMove(card, target.id);
+                        }}
+                      />
+                    </td>
+                    <td className="title">
+                      <button type="button" className="list-card-open" onClick={() => onOpen(card)}>
+                        <strong>{card.title}</strong>
+                        {card.description && <span className="list-card-summary">{card.description}</span>}
+                        {checklistOf(card).length > 0 && (
+                          <small>
+                            {t("board.card.checklist")} {checklistOf(card).filter(item => item.done).length}/{checklistOf(card).length}
+                          </small>
+                        )}
+                      </button>
+                    </td>
+                    <td>{column.title}</td>
+                    <td>
+                      {card.priority !== "NORMAL" ? (
+                        <span className={`prio prio-${card.priority}`}>
+                          <Icon
+                            name={card.priority === "URGENT" ? "alertOctagon" : card.priority === "HIGH" ? "chevronsUp" : "chevronDown"}
+                            size={12}
+                          />
+                          {t(`priority.${card.priority}`)}
+                        </span>
+                      ) : (
+                        <span className="subtle">{t("priority.NORMAL")}</span>
+                      )}
+                    </td>
+                    <td>
+                      {card.dueDate ? (
+                        <span className={`due ${due}`}>{formatDue(card.dueDate, tag)}</span>
+                      ) : (
+                        <span className="subtle">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className="avatar-stack">
+                        {card.assignees.map(item => (
+                          <Avatar key={item.user.id} name={item.user.name} size="sm" />
+                        ))}
+                      </span>
+                    </td>
+                    <td className="subtle">{new Date(card.updatedAt).toLocaleDateString(tag, { day: "numeric", month: "short" })}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          );
+        })}
       </table>
     </div>
   );

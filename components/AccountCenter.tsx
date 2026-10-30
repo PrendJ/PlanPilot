@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
+import { InstallAppButton } from "./PwaProvider";
+import { ReleaseHistory } from "./ReleaseHistory";
 import { useI18n } from "./I18nProvider";
 import { api, useFeedback } from "./ui";
 
@@ -19,6 +21,7 @@ type Team = {
   seats: number;
   seatLimit: number | null;
   boards: number;
+  boardSoftLimit: number | null;
   price: number | null;
   interval: string | null;
   readOnly: boolean;
@@ -259,6 +262,7 @@ export function AccountCenter({
             {t(`account.nav.${section}`)}
           </a>
         ))}
+        <a href="#updates">{user.locale === "it" ? "Novità e app" : "Updates and app"}</a>
       </nav>
       <div className="settings-stack">
         {notices.require2fa && (
@@ -274,6 +278,11 @@ export function AccountCenter({
           </div>
         )}
 
+        <section id="updates" className="panel">
+          <h2>{user.locale === "it" ? "Novità e app" : "Updates and app"}</h2>
+          <ReleaseHistory locale={user.locale} email={user.email} />
+          <InstallAppButton />
+        </section>
         <section id="profile" className="panel">
           <div className="panel-head">
             <div>
@@ -620,7 +629,7 @@ export function AccountCenter({
                     )}
                   </h3>
                   <p>
-                    {t(`roles.${team.role}`)} · {t("account.teams.boards", { count: team.boards })}
+                    {t(`roles.${team.role}`)} · {t("account.teams.boards", { count: team.boards })}{team.boardSoftLimit !== null && <> · {tag.startsWith("it") ? `soglia indicativa ${team.boardSoftLimit}, nessun blocco al superamento` : `guideline ${team.boardSoftLimit}, exceeding it does not block work`}</>}
                   </p>
                 </div>
                 <span className={`plan-badge plan-${team.plan}`}>{t(`plans.${team.plan}`)}</span>

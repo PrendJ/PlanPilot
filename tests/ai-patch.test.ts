@@ -44,4 +44,13 @@ describe("AI application schema; synthetic outputs, not interpretation evaluatio
     expect(validateAiPatch(patch([{ ...move, action: "update", description: hostile }]), scope).actions[0].description).toBe(hostile);
     expect(() => validateAiPatch(patch([{ ...move, tool: "fetch", url: "https://example.invalid" }]), scope)).toThrow(InvalidAiPatchError);
   });
+  it("accepts only board members and labels inferred incomplete checklist steps", () => {
+    const fields = { ...move, action: "update", targetColumnId: null, assigneeIds: ["member"], checklist: [{ id: null, text: "Prepare draft", done: false, suggested: true }] };
+    const memberScope = { ...scope, memberIds: new Set(["member"]) };
+    expect(validateAiPatch(patch([fields]), memberScope).actions[0].checklist?.[0].suggested).toBe(true);
+    expect(() => validateAiPatch(patch([fields]), scope)).toThrow(InvalidAiPatchError);
+    expect(() => validateAiPatch(patch([{ ...fields, assigneeIds: ["outsider"] }]), memberScope)).toThrow(InvalidAiPatchError);
+    expect(() => validateAiPatch(patch([{ ...fields, checklist: [{ ...fields.checklist[0], done: true }] }]), memberScope)).toThrow(InvalidAiPatchError);
+  });
+
 });

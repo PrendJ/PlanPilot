@@ -49,7 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       source,
       timeZone: validTimeZone(parsed.data.timeZone),
     });
-    const autoApply = (parsed.data.autoApply ?? ctx.user.autoApplyAi) && proposal.actions.length > 0 && !proposal.clarification;
+    const autoApply = (parsed.data.autoApply ?? ctx.user.autoApplyAi) && proposal.actions.length > 0 && !proposal.clarification && !proposal.actions.some(action => action.requiresReview);
     if (!autoApply) return NextResponse.json({ proposal });
     const { receipt } = await applyProposal({ proposalId: proposal.id, workspace: ctx.workspace, userId: ctx.user.id });
     await trackEvent("ai_update_applied");

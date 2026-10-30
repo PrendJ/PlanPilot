@@ -7,7 +7,7 @@ import { boardContext, isResponse } from "@/lib/api-context";
 import { apiError } from "@/lib/errors";
 import { inferSemanticKey } from "@/lib/board-state";
 
-const patchSchema = z.object({ title: z.string().trim().min(1).max(80).optional(), description: z.string().max(500).optional() });
+const patchSchema = z.object({ title: z.string().trim().min(1).max(80).optional(), description: z.string().max(500).optional(), semanticKey: z.enum(["DONE", "READY", "ACTIVE", "BLOCKED", "CUSTOM", "INBOX", "BACKLOG", "LATER", "REVIEW", "QA", "SCHEDULED", "QUALIFIED"]).optional() });
 const deleteSchema = z.object({ destinationColumnId: z.string().cuid().optional() });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ slug: string; columnId: string }> }) {
@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
           title: parsed.data.title,
           description: parsed.data.description,
           // A recognisable new title updates the state; an unrecognised one never erases a known state.
-          ...(parsed.data.title && inferSemanticKey(parsed.data.title) !== "CUSTOM" ? { semanticKey: inferSemanticKey(parsed.data.title) } : {}),
+          ...(parsed.data.semanticKey ? { semanticKey: parsed.data.semanticKey } : parsed.data.title && inferSemanticKey(parsed.data.title) !== "CUSTOM" ? { semanticKey: inferSemanticKey(parsed.data.title) } : {}),
         },
       });
       await logActivity(tx, {

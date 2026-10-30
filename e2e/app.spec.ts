@@ -53,6 +53,15 @@ test("sign-up lands on a ready board; cards, settings and security work", async 
 
   await page.getByRole("tab", { name: /Lista/ }).click();
   await expect(page.getByRole("table")).toContainText("Card creata dal test");
+  const completedRow = page.getByRole("row").filter({ hasText: "Card creata dal test" });
+  await expect(completedRow.getByRole("checkbox")).toBeChecked();
+  await completedRow.getByRole("checkbox").uncheck();
+  await expect(completedRow.getByRole("checkbox")).not.toBeChecked();
+  await expect(page.getByRole("dialog", { name: "Card creata dal test" })).toHaveCount(0);
+  await page.reload();
+  await expect(completedRow.getByRole("checkbox")).not.toBeChecked();
+  await completedRow.getByRole("checkbox").check();
+  await expect(completedRow.getByRole("checkbox")).toBeChecked();
   await page.getByRole("tab", { name: /Calendario/ }).click();
   await expect(page.locator(".calendar")).toBeVisible();
 

@@ -114,7 +114,7 @@ describe.skipIf(!testUrl)("commercial flows on PostgreSQL", () => {
       },
     });
     todo = (await prisma.boardColumn.create({ data: { workspaceId: workspace.id, title: "Da fare", position: 0 } })).id;
-    done = (await prisma.boardColumn.create({ data: { workspaceId: workspace.id, title: "Fatto", position: 1 } })).id;
+    done = (await prisma.boardColumn.create({ data: { workspaceId: workspace.id, title: "Fatto", semanticKey: "DONE", position: 1 } })).id;
     cardA = (await prisma.card.create({ data: { workspaceId: workspace.id, columnId: todo, title: "Newsletter", position: 0 } })).id;
     cardB = (await prisma.card.create({ data: { workspaceId: workspace.id, columnId: todo, title: "Preventivo", position: 1 } })).id;
   });
@@ -243,7 +243,10 @@ describe.skipIf(!testUrl)("commercial flows on PostgreSQL", () => {
         periodKey: new Date().toISOString().slice(0, 7),
       })),
     });
+    await prisma.usageEvent.create({ data: { organizationId: trial.id, category: "COST", model: "m", costUsd: 4, periodKey: new Date().toISOString().slice(0, 7) } });
+    await expect(reserveAiUpdate({ organizationId: trial.id, category: "AI_UPDATE", model: "m" })).rejects.toBeInstanceOf(QuotaExceededError);
     await prisma.creditGrant.create({ data: { organizationId: trial.id, units: 2, remaining: 2, source: "TEST" } });
+    expect((await getUsageStatus(trial.id))?.status).not.toBe("PAUSED");
     await reserveAiUpdate({ organizationId: trial.id, category: "AI_UPDATE", model: "m" });
     await reserveAiUpdate({ organizationId: trial.id, category: "AI_UPDATE", model: "m" });
     await expect(reserveAiUpdate({ organizationId: trial.id, category: "AI_UPDATE", model: "m" })).rejects.toBeInstanceOf(
@@ -378,4 +381,76 @@ describe.skipIf(!testUrl)("commercial flows on PostgreSQL", () => {
     expect(cards[0].id).toBe(cardB);
     expect(cards.map(card => card.position)).toEqual(cards.map((_, index) => index));
   });
+  it("persists the previous column across completion and clears it on reopening", async () => {
+    const { PATCH } = await import("@/app/api/workspaces/[slug]/cards/[cardId]/route");
+    const board = await prisma.workspace.findUniqueOrThrow({ where: { slug } });
+    const active = await prisma.boardColumn.create({ data: { workspaceId: board.id, title: "In corso", semanticKey: "ACTIVE", position: 8 } });
+    const card = await prisma.card.create({ data: { workspaceId: board.id, columnId: active.id, title: "Reopen" } });
+    expect((await PATCH(req("/x", "PATCH", { columnId: done }), params({ slug, cardId: card.id }))).status).toBe(200);
+    expect(await prisma.card.findUnique({ where: { id: card.id } })).toMatchObject({ columnId: done, previousColumnId: active.id });
+    expect((await PATCH(req("/x", "PATCH", { columnId: active.id }), params({ slug, cardId: card.id }))).status).toBe(200);
+    expect(await prisma.card.findUnique({ where: { id: card.id } })).toMatchObject({ columnId: active.id, previousColumnId: null });
+  });
+
+  it("requires review of AI assignees/checklists, persists them, and undoes them together", async () => {
+    const { POST: ingest } = await import("@/app/api/workspaces/[slug]/ingest/route");
+    const { POST: apply } = await import("@/app/api/workspaces/[slug]/proposals/[proposalId]/apply/route");
+    const { POST: undo } = await import("@/app/api/workspaces/[slug]/updates/[updateId]/undo/route");
+    const board = await prisma.workspace.findUniqueOrThrow({ where: { slug } });
+    const card = await prisma.card.create({ data: { workspaceId: board.id, columnId: todo, title: "Review", checklist: [{ id: "old", text: "Keep", done: true }] } });
+    state.planner = () => ({ summary: "Assignment and steps", clarification: null, actions: [action({
+      action: "update", cardId: card.id, assigneeIds: [member.id],
+      checklist: [{ id: "old", text: "Keep", done: true, suggested: false }, { id: null, text: "Suggested step", done: false, suggested: true }],
+    })] });
+    const proposed = await ingest(req("/x", "POST", { text: "Assegna a Member e suggerisci i passi", autoApply: true }), params({ slug }));
+    expect(proposed.status).toBe(200);
+    const { proposal, receipt } = await proposed.json();
+    expect(receipt).toBeUndefined();
+    expect(proposal.actions[0]).toMatchObject({ requiresReview: true, changes: [{ field: "assignees", to: member.name }] });
+    expect(await prisma.cardAssignee.count({ where: { cardId: card.id } })).toBe(0);
+    const applied = await (await apply(req("/x", "POST", {}), params({ slug, proposalId: proposal.id }))).json();
+    const changed = await prisma.card.findUniqueOrThrow({ where: { id: card.id }, include: { assignees: true } });
+    expect(changed.assignees.map(m => m.userId)).toEqual([member.id]);
+    expect(changed.checklist).toEqual([{ id: "old", text: "Keep", done: true, suggested: false }, { id: expect.any(String), text: "Suggested step", done: false, suggested: true }]);
+    expect((await undo(req("/x", "POST", {}), params({ slug, updateId: applied.receipt.updateId }))).status).toBe(200);
+    const restored = await prisma.card.findUniqueOrThrow({ where: { id: card.id }, include: { assignees: true } });
+    expect(restored.assignees).toEqual([]);
+    expect(restored.checklist).toEqual([{ id: "old", text: "Keep", done: true }]);
+  });
+
+  it("isolates customer workspaces and revokes inherited grants while preserving direct board invitations", async () => {
+    const { POST: create } = await import("@/app/api/spaces/route");
+    const { PATCH: edit } = await import("@/app/api/spaces/[spaceId]/route");
+    const { GET: read } = await import("@/app/api/spaces/route");
+    const first = await create(req("/x", "POST", { organizationId: orgId, name: "Marketing" }));
+    expect(first.status).toBe(201);
+    const { space } = await first.json();
+    const { space: second } = await (await create(req("/x", "POST", { organizationId: orgId, name: "Sales" }))).json();
+    const board = await prisma.workspace.create({ data: { organizationId: orgId, createdById: owner.id, name: "Inherited", slug: `inherited-${marker}`, members: { create: { userId: owner.id, role: "OWNER" } } } });
+    const update = (spaceId: string, body: unknown) => edit(req("/x", "PATCH", body), params({ spaceId }));
+    expect((await update(space.id, { action: "board", boardId: board.id })).status).toBe(200);
+    expect((await update(space.id, { action: "member", userId: member.id, role: "MEMBER" })).status).toBe(200);
+    expect((await update(second.id, { action: "member", userId: member.id, role: "MEMBER" })).status).toBe(200);
+    expect(await prisma.organizationMember.count({ where: { organizationId: orgId, role: { not: "GUEST" } } })).toBe(2);
+    expect(await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: board.id, userId: member.id } } })).toMatchObject({ inheritedFromSpaceId: space.id });
+    state.user = member;
+    expect((await create(req("/x", "POST", { organizationId: orgId, name: "Forbidden" }))).status).toBe(403);
+    expect((await update(space.id, { action: "rename", name: "Forbidden" })).status).toBe(403);
+    state.user = outsider;
+    const listed = await (await read(req(`/api/spaces?organizationId=${orgId}`))).json();
+    expect(listed.spaces).toEqual([]);
+    state.user = owner;
+    expect((await update(space.id, { action: "member", userId: member.id, role: null })).status).toBe(200);
+    expect(await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: board.id, userId: member.id } } })).toBeNull();
+    expect(await prisma.spaceMember.findUnique({ where: { spaceId_userId: { spaceId: second.id, userId: member.id } } })).not.toBeNull();
+    // Direct grants on the original board must survive attachment/removal.
+    const original = await prisma.workspace.findUniqueOrThrow({ where: { slug } });
+    expect((await update(space.id, { action: "board", boardId: original.id })).status).toBe(200);
+    expect((await update(space.id, { action: "board", boardId: original.id, remove: true })).status).toBe(200);
+    expect(await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: original.id, userId: member.id } } })).toMatchObject({ inheritedFromSpaceId: null });
+    await prisma.organization.update({ where: { id: orgId }, data: { plan: "PRO" } });
+    try { expect((await create(req("/x", "POST", { organizationId: orgId, name: "Forbidden plan" }))).status).toBe(403); }
+    finally { await prisma.organization.update({ where: { id: orgId }, data: { plan: "TEAM" } }); }
+  });
+
 });

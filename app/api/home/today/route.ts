@@ -52,23 +52,8 @@ export async function GET(request: Request) {
   });
   const byWorkspace = new Map<string, typeof columns>();
   for (const column of columns) byWorkspace.set(column.workspaceId, [...(byWorkspace.get(column.workspaceId) || []), column]);
-  const last = new Map([...byWorkspace].map(([id, list]) => [id, list[list.length - 1]?.position ?? 0]));
-  // Where "Done" from the home moves a card: the column marked done, else one titled like done, else the last.
-  const doneColumn = new Map(
-    [...byWorkspace].map(([id, list]) => [
-      id,
-      (
-        list.find(column => column.semanticKey === "DONE") ??
-        list.find((column, index) => isDoneColumn({ title: column.title }, index, list.length + 1)) ??
-        list[list.length - 1]
-      )?.id ?? null,
-    ]),
-  );
-  // Same rule as the board: the last column, or a column titled like "done", counts as finished.
-  const open = (card: (typeof due)[number]) => {
-    const lastPosition = last.get(card.workspace.id) ?? 0;
-    return !isDoneColumn(card.column, card.column.position, lastPosition + 1);
-  };
+  const doneColumn = new Map([...byWorkspace].map(([id, list]) => [id, list.find(column => isDoneColumn(column))?.id ?? null]));
+  const open = (card: (typeof due)[number]) => !isDoneColumn(card.column);
   const view = (card: (typeof due)[number]) => ({
     id: card.id,
     title: card.title,

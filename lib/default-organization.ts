@@ -17,13 +17,17 @@ export async function ensureDefaultOrganization(userId: string) {
   if (!user) throw new Error("Utente non trovato");
 
   const current = user.defaultOrganizationId
-    ? await prisma.organization.findUnique({ where: { id: user.defaultOrganizationId } })
+    ? await prisma.organization.findFirst({
+        where: { id: user.defaultOrganizationId,
+          createdById: user.id, lifecycleStatus: { not: "ARCHIVED" }, members: { some: { userId: user.id } } },
+      })
     : null;
-  const existing = current ? [] : await prisma.organization.findMany({
-      where: { createdById: user.id, lifecycleStatus: { not: "ARCHIVED" } },
-      orderBy: { createdAt: "asc" },
-      take: 1,
-    });
+  if (current) return current;
+  const existing = await prisma.organization.findMany({
+    where: { createdById: user.id, lifecycleStatus: { not: "ARCHIVED" } },
+    orderBy: { createdAt: "asc" },
+    take: 1,
+  });
   let organization = chooseDefaultOrganization(current, existing);
   if (!organization) {
     organization = await createOrganization({
@@ -38,9 +42,19 @@ export async function ensureDefaultOrganization(userId: string) {
     prisma.organizationMember.upsert({
       where: { organizationId_userId: { organizationId: organization.id, userId: user.id } },
       create: { organizationId: organization.id, userId: user.id, role: "OWNER" },
-      update: { role: "OWNER" },
+      update: {},
     }),
     prisma.user.update({ where: { id: user.id }, data: { defaultOrganizationId: organization.id } }),
   ]);
   return organization;
+}
+
+/** The selected subscription is independent of the user's own default space. */
+export async function ensureActiveOrganization(userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { activeOrganizationId: true } });
+  if (user.activeOrganizationId) {
+    const active = await prisma.organization.findFirst({ where: { id: user.activeOrganizationId, lifecycleStatus: { not: "ARCHIVED" }, members: { some: { userId } } } });
+    if (active) return active;
+  }
+  return ensureDefaultOrganization(userId);
 }

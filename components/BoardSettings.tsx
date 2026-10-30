@@ -7,8 +7,8 @@ import { useI18n } from "./I18nProvider";
 import { api, Avatar, useFeedback } from "./ui";
 import { SlackSteps } from "./IntegrationsPanel";
 
-type Column = { id: string; title: string; description: string; cards: number };
-type Member = { id: string; name: string; email: string; role: string };
+type Column = { semanticKey?: string; id: string; title: string; description: string; cards: number };
+type Member = { inheritedFromSpaceId?: string | null; id: string; name: string; email: string; role: string };
 type Invite = { id: string; email: string; role: string; expiresAt: string; invitedBy: { name: string } };
 type Webhook = {
   id: string;
@@ -92,14 +92,10 @@ export function BoardSettings({
     const data = new FormData(form);
     const response = await api<{ column: Column }>(`/api/workspaces/${slug}/columns/${column.id}`, {
       method: "PATCH",
-      json: { title: data.get("title"), description: data.get("description") },
+      json: { title: data.get("title"), description: data.get("description"), semanticKey: data.get("semanticKey") },
     });
     if (response.ok) {
-      setColumns(current =>
-        current.map(item =>
-          item.id === column.id ? { ...item, title: String(data.get("title")), description: String(data.get("description") || "") } : item,
-        ),
-      );
+      setColumns(current => current.map(item => (item.id === column.id ? { ...item, ...response.data.column } : item)));
       toast({ message: t("settings.saved") });
     } else fail(response.data.error);
   }
@@ -383,6 +379,30 @@ export function BoardSettings({
                   </button>
                 </span>
                 <input name="title" defaultValue={column.title} required maxLength={80} aria-label={t("settings.columns.title")} />
+                <select
+                  name="semanticKey"
+                  defaultValue={column.semanticKey || "CUSTOM"}
+                  aria-label={tag.startsWith("it") ? "Stato della colonna" : "Column status"}
+                >
+                  <option value="DONE">{tag.startsWith("it") ? "Completata" : "Completed"}</option>
+                  {[
+                    ...new Set(["READY", "CUSTOM", ...(column.semanticKey && column.semanticKey !== "DONE" ? [column.semanticKey] : [])]),
+                  ].map(key => (
+                    <option key={key} value={key}>
+                      {key === "READY"
+                        ? tag.startsWith("it")
+                          ? "Da fare"
+                          : "To do"
+                        : key === "CUSTOM"
+                          ? tag.startsWith("it")
+                            ? "Aperta"
+                            : "Open"
+                          : tag.startsWith("it")
+                            ? "Aperta (stato attuale)"
+                            : "Open (current state)"}
+                    </option>
+                  ))}
+                </select>
                 <input
                   name="description"
                   defaultValue={column.description}
@@ -478,7 +498,7 @@ export function BoardSettings({
                   </strong>
                   <span>{member.email}</span>
                 </div>
-                {isOwner && member.id !== meId ? (
+                {isOwner && member.id !== meId && !member.inheritedFromSpaceId ? (
                   <>
                     <select
                       value={member.role}
@@ -501,7 +521,10 @@ export function BoardSettings({
                     </button>
                   </>
                 ) : (
-                  <span className="badge">{t(`roles.${member.role}`)}</span>
+                  <span className="badge">
+                    {t(`roles.${member.role}`)}
+                    {member.inheritedFromSpaceId ? (tag.startsWith("it") ? " · dal workspace" : " · from workspace") : ""}
+                  </span>
                 )}
               </div>
             ))}

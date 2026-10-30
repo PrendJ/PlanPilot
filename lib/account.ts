@@ -25,12 +25,13 @@ export async function deleteOwnAccount(userId: string) {
     ]);
   }
   await prisma.$transaction([
+    prisma.spaceMember.deleteMany({ where: { userId, space: { organizationId: { notIn: archived } } } }),
     prisma.workspaceMember.deleteMany({ where: { userId, workspace: { organizationId: { notIn: archived } } } }),
     prisma.organizationMember.deleteMany({ where: { userId, organizationId: { notIn: archived } } }),
     prisma.apiToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } }),
     prisma.user.update({
       where: { id: userId },
-      data: { lifecycleStatus: "ARCHIVED", archivedAt: now, deleteAfter, defaultOrganizationId: null },
+      data: { lifecycleStatus: "ARCHIVED", archivedAt: now, deleteAfter, defaultOrganizationId: null, activeOrganizationId: null },
     }),
     prisma.session.deleteMany({ where: { userId } }),
   ]);

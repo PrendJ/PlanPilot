@@ -55,6 +55,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
             id: column.id,
             title: column.title,
             description: column.description,
+            semanticKey: column.semanticKey,
             cards: column._count.cards,
           }))}
           members={workspace.members.map(member => ({
@@ -62,6 +63,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
             name: member.user.name,
             email: member.user.email,
             role: member.role,
+            inheritedFromSpaceId: member.inheritedFromSpaceId,
           }))}
           guestsAllowed={limits.guests}
         />

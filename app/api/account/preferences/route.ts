@@ -27,8 +27,8 @@ export async function PATCH(request: Request) {
   if (defaultOrganizationId && !(await getOrganizationAccess(user.id, defaultOrganizationId))) return apiError(request, "FORBIDDEN", 403);
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { ...rest, ...(defaultOrganizationId && { defaultOrganizationId }) },
-    select: { name: true, locale: true, autoApplyAi: true, autoSendDictation: true, emailDigest: true, defaultOrganizationId: true },
+    data: { ...rest, ...(defaultOrganizationId && { activeOrganizationId: defaultOrganizationId }) },
+    select: { name: true, locale: true, autoApplyAi: true, autoSendDictation: true, emailDigest: true, activeOrganizationId: true, defaultOrganizationId: true },
   });
   const response = NextResponse.json({ user: updated });
   if (rest.locale) response.cookies.set(LOCALE_COOKIE, rest.locale, { path: "/", sameSite: "lax", maxAge: 365 * 86400 });

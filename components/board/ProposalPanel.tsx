@@ -24,7 +24,7 @@ function Change({ change }: { change: PreviewAction["changes"][number] }) {
   };
   return (
     <span className="change">
-      {t(`board.proposal.field.${change.field}`)}: {change.from !== null && <del>{format(change.from)}</del>}
+      {change.field === "assignees" ? t("board.card.assignees") : t(`board.proposal.field.${change.field}`)}: {change.from !== null && <del>{format(change.from)}</del>}
       {change.from !== null && " → "}
       <ins>{format(change.to)}</ins>
     </span>
@@ -33,7 +33,7 @@ function Change({ change }: { change: PreviewAction["changes"][number] }) {
 
 /** Diff preview of an AI proposal: nothing is written until the person applies it (all or selected actions). */
 export function ProposalPanel({ proposal, busy, boardName, onApply, onDiscard, onClarify }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [selected, setSelected] = useState<Set<number>>(() => new Set(proposal.actions.map(action => action.index)));
   useEffect(() => setSelected(new Set(proposal.actions.map(action => action.index))), [proposal]);
   const [editing, setEditing] = useState<Set<number>>(new Set());
@@ -232,6 +232,7 @@ export function ProposalPanel({ proposal, busy, boardName, onApply, onDiscard, o
                     </span>
                   </div>
                 )}
+                {action.checklist && <div className="changes"><strong>{t("board.card.checklist")}</strong><ul>{action.checklist.map((item, index) => <li key={index}>{item.done ? "✓ " : ""}{item.text}{item.suggested && <span className="badge">{locale === "it" ? "Suggerito dall’IA" : "AI suggestion"}</span>}</li>)}</ul></div>}
                 {action.reason && <div className="why">{action.reason}</div>}
               </div>
             </li>

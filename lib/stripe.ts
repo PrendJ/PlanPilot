@@ -1,3 +1,4 @@
+import { SEAT_PRICING_VERSION, type SeatTier } from "@/lib/seat-pricing";
 import { createHash } from "node:crypto";
 import Stripe from "stripe";
 import {
@@ -7,6 +8,7 @@ import {
   creditPackPriceCents,
   isSellablePlan,
   planPriceCents,
+  planPriceTiers,
   type CustomerType,
   type SellablePlanKey,
 } from "@/lib/plans";
@@ -78,6 +80,7 @@ async function ensurePrice(input: {
   product: { id: string; name: string };
   lookupKey: string;
   cents: number;
+  tiers?: SeatTier[];
   customerType: CustomerType;
   interval?: BillingInterval;
   metadata: Record<string, string>;
@@ -92,7 +95,13 @@ async function ensurePrice(input: {
       const price = await client.prices.create({
         product: input.product.id,
         currency: "eur",
-        unit_amount: input.cents,
+        ...(input.tiers
+          ? {
+              billing_scheme: "tiered" as const,
+              tiers_mode: "graduated" as const,
+              tiers: input.tiers.map(tier => ({ up_to: tier.upTo ?? ("inf" as const), unit_amount: tier.cents })),
+            }
+          : { unit_amount: input.cents }),
         ...(input.interval && { recurring: { interval: input.interval } }),
         tax_behavior: input.customerType === "consumer" ? "inclusive" : "exclusive",
         lookup_key: input.lookupKey,
@@ -111,13 +120,21 @@ async function ensurePrice(input: {
 
 export function planPrice(plan: SellablePlanKey, interval: BillingInterval, customerType: CustomerType) {
   const cents = planPriceCents(plan, interval, customerType);
+  const tiers = PLANS[plan].seatBased ? planPriceTiers(plan, interval, customerType) : undefined;
+  const version = tiers ? `_${createHash("sha256").update(JSON.stringify(tiers)).digest("hex").slice(0, 16)}` : "";
   return ensurePrice({
     product: PRODUCTS[plan],
-    lookupKey: priceLookupKey(plan, interval, customerType, cents),
+    lookupKey: priceLookupKey(plan, interval, customerType, cents) + version,
+    tiers,
     cents,
     customerType,
     interval,
-    metadata: { boardcue_plan: plan, boardcue_interval: interval, boardcue_customer: customerType },
+    metadata: {
+      boardcue_plan: plan,
+      boardcue_interval: interval,
+      boardcue_customer: customerType,
+      ...(tiers && { boardcue_pricing: SEAT_PRICING_VERSION }),
+    },
   });
 }
 
@@ -161,7 +178,9 @@ const portalCache = new Map<string, string>();
  */
 export async function portalConfiguration(customerType: CustomerType, urls: { privacy: string; terms: string }) {
   const products = await Promise.all(
-    SELLABLE_PLAN_KEYS.filter(plan => customerType === "consumer" ? plan === "PERSONAL_PRO" || plan === "FAMILY" : plan === "PRO" || plan === "TEAM" || plan === "BUSINESS").map(async plan => ({
+    SELLABLE_PLAN_KEYS.filter(plan =>
+      customerType === "consumer" ? plan === "PERSONAL_PRO" || plan === "FAMILY" : plan === "PRO" || plan === "TEAM" || plan === "BUSINESS",
+    ).map(async plan => ({
       product: PRODUCTS[plan].id,
       prices: [await planPrice(plan, "month", customerType), await planPrice(plan, "year", customerType)],
       adjustable_quantity: PLANS[plan].seatBased ? { enabled: true, minimum: PLANS[plan].minSeats, maximum: 500 } : { enabled: false },

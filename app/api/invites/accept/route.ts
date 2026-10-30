@@ -1,3 +1,4 @@
+import { canManageSpaces, canUseSpaces, syncSpace } from "@/lib/spaces";
 import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -5,7 +6,7 @@ import { getApiUser, hashToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rejectCrossOrigin } from "@/lib/security";
 import { apiError } from "@/lib/errors";
-import { getOrganizationLimits } from "@/lib/plans";
+import { getOrganizationLimits, organizationReadOnly } from "@/lib/plans";
 
 export async function POST(request: Request) {
   const originError = rejectCrossOrigin(request);
@@ -27,9 +28,15 @@ export async function POST(request: Request) {
     await prisma.$transaction(async tx => {
       // Seats are re-checked at acceptance under a lock: several pending invites cannot overfill the plan.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`seats:${invite.organizationId}`}))`;
+      await tx.$queryRaw`SELECT id FROM "Organization" WHERE id = ${invite.organizationId} FOR SHARE`;
       const organization = await tx.organization.findUniqueOrThrow({ where: { id: invite.organizationId } });
-      if (organization.lifecycleStatus !== "ACTIVE") throw new Error("INVITE_INVALID");
+      if (organizationReadOnly(organization)) throw new Error("INVITE_INVALID");
       if (invite.workspaceId && !(await tx.workspace.findFirst({ where: { id: invite.workspaceId, lifecycleStatus: "ACTIVE" } }))) throw new Error("INVITE_INVALID");
+      if (invite.spaceId && (!canUseSpaces(organization.plan) || !await tx.space.findFirst({ where: { id: invite.spaceId, organizationId: invite.organizationId } }))) throw new Error("INVITE_INVALID");
+      if (invite.spaceId) {
+        const inviter = await tx.organizationMember.findUnique({ where: { organizationId_userId: { organizationId: invite.organizationId, userId: invite.invitedById } }, include: { user: true } });
+        if (!inviter || !canManageSpaces(inviter.role) || inviter.user.lifecycleStatus !== "ACTIVE") throw new Error("INVITE_INVALID");
+      }
       const claimed = await tx.workspaceInvite.updateMany({ where: { id: invite.id, tokenHash: hashToken(parsed.data.token), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } }, data: { acceptedAt: new Date() } });
       if (!claimed.count) throw new Error("INVITE_INVALID");
       const existing = await tx.organizationMember.findUnique({
@@ -46,13 +53,20 @@ export async function POST(request: Request) {
         });
       else if (existing.role === "GUEST" && !guest)
         await tx.organizationMember.update({ where: { id: existing.id }, data: { role: "MEMBER" } });
-      if (invite.workspaceId)
+      if (invite.spaceId) {
+        await tx.spaceMember.upsert({ where: { spaceId_userId: { spaceId: invite.spaceId, userId: user.id } }, create: { spaceId: invite.spaceId, userId: user.id, role: invite.role }, update: {} });
+        await syncSpace(tx, invite.spaceId);
+        await tx.user.update({ where: { id: user.id }, data: { activeOrganizationId: invite.organizationId } });
+      }
+      if (invite.workspaceId) {
+        const boardMember = await tx.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: invite.workspaceId, userId: user.id } } });
         await tx.workspaceMember.upsert({
           where: { workspaceId_userId: { workspaceId: invite.workspaceId, userId: user.id } },
           create: { workspaceId: invite.workspaceId, userId: user.id, role: invite.role },
           // An old invite must never demote an existing owner/member.
-          update: {},
+          update: boardMember?.inheritedFromSpaceId ? { inheritedFromSpaceId: null, role: invite.role } : {},
         });
+      }
     });
   } catch (error) {
     if (error instanceof Error && error.message === "MEMBER_LIMIT") return apiError(request, "MEMBER_LIMIT", 402);

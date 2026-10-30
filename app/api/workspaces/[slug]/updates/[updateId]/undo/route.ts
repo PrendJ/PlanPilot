@@ -46,7 +46,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         if (!current || !unchangedSince(current, after)) throw new Error("UNDO_CONFLICT");
         if (event.type === "AI_CARD_CREATED") {
           // Never discard work people added afterwards.
-          if (current.assignees.length || current._count.comments) throw new Error("UNDO_CONFLICT");
+          const assigned = Array.isArray(after.assignees) ? after.assignees as Array<{ userId: string }> : [];
+          if (current._count.comments || current.assignees.length !== assigned.length || current.assignees.some(member => !assigned.some(item => item.userId === member.userId))) throw new Error("UNDO_CONFLICT");
           await tx.card.deleteMany({ where: { id: event.entityId, workspaceId: workspace.id } });
         } else {
           if (
@@ -54,10 +55,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
             !(await tx.boardColumn.findFirst({ where: { id: String(before.columnId), workspaceId: workspace.id }, select: { id: true } }))
           )
             throw new Error("UNDO_CONFLICT");
+          const assignees = Array.isArray(before.assignees) ? before.assignees as Array<{ userId: string }> : null;
+          if (assignees && await tx.workspaceMember.count({ where: { workspaceId: workspace.id, userId: { in: assignees.map(item => item.userId) }, role: { not: "GUEST" } } }) !== assignees.length) throw new Error("UNDO_CONFLICT");
           await tx.card.update({
             where: { id: event.entityId, workspaceId: workspace.id },
             data: {
               columnId: String(before.columnId),
+              previousColumnId: typeof before.previousColumnId === "string" ? before.previousColumnId : null,
+              ...(before.checklist !== undefined && { checklist: before.checklist as never }),
+              ...(assignees && { assignees: { deleteMany: {}, create: assignees.map(item => ({ userId: item.userId })) } }),
               title: String(before.title),
               description: String(before.description || ""),
               priority: String(before.priority || "NORMAL"),

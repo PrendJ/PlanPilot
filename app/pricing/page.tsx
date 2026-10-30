@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { CREDIT_PACK, PLANS, SELLABLE_PLAN_KEYS, TRIAL_DAYS, creditPackPriceCents, planPriceCents } from "@/lib/plans";
+import { CREDIT_PACK, PLANS, SELLABLE_PLAN_KEYS, TRIAL_DAYS, creditPackPriceCents, planPriceCents, planPriceTiers } from "@/lib/plans";
 import { getTranslator } from "@/lib/i18n/server";
 import { publicMetadata } from "@/lib/seo";
 import { Topbar } from "@/components/Topbar";
@@ -20,19 +20,18 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
   const value = (key: string) => (Array.isArray(query[key]) ? query[key]![0] : query[key]);
   const user = await getCurrentUser();
   const { t } = await getTranslator(user?.locale);
-  // Checkout applies to the team currently selected in the header (the default organization) when the user owns it.
-  const owned = user
-    ? ((await prisma.organizationMember.findFirst({
-        where: { userId: user.id, role: "OWNER", ...(user.defaultOrganizationId ? { organizationId: user.defaultOrganizationId } : {}) },
-        select: { organizationId: true, organization: { select: { legalType: true } } },
-      })) ??
-      (await prisma.organizationMember.findFirst({
-        where: { userId: user.id, role: "OWNER" },
-        select: { organizationId: true, organization: { select: { legalType: true } } },
-      })))
-    : null;
+  // Never silently bill a different subscription from the selected organization.
+  const selectedId = user?.activeOrganizationId || user?.defaultOrganizationId;
+  const owned = user && selectedId ? await prisma.organizationMember.findFirst({
+    where: { userId: user.id, organizationId: selectedId, role: "OWNER" },
+    select: { organizationId: true, organization: { select: { legalType: true } } },
+  }) : null;
   const plans = SELLABLE_PLAN_KEYS.map(key => ({
     key,
+    tiers: {
+      consumer: { month: planPriceTiers(key, "month", "consumer"), year: planPriceTiers(key, "year", "consumer") },
+      business: { month: planPriceTiers(key, "month", "business"), year: planPriceTiers(key, "year", "business") },
+    },
     priceEur: PLANS[key].priceEur!,
     priceEurYearly: PLANS[key].priceEurYearly!,
     seatBased: PLANS[key].seatBased,
@@ -41,6 +40,7 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
     // Null = unlimited (Business): Infinity does not travel to the client as a number.
     boardsPerPerson: Number.isFinite(PLANS[key].boardsPerPerson) ? PLANS[key].boardsPerPerson : null,
     historyMonths: PLANS[key].historyMonths,
+    boardSoftLimitPerPerson: PLANS[key].boardSoftLimitPerPerson,
     consumerPriceEur: planPriceCents(key, "month", "consumer") / 100,
     consumerPriceEurYearly: planPriceCents(key, "year", "consumer") / 100,
   }));
@@ -63,6 +63,7 @@ export default async function Pricing({ searchParams }: { searchParams: Promise<
         )}
         <PricingTable
           plans={plans}
+          canPurchase={!user || Boolean(owned)}
           organizationId={owned?.organizationId ?? null}
           highlight={highlight}
           trialDays={TRIAL_DAYS}

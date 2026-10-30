@@ -1,3 +1,4 @@
+import { ensureActiveOrganization } from "@/lib/default-organization";
 import { safeJson } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -24,8 +25,9 @@ export async function POST(request: Request) {
   if (limited) return limited;
   const parsed = schema.safeParse(await safeJson(request));
   if (!parsed.success) return apiError(request, "INVALID_INPUT", 400);
+  const selected = await ensureActiveOrganization(user.id);
   const memberships = await prisma.workspaceMember.findMany({
-    where: { userId: user.id, workspace: { lifecycleStatus: "ACTIVE" } },
+    where: { userId: user.id, workspace: { lifecycleStatus: "ACTIVE", organizationId: selected.id } },
     include: { workspace: { include: { organization: true } } },
     orderBy: { createdAt: "asc" },
   });
@@ -39,9 +41,9 @@ export async function POST(request: Request) {
     kind: (item.workspace.presetKey === "PERSONAL" || item.workspace.organization.legalType === "PERSONAL" ? "personal" : "work") as
       "personal" | "work",
   }));
-  // Routing is billed to the user's own default team when possible, never to an arbitrary team they joined.
+  // Routing is billed to the selected subscription when possible, never to an arbitrary team they joined.
   const keyed = writable.filter(item => getWorkspaceApiKey(item.workspace));
-  const anchor = keyed.find(item => item.workspace.organizationId === user.defaultOrganizationId) || keyed[0] || writable[0];
+  const anchor = keyed.find(item => item.workspace.organizationId === selected.id) || keyed[0] || writable[0];
   const quota = await getUsageStatus(anchor.workspace.organizationId);
   const { planModel } = await platformModels();
   const result = await routeHomeCapture({

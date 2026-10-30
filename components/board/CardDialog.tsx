@@ -365,6 +365,7 @@ export function CardDialog({
                   }
                   maxLength={300}
                 />
+                {item.suggested && <span className="badge">{tag.startsWith("it") ? "Suggerito dall’IA" : "AI suggestion"}</span>}
                 {editable && (
                   <button
                     type="button"

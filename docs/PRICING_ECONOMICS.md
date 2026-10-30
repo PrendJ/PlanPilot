@@ -1,5 +1,7 @@
 # BoardCue — listino ed economia unitaria
 
+> Riesame del 30 ottobre 2026: l'owner conferma Contabo a €7,50/mese e valorizza il proprio tempo a €50/ora. La [nuova analisi dei posti](ANALISI_ECONOMICA_POSTI_2026-10-30.md) distingue costi confermati, budget di crescita e assistenza, e propone scaglioni al centesimo. È una proposta, non un listino applicato. I precedenti €60/mese sono una stima storica; i minimi €3,80 / €5,80 / €9,40 non garantiscono il 30% dopo i costi aggiuntivi ora considerati.
+
 Aggiornato il 25 ottobre 2026 dopo la call del 23 ottobre (Family a €4,50, Business su contatto). Il codice in `lib/plans.ts` e `lib/stripe.ts` è la fonte per prezzi e limiti operativi. Gli importi di costo riportati sotto sono **ipotesi** da sostituire con dati di produzione prima di prendere decisioni commerciali.
 
 ## Listino attivo
@@ -39,3 +41,10 @@ Il pareggio dei soli €60 di costi fissi, con questi margini e a pieno utilizzo
 2. Verificare commissioni Stripe, gestione dell'IVA e fatture in un account di test con piano privato mensile e annuale, Family con due e tre posti, cambio piano dal portale e rinnovo.
 3. Monitorare consumo reale dei 300 aggiornamenti e costo del supporto per valutare sostenibilità di Pro e Family.
 4. Verificare il tetto tecnico di costo AI e l'accesso in sola lettura a quota esaurita o pagamento cessato.
+
+
+## Aggiornamento del 29 ottobre 2026
+
+Per Family/Team/Business il nuovo catalogo usa prezzi marginali decrescenti dal quarto al centesimo posto, con arrotondamento al decimo di euro e minimo costante in seguito. Il calcolo prudenziale e i suoi limiti sono documentati in [Evolutive e verifica](BOARD%20CUE%20-%20evolutive%20e%20verifica.md). Il costo IA di riferimento del minimo è €0,005, superiore alla precedente media stimata €0,0014. I minimi mensili sono Family €3,80 IVA inclusa, Team €5,80 e Business €9,40 IVA esclusa. I prezzi annuali sono dieci volte quelli mensili; il margine di contribuzione minimo è calcolato su dodici mesi di costi. Le stime storiche qui sopra restano stime, non costi misurati né garanzie di utile netto. Gli abbonamenti esistenti restano ai prezzi precedenti finché non viene confermato un cambio di prezzo.
+
+Le soglie condivise di board attive sono ora morbide: 50 per posto acquistato su Family/Team e 200 su Business; non bloccano il lavoro. Le quote IA rimangono rigide.

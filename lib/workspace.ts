@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+import { syncSpaceBoard } from "@/lib/spaces";
 import { prisma } from "@/lib/prisma";
 import { platformModels } from "@/lib/platform-ai";
 import { TRIAL_DAYS } from "@/lib/plans";
@@ -261,6 +263,7 @@ export async function createWorkspace(input: {
   slug?: string;
   userId: string;
   organizationId?: string;
+  spaceId?: string;
   presetKey?: string;
   locale?: string;
   openrouterKeyEnv?: string;
@@ -268,16 +271,17 @@ export async function createWorkspace(input: {
   planModel?: string;
   /** @deprecated Ignored: AI models are chosen globally by the superadmin (lib/platform-ai). */
   transcriptionModel?: string;
-}) {
+}, client: Prisma.TransactionClient | typeof prisma = prisma) {
   const locale = normalizeLocale(input.locale);
   // Legacy columns, kept for compatibility: they record the platform models at creation and drive nothing.
   const models = await platformModels();
   let organizationId = input.organizationId;
   if (!organizationId) organizationId = (await createOrganization({ name: input.name, userId: input.userId, locale })).id;
   const slug = input.slug || (await uniqueSlug(input.name, "workspace"));
-  const workspace = await prisma.workspace.create({
+  const workspace = await client.workspace.create({
     data: {
       organizationId,
+      ...(input.spaceId && { spaceId: input.spaceId }),
       name: input.name,
       slug,
       presetKey: input.presetKey || "GENERAL",
@@ -290,7 +294,8 @@ export async function createWorkspace(input: {
       columns: { create: getPreset(input.presetKey, locale) },
     },
   });
-  await prisma.organization.updateMany({ where: { id: organizationId, firstBoardAt: null }, data: { firstBoardAt: new Date() } });
+  if (input.spaceId) await syncSpaceBoard(client as Prisma.TransactionClient, workspace.id, input.spaceId);
+  await client.organization.updateMany({ where: { id: organizationId, firstBoardAt: null }, data: { firstBoardAt: new Date() } });
   return workspace;
 }
 

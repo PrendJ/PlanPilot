@@ -635,8 +635,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 20px;
-  padding: 0 7px;
+  min-height: 20px;
+  white-space: nowrap;
+  padding: 2px 7px;
   border-radius: var(--radius-pill);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1116,7 +1117,7 @@
 }
 .column-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.4fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1.4fr) auto auto;
   gap: 8px;
   align-items: center;
   padding: 8px 0;

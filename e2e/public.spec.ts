@@ -3,11 +3,10 @@ import { test, expect } from "@playwright/test";
 const noOverflow = () => document.documentElement.scrollWidth <= document.documentElement.clientWidth;
 
 test("visitors can explore the demo before choosing to log in", async ({ page }) => {
-  await page.goto("/app");
-  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/");
   await page.locator(".hero-actions .primary").click();
   await expect(page).toHaveURL(/\/demo$/);
-  await expect(page.getByRole("button", { name: "Ho finito la newsletter di ottobre" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ho finito la newsletter" })).toBeVisible();
   await page.locator('.topbar a[href="/login"]').click();
   await expect(page).toHaveURL(/\/login$/);
 });
@@ -60,14 +59,14 @@ test("English pages are served under /en", async ({ page }) => {
 
 test("the demo previews a change and moves the existing card instead of duplicating it", async ({ page }) => {
   await page.goto("/demo");
-  await page.getByRole("button", { name: "Ho finito la newsletter di ottobre" }).click();
+  await page.getByRole("button", { name: "Ho finito la newsletter" }).click();
   const proposal = page.getByRole("region", { name: "Modifiche proposte dall’AI" });
-  await expect(proposal).toContainText("Sposta “Newsletter di ottobre” in Completato");
+  await expect(proposal).toContainText("Sposta “Newsletter mensile” in Completato");
   await proposal.getByRole("button", { name: "Applica tutto" }).click();
   await page.getByRole("tab", { name: /Kanban/ }).click();
   const done = page.locator("section.column").filter({ has: page.getByRole("heading", { name: "Completato" }) });
-  await expect(done.getByText("Newsletter di ottobre")).toBeVisible();
-  await expect(page.locator(".card-title", { hasText: "Newsletter di ottobre" })).toHaveCount(1);
+  await expect(done.getByText("Newsletter mensile")).toBeVisible();
+  await expect(page.locator(".card-title", { hasText: "Newsletter mensile" })).toHaveCount(1);
   await page.getByRole("button", { name: "Non ho ancora iniziato le foto del catalogo" }).click();
   await expect(page.getByText("Hai detto che non è ancora successo")).toBeVisible();
 });

@@ -17,6 +17,7 @@ import { boardContext, isResponse } from "@/lib/api-context";
 import { cardPatchSchema } from "@/lib/card-schema";
 import { apiError } from "@/lib/errors";
 import { notify } from "@/lib/notifications";
+import { rememberedColumn } from "@/lib/board-state";
 
 function serialize<T extends { _count: { comments: number } }>(card: T) {
   const { _count, ...rest } = card;
@@ -69,15 +70,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
       assigneeIds.length
   )
     return apiError(request, "INVALID_INPUT", 400);
-  const columnChanged = Boolean(body.columnId && body.columnId !== before.columnId);
   const onlyMove = Object.keys(body).every(key => ["version", "columnId", "index"].includes(key));
   try {
     const result = await prisma.$transaction(async tx => {
       if ((await assertBoardAccess(workspace.id, tx, { userId: user.id })) === null) throw new BoardAccessError();
+      const before = await tx.card.findFirstOrThrow({ where: { id: cardId, workspaceId: workspace.id }, include: { assignees: true } });
+      const columnChanged = Boolean(body.columnId && body.columnId !== before.columnId);
+      const columns = body.columnId ? await tx.boardColumn.findMany({ where: { workspaceId: workspace.id } }) : [];
+      if (body.columnId && !columns.some(column => column.id === body.columnId)) throw new BoardAccessError();
       // Moving a card does not conflict with someone editing its text: only field edits carry the version check.
       await claimCardVersion(tx, workspace.id, cardId, onlyMove ? undefined : body.version);
       const data = {
-        ...(body.columnId && { columnId: body.columnId }),
+        ...(body.columnId && { columnId: body.columnId, previousColumnId: rememberedColumn(columns, before.columnId, body.columnId, before.previousColumnId) }),
         ...(body.title && { title: body.title }),
         ...(body.description !== undefined && { description: body.description }),
         ...(body.priority && { priority: body.priority }),

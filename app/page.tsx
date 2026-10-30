@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getTranslator } from "@/lib/i18n/server";
 import { PLANS, SELLABLE_PLAN_KEYS, TRIAL_DAYS, planPriceCents } from "@/lib/plans";
@@ -58,7 +59,8 @@ function LoopPreview({ t }: { t: (key: string) => string }) {
 
 export default async function Home() {
   const user = await getCurrentUser();
-  const { t, locale } = await getTranslator(user?.locale);
+  if (user) redirect("/app");
+  const { t, locale } = await getTranslator();
   const price = (cents: number) =>
     new Intl.NumberFormat(locale === "it" ? "it-IT" : "en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
   const steps: Array<{ icon: IconName; key: string }> = [

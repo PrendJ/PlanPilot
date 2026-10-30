@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (!parsed.success) return v1Error(400, "INVALID_INPUT", "Provide a non-empty text");
   try {
     const proposal = await createProposal({ workspace: ctx.workspace, userId: ctx.user.id, text: parsed.data.text, source: "text" });
-    if (!parsed.data.apply || proposal.clarification || !proposal.actions.length) return NextResponse.json({ data: { proposal } });
+    if (!parsed.data.apply || proposal.clarification || !proposal.actions.length || proposal.actions.some(action => action.requiresReview)) return NextResponse.json({ data: { proposal } });
     const { receipt } = await applyProposal({ proposalId: proposal.id, workspace: ctx.workspace, userId: ctx.user.id });
     return NextResponse.json({ data: { proposal: { ...proposal, status: "APPLIED" }, receipt } });
   } catch (error) {

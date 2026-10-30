@@ -21,6 +21,7 @@ export async function mutateMembership(tx: Prisma.TransactionClient, input: {
   if (!actor || actor.lifecycleStatus !== "ACTIVE" || !permitted || (workspace.organization.require2fa && !actor.totpEnabledAt)) throw new Error("FORBIDDEN");
   if (input.role && (workspace.lifecycleStatus !== "ACTIVE" || workspace.organization.lifecycleStatus !== "ACTIVE" || organizationReadOnly(workspace.organization))) throw new Error("READ_ONLY");
   const target = await tx.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: input.userId } } });
+  if (target?.inheritedFromSpaceId && !input.platform) throw new Error("FORBIDDEN");
   if (!target && !input.platform) throw new Error("NOT_FOUND");
   if (target?.role === "OWNER" && input.role !== "OWNER" && await tx.workspaceMember.count({ where: { workspaceId: input.workspaceId, role: "OWNER" } }) <= 1) throw new Error("LAST_OWNER");
   if (input.role) {
@@ -34,14 +35,14 @@ export async function mutateMembership(tx: Prisma.TransactionClient, input: {
       update: input.role !== "GUEST" && orgMember?.role === "GUEST" ? { role: "MEMBER" } : {},
     });
     const membership = await tx.workspaceMember.upsert({ where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: input.userId } },
-      create: { workspaceId: input.workspaceId, userId: input.userId, role: input.role }, update: { role: input.role } });
+      create: { workspaceId: input.workspaceId, userId: input.userId, role: input.role }, update: { role: input.role, ...(input.platform && { inheritedFromSpaceId: null }) } });
     await tx.workspace.update({ where: { id: input.workspaceId }, data: { revision: { increment: 1 } } });
     return membership;
   }
   if (target) await tx.workspaceMember.delete({ where: { id: target.id } });
   await tx.cardAssignee.deleteMany({ where: { userId: input.userId, card: { workspaceId: input.workspaceId } } });
-  if (!await tx.workspaceMember.count({ where: { userId: input.userId, workspace: { organizationId: board.organizationId } } }))
-    await tx.organizationMember.deleteMany({ where: { organizationId: board.organizationId, userId: input.userId, role: { not: "OWNER" } } });
+  if (!await tx.workspaceMember.count({ where: { userId: input.userId, workspace: { organizationId: board.organizationId } } }) && !await tx.spaceMember.count({ where: { userId: input.userId, space: { organizationId: board.organizationId } } }))
+    await tx.organizationMember.deleteMany({ where: { organizationId: board.organizationId, userId: input.userId, role: { in: ["MEMBER", "GUEST"] } } });
   await tx.workspace.update({ where: { id: input.workspaceId }, data: { revision: { increment: 1 } } });
   return null;
 }

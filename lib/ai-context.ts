@@ -10,18 +10,22 @@ export type ContextCard = {
   priority: string;
   dueDate: Date | string | null;
   tags: unknown;
+  checklist?: unknown;
+  assignees?: Array<{ userId: string }>;
   archived?: boolean;
   updatedAt?: Date | string;
 };
-export type ContextColumn = { id: string; title: string; description: string; cards: ContextCard[] };
+export type ContextColumn = { semanticKey?: string; id: string; title: string; description: string; cards: ContextCard[] };
 
 export type CompactPlan = {
   columns: Array<{
+    semanticKey?: string;
     id: string;
     title: string;
     description: string;
     cards: Array<{ id: string; title: string; description: string; priority: string; dueDate: string | null; tags: string[] }>;
   }>;
+  members?: Array<{ id: string; name: string }>;
   omittedCards?: number;
 };
 
@@ -89,6 +93,7 @@ export function buildCompactPlan(columns: ContextColumn[], userText: string, lim
       id: column.id,
       title: column.title,
       description: column.description,
+      ...(column.semanticKey && { semanticKey: column.semanticKey }),
       cards: column.cards
         .filter(card => !card.archived && kept.has(card.id))
         .map(card => ({
@@ -99,6 +104,8 @@ export function buildCompactPlan(columns: ContextColumn[], userText: string, lim
           priority: card.priority,
           dueDate: card.dueDate ? new Date(card.dueDate).toISOString() : null,
           tags: toTags(card.tags),
+          checklist: card.checklist ?? [],
+          assigneeIds: card.assignees?.map(item => item.userId) ?? [],
         })),
     })),
   };

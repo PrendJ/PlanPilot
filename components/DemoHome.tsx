@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { rememberedColumn } from "@/lib/board-state";
 import { Icon } from "./Icon";
 import { useI18n } from "./I18nProvider";
 import { KanbanView } from "./board/KanbanView";
@@ -57,13 +58,13 @@ function seed(locale: "it" | "en") {
   const cards: Cards = it
     ? {
         work: [
-          card("w1", "Newsletter di ottobre", "doing", {
+          card("w1", "Newsletter mensile", "doing", {
             description: "Testi, immagini e invio alla lista clienti",
             dueDate: at(3),
             tags: ["marketing"],
           }),
           card("w2", "Preventivo per Studio Rossi", "todo", { description: "Sito vetrina + blog", priority: "HIGH", dueDate: at(1) }),
-          card("w3", "Fattura di settembre a Bianchi", "todo", { priority: "HIGH", dueDate: at(-1), tags: ["amministrazione"] }),
+          card("w3", "Fattura mensile a Bianchi", "todo", { priority: "HIGH", dueDate: at(-1), tags: ["amministrazione"] }),
           card("w4", "Accessi al gestionale del cliente", "waiting", { description: "Serve la password dell'amministratore" }),
           card("w5", "Foto del nuovo catalogo", "todo", { description: "Shooting in studio", tags: ["contenuti"] }),
           card("w6", "Report mensile analytics", "inbox", { priority: "LOW" }),
@@ -78,13 +79,13 @@ function seed(locale: "it" | "en") {
       }
     : {
         work: [
-          card("w1", "October newsletter", "doing", {
+          card("w1", "Monthly newsletter", "doing", {
             description: "Copy, images and send to the customer list",
             dueDate: at(3),
             tags: ["marketing"],
           }),
           card("w2", "Quote for Rossi Studio", "todo", { description: "Brochure site + blog", priority: "HIGH", dueDate: at(1) }),
-          card("w3", "September invoice for Bianchi", "todo", { priority: "HIGH", dueDate: at(-1), tags: ["admin"] }),
+          card("w3", "Monthly invoice for Bianchi", "todo", { priority: "HIGH", dueDate: at(-1), tags: ["admin"] }),
           card("w4", "Access to the client's CRM", "waiting", { description: "We need the admin password" }),
           card("w5", "Photos for the new catalogue", "todo", { description: "Studio shoot", tags: ["content"] }),
           card("w6", "Monthly analytics report", "inbox", { priority: "LOW" }),
@@ -101,7 +102,7 @@ function seed(locale: "it" | "en") {
     ? [
         "Chiama la banca domani e prepara il preventivo per Studio Rossi entro venerdì",
         "Sabato devo tagliare il prato; ho pagato la bolletta della luce",
-        "Ho finito la newsletter di ottobre",
+        "Ho finito la newsletter mensile",
         "Sono arrivati gli accessi al gestionale, ci sto lavorando",
         "Devo organizzare la cena di fine anno",
         "Non ho ancora iniziato le foto del catalogo",
@@ -109,7 +110,7 @@ function seed(locale: "it" | "en") {
     : [
         "Call the bank tomorrow and prepare the quote for Rossi Studio by Friday",
         "On Saturday I need to mow the lawn; I paid the electricity bill",
-        "I finished the October newsletter",
+        "I finished the Monthly newsletter",
         "We got access to the client's CRM, working on it now",
         "I need to organize the end-of-year dinner",
         "I haven't started the catalogue photos yet",
@@ -118,15 +119,17 @@ function seed(locale: "it" | "en") {
 }
 
 function toCard(item: DemoCard, index: number): Card {
-  const now = new Date().toISOString();
+  const now = new Date();
+  const updated = new Date(now);
+  updated.setDate(updated.getDate() - (index % 6));
   return {
     ...item,
     archived: false,
     position: index,
     version: 1,
     checklist: [],
-    updatedAt: now,
-    createdAt: now,
+    updatedAt: updated.toISOString(),
+    createdAt: updated.toISOString(),
     assignees: [],
     commentCount: 0,
   };
@@ -621,7 +624,10 @@ export function DemoHome() {
           </div>
         </div>
         {view === "list" ? (
-          <ListView columns={columns} onOpen={openCard} />
+          <ListView columns={columns} allColumns={columns} canWrite onOpen={openCard} onMove={(moved, columnId) => {
+            setHistory(current => [...current, cards]);
+            setCards(current => ({ ...current, [activeBoard]: current[activeBoard].map(item => item.id === moved.id ? { ...item, columnId, previousColumnId: rememberedColumn(columns, item.columnId, columnId, (item as DemoCard & { previousColumnId?: string }).previousColumnId) } : item) }));
+          }} />
         ) : (
           <KanbanView
             columns={columns}
@@ -633,7 +639,7 @@ export function DemoHome() {
               setHistory(current => [...current, cards]);
               setCards(current => ({
                 ...current,
-                [activeBoard]: current[activeBoard].map(item => (item.id === moved.id ? { ...item, columnId } : item)),
+                [activeBoard]: current[activeBoard].map(item => (item.id === moved.id ? { ...item, columnId, previousColumnId: rememberedColumn(columns, item.columnId, columnId, (item as DemoCard & { previousColumnId?: string }).previousColumnId) } : item)),
               }));
             }}
             onArchive={openCard}

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { getTranslator } from "@/lib/i18n/server";
 import { Brand } from "./Brand";
 import { Icon } from "./Icon";
-import { InstallAppButton } from "./PwaProvider";
 import {
   LanguageSwitch,
   NotificationsBell,
@@ -39,7 +38,6 @@ export async function Topbar() {
             <LanguageSwitch />
           </span>
           <ThemeMenu />
-          <InstallAppButton />
           <Link className="btn ghost" href="/login">
             {t("nav.login")}
           </Link>
@@ -62,7 +60,7 @@ export async function Topbar() {
           <Brand />
         </Link>
         <TeamSwitcher
-          current={user.defaultOrganizationId}
+          current={user.activeOrganizationId || user.defaultOrganizationId}
           teams={organizations.map(item => ({
             id: item.organization.id,
             name: item.organization.name,
@@ -77,9 +75,6 @@ export async function Topbar() {
           </Link>
           <SearchButton />
           <NotificationsBell />
-          <span className="hide-mobile">
-            <InstallAppButton />
-          </span>
           <UserMenu name={user.name} email={user.email} isAdmin={user.isAdmin || user.platformRole !== "USER"} />
         </div>
       </header>

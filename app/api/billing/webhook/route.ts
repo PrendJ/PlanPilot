@@ -36,6 +36,7 @@ async function syncSubscription(received: Stripe.Subscription) {
             plan,
             licenseSource: "STRIPE" as const,
             seats: item?.quantity ?? 1,
+            billingPricingVersion: item?.price.metadata?.boardcue_pricing || null,
             billingInterval: mapped?.interval || item?.price.recurring?.interval || "month",
             accessExpiresAt: null,
             trialEndsAt: null,

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { InstallAppButton } from "./PwaProvider";
+import { ReleaseLink } from "./ReleaseHistory";
 import { useI18n, useT } from "./I18nProvider";
 import { api, Avatar, Dialog, MenuButton, useFeedback } from "./ui";
 import { LOCALE_COOKIE } from "@/lib/i18n/core";
@@ -186,6 +188,7 @@ export function TeamSwitcher({
             </button>
           ))}
           <div className="menu-sep" />
+          <Link className="menu-item" href="/workspaces" onClick={close}><Icon name="users" />Workspace</Link>
           <Link className="menu-item" href="/account#teams" onClick={close}>
             <Icon name="settings" />
             {t("team.manage")}
@@ -430,6 +433,8 @@ export function UserMenu({ name, email, isAdmin }: { name: string; email: string
             <Icon name="card" />
             {t("nav.billing")}
           </Link>
+          <ReleaseLink locale={locale} email={email} onClick={close} />
+          <InstallAppButton menu onOpen={close} />
           {isAdmin && (
             <Link className="menu-item" href="/admin" onClick={close}>
               <Icon name="activity" />

@@ -1,0 +1,1057 @@
+{
+  "assumptions": {
+    "vat": 1.22,
+    "stripeRateOnGross": 0.04,
+    "riskReserveOnNet": 0.01,
+    "targetMargin": 0.3,
+    "annualPaidMonths": 10,
+    "annualServedMonths": 12,
+    "confirmedCurrentHostMonthlyEur": 7.5,
+    "sharedInfrastructureMonthlyEur": 120,
+    "platformMaintenanceHours": 2,
+    "totalPaidSeats": 1000,
+    "variableInfraPerSeatEur": 0.1,
+    "aiAllInEur": 0.0025,
+    "stressAiAllInEur": 0.005275,
+    "supportHourlyEur": 50,
+    "fixedFeePerInvoiceEur": 0.25,
+    "floorFromSeat": 100,
+    "priceStepCents": 5
+  },
+  "results": [
+    {
+      "name": "Family",
+      "quota": 300,
+      "baseCents": 450,
+      "previousFloorCents": 380,
+      "gross": true,
+      "supportMinutes": 1,
+      "minimum": 435,
+      "floor": 435,
+      "monthlyOperatingCost": 1.9033333333333333,
+      "bands": [
+        {
+          "from": 1,
+          "to": 3,
+          "cents": 450
+        },
+        {
+          "from": 4,
+          "to": 9,
+          "cents": 445
+        },
+        {
+          "from": 10,
+          "to": 19,
+          "cents": 445
+        },
+        {
+          "from": 20,
+          "to": 29,
+          "cents": 445
+        },
+        {
+          "from": 30,
+          "to": 39,
+          "cents": 445
+        },
+        {
+          "from": 40,
+          "to": 49,
+          "cents": 445
+        },
+        {
+          "from": 50,
+          "to": 59,
+          "cents": 445
+        },
+        {
+          "from": 60,
+          "to": 69,
+          "cents": 440
+        },
+        {
+          "from": 70,
+          "to": 79,
+          "cents": 440
+        },
+        {
+          "from": 80,
+          "to": 89,
+          "cents": 440
+        },
+        {
+          "from": 90,
+          "to": 99,
+          "cents": 440
+        },
+        {
+          "from": 100,
+          "to": null,
+          "cents": 435
+        }
+      ],
+      "flatFloorAnnual": {
+        "netRevenue": 3565.5737704918033,
+        "operatingCosts": 2284,
+        "stripe": 174.25,
+        "riskReserve": 35.65573770491803,
+        "contribution": 1071.6680327868853,
+        "margin": 0.30055977011494256
+      },
+      "examples": [
+        {
+          "seats": 2,
+          "monthlyCents": 900,
+          "annualCents": 9000,
+          "annualEconomics": {
+            "netRevenue": 73.77049180327869,
+            "operatingCosts": 45.68,
+            "stripe": 3.85,
+            "riskReserve": 0.7377049180327869,
+            "contribution": 23.5027868852459,
+            "margin": 0.31859333333333334
+          }
+        },
+        {
+          "seats": 3,
+          "monthlyCents": 1350,
+          "annualCents": 13500,
+          "annualEconomics": {
+            "netRevenue": 110.65573770491804,
+            "operatingCosts": 68.52,
+            "stripe": 5.65,
+            "riskReserve": 1.1065573770491803,
+            "contribution": 35.379180327868866,
+            "margin": 0.31972296296296304
+          }
+        },
+        {
+          "seats": 4,
+          "monthlyCents": 1795,
+          "annualCents": 17950,
+          "annualEconomics": {
+            "netRevenue": 147.13114754098362,
+            "operatingCosts": 91.36,
+            "stripe": 7.43,
+            "riskReserve": 1.4713114754098362,
+            "contribution": 46.869836065573786,
+            "margin": 0.31855821727019507
+          }
+        },
+        {
+          "seats": 10,
+          "monthlyCents": 4465,
+          "annualCents": 44650,
+          "annualEconomics": {
+            "netRevenue": 365.9836065573771,
+            "operatingCosts": 228.4,
+            "stripe": 18.11,
+            "riskReserve": 3.6598360655737707,
+            "contribution": 115.8137704918033,
+            "margin": 0.3164452407614782
+          }
+        },
+        {
+          "seats": 25,
+          "monthlyCents": 11140,
+          "annualCents": 111400,
+          "annualEconomics": {
+            "netRevenue": 913.1147540983607,
+            "operatingCosts": 571,
+            "stripe": 44.81,
+            "riskReserve": 9.131147540983607,
+            "contribution": 288.17360655737707,
+            "margin": 0.31559407540394974
+          }
+        },
+        {
+          "seats": 50,
+          "monthlyCents": 22265,
+          "annualCents": 222650,
+          "annualEconomics": {
+            "netRevenue": 1825,
+            "operatingCosts": 1142,
+            "stripe": 89.31,
+            "riskReserve": 18.25,
+            "contribution": 575.44,
+            "margin": 0.3153095890410959
+          }
+        },
+        {
+          "seats": 99,
+          "monthlyCents": 43870,
+          "annualCents": 438700,
+          "annualEconomics": {
+            "netRevenue": 3595.9016393442625,
+            "operatingCosts": 2261.16,
+            "stripe": 175.73,
+            "riskReserve": 35.959016393442624,
+            "contribution": 1123.05262295082,
+            "margin": 0.31231461135172106
+          }
+        },
+        {
+          "seats": 100,
+          "monthlyCents": 44305,
+          "annualCents": 443050,
+          "annualEconomics": {
+            "netRevenue": 3631.5573770491806,
+            "operatingCosts": 2284,
+            "stripe": 177.47,
+            "riskReserve": 36.31557377049181,
+            "contribution": 1133.7718032786888,
+            "margin": 0.3121998871459204
+          }
+        },
+        {
+          "seats": 101,
+          "monthlyCents": 44740,
+          "annualCents": 447400,
+          "annualEconomics": {
+            "netRevenue": 3667.2131147540986,
+            "operatingCosts": 2306.84,
+            "stripe": 179.21,
+            "riskReserve": 36.67213114754099,
+            "contribution": 1144.4909836065574,
+            "margin": 0.3120873938310237
+          }
+        },
+        {
+          "seats": 200,
+          "monthlyCents": 87805,
+          "annualCents": 878050,
+          "annualEconomics": {
+            "netRevenue": 7197.131147540984,
+            "operatingCosts": 4568,
+            "stripe": 351.47,
+            "riskReserve": 71.97131147540983,
+            "contribution": 2205.6898360655737,
+            "margin": 0.30646792323899547
+          }
+        },
+        {
+          "seats": 500,
+          "monthlyCents": 218305,
+          "annualCents": 2183050,
+          "annualEconomics": {
+            "netRevenue": 17893.852459016394,
+            "operatingCosts": 11420,
+            "stripe": 873.47,
+            "riskReserve": 178.93852459016395,
+            "contribution": 5421.44393442623,
+            "margin": 0.30297801699457183
+          }
+        }
+      ],
+      "previousFloorAnnual": {
+        "netRevenue": 3114.754098360656,
+        "operatingCosts": 2284,
+        "stripe": 152.25,
+        "riskReserve": 31.14754098360656,
+        "contribution": 647.3565573770494,
+        "margin": 0.20783552631578953
+      },
+      "stepBelowFloorAnnual": {
+        "netRevenue": 3524.5901639344265,
+        "operatingCosts": 2284,
+        "stripe": 172.25,
+        "riskReserve": 35.24590163934427,
+        "contribution": 1033.0942622950822,
+        "margin": 0.29311046511627914
+      },
+      "stressAtFloorAnnual": {
+        "netRevenue": 3565.5737704918033,
+        "operatingCosts": 3283,
+        "stripe": 174.25,
+        "riskReserve": 35.65573770491803,
+        "contribution": 72.66803278688528,
+        "margin": 0.02038045977011495
+      },
+      "stressFloor": 625,
+      "scenarioFloors": {
+        "ai": [
+          {
+            "aiAllInEur": 0.0014,
+            "cents": 360
+          },
+          {
+            "aiAllInEur": 0.0025,
+            "cents": 435
+          },
+          {
+            "aiAllInEur": 0.0035,
+            "cents": 504
+          },
+          {
+            "aiAllInEur": 0.005275,
+            "cents": 625
+          }
+        ],
+        "support": [
+          {
+            "supportMinutes": 0,
+            "cents": 245
+          },
+          {
+            "supportMinutes": 1,
+            "cents": 435
+          },
+          {
+            "supportMinutes": 3,
+            "cents": 816
+          },
+          {
+            "supportMinutes": 5,
+            "cents": 1196
+          }
+        ],
+        "scale": [
+          {
+            "totalPaidSeats": 100,
+            "cents": 887
+          },
+          {
+            "totalPaidSeats": 250,
+            "cents": 586
+          },
+          {
+            "totalPaidSeats": 500,
+            "cents": 485
+          },
+          {
+            "totalPaidSeats": 1000,
+            "cents": 435
+          }
+        ],
+        "sharedInfrastructure": [
+          {
+            "sharedInfrastructureMonthlyEur": 7.5,
+            "cents": 409
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 30,
+            "cents": 415
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 60,
+            "cents": 421
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 120,
+            "cents": 435
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 300,
+            "cents": 476
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 500,
+            "cents": 522
+          }
+        ],
+        "growth": [
+          {
+            "name": "Avvio",
+            "totalPaidSeats": 100,
+            "sharedInfrastructureMonthlyEur": 15,
+            "platformMaintenanceHours": 2,
+            "cents": 647
+          },
+          {
+            "name": "Crescita",
+            "totalPaidSeats": 500,
+            "sharedInfrastructureMonthlyEur": 60,
+            "platformMaintenanceHours": 2,
+            "cents": 458
+          },
+          {
+            "name": "Consolidamento",
+            "totalPaidSeats": 1000,
+            "sharedInfrastructureMonthlyEur": 120,
+            "platformMaintenanceHours": 2,
+            "cents": 435
+          },
+          {
+            "name": "Scala maggiore",
+            "totalPaidSeats": 5000,
+            "sharedInfrastructureMonthlyEur": 500,
+            "platformMaintenanceHours": 6,
+            "cents": 421
+          }
+        ]
+      }
+    },
+    {
+      "name": "Team",
+      "quota": 600,
+      "baseCents": 600,
+      "previousFloorCents": 580,
+      "gross": false,
+      "supportMinutes": 1,
+      "minimum": 497,
+      "floor": 500,
+      "monthlyOperatingCost": 2.6533333333333333,
+      "bands": [
+        {
+          "from": 1,
+          "to": 3,
+          "cents": 600
+        },
+        {
+          "from": 4,
+          "to": 9,
+          "cents": 595
+        },
+        {
+          "from": 10,
+          "to": 19,
+          "cents": 595
+        },
+        {
+          "from": 20,
+          "to": 29,
+          "cents": 580
+        },
+        {
+          "from": 30,
+          "to": 39,
+          "cents": 570
+        },
+        {
+          "from": 40,
+          "to": 49,
+          "cents": 560
+        },
+        {
+          "from": 50,
+          "to": 59,
+          "cents": 550
+        },
+        {
+          "from": 60,
+          "to": 69,
+          "cents": 540
+        },
+        {
+          "from": 70,
+          "to": 79,
+          "cents": 530
+        },
+        {
+          "from": 80,
+          "to": 89,
+          "cents": 520
+        },
+        {
+          "from": 90,
+          "to": 99,
+          "cents": 510
+        },
+        {
+          "from": 100,
+          "to": null,
+          "cents": 500
+        }
+      ],
+      "flatFloorAnnual": {
+        "netRevenue": 5000,
+        "operatingCosts": 3184,
+        "stripe": 244.25,
+        "riskReserve": 50,
+        "contribution": 1521.75,
+        "margin": 0.30435
+      },
+      "examples": [
+        {
+          "seats": 2,
+          "monthlyCents": 1200,
+          "annualCents": 12000,
+          "annualEconomics": {
+            "netRevenue": 120,
+            "operatingCosts": 63.68,
+            "stripe": 6.106000000000001,
+            "riskReserve": 1.2,
+            "contribution": 49.013999999999996,
+            "margin": 0.40845
+          }
+        },
+        {
+          "seats": 3,
+          "monthlyCents": 1800,
+          "annualCents": 18000,
+          "annualEconomics": {
+            "netRevenue": 180,
+            "operatingCosts": 95.52,
+            "stripe": 9.034,
+            "riskReserve": 1.8,
+            "contribution": 73.646,
+            "margin": 0.4091444444444444
+          }
+        },
+        {
+          "seats": 4,
+          "monthlyCents": 2395,
+          "annualCents": 23950,
+          "annualEconomics": {
+            "netRevenue": 239.5,
+            "operatingCosts": 127.36,
+            "stripe": 11.9376,
+            "riskReserve": 2.395,
+            "contribution": 97.8074,
+            "margin": 0.4083816283924844
+          }
+        },
+        {
+          "seats": 10,
+          "monthlyCents": 5965,
+          "annualCents": 59650,
+          "annualEconomics": {
+            "netRevenue": 596.5,
+            "operatingCosts": 318.4,
+            "stripe": 29.3592,
+            "riskReserve": 5.965,
+            "contribution": 242.77580000000003,
+            "margin": 0.40700050293378043
+          }
+        },
+        {
+          "seats": 25,
+          "monthlyCents": 14800,
+          "annualCents": 148000,
+          "annualEconomics": {
+            "netRevenue": 1480,
+            "operatingCosts": 796,
+            "stripe": 72.474,
+            "riskReserve": 14.8,
+            "contribution": 596.726,
+            "margin": 0.40319324324324324
+          }
+        },
+        {
+          "seats": 50,
+          "monthlyCents": 28970,
+          "annualCents": 289700,
+          "annualEconomics": {
+            "netRevenue": 2897,
+            "operatingCosts": 1592,
+            "stripe": 141.6236,
+            "riskReserve": 28.97,
+            "contribution": 1134.4064,
+            "margin": 0.39157970314118057
+          }
+        },
+        {
+          "seats": 99,
+          "monthlyCents": 54920,
+          "annualCents": 549200,
+          "annualEconomics": {
+            "netRevenue": 5492,
+            "operatingCosts": 3152.16,
+            "stripe": 268.2596,
+            "riskReserve": 54.92,
+            "contribution": 2016.6604000000002,
+            "margin": 0.36719963583394033
+          }
+        },
+        {
+          "seats": 100,
+          "monthlyCents": 55420,
+          "annualCents": 554200,
+          "annualEconomics": {
+            "netRevenue": 5542,
+            "operatingCosts": 3184,
+            "stripe": 270.6996,
+            "riskReserve": 55.42,
+            "contribution": 2031.8804,
+            "margin": 0.36663305665824614
+          }
+        },
+        {
+          "seats": 101,
+          "monthlyCents": 55920,
+          "annualCents": 559200,
+          "annualEconomics": {
+            "netRevenue": 5592,
+            "operatingCosts": 3215.84,
+            "stripe": 273.1396,
+            "riskReserve": 55.92,
+            "contribution": 2047.1003999999998,
+            "margin": 0.36607660944206005
+          }
+        },
+        {
+          "seats": 200,
+          "monthlyCents": 105420,
+          "annualCents": 1054200,
+          "annualEconomics": {
+            "netRevenue": 10542,
+            "operatingCosts": 6368,
+            "stripe": 514.6996,
+            "riskReserve": 105.42,
+            "contribution": 3553.8804,
+            "margin": 0.3371163346613546
+          }
+        },
+        {
+          "seats": 500,
+          "monthlyCents": 255420,
+          "annualCents": 2554200,
+          "annualEconomics": {
+            "netRevenue": 25542,
+            "operatingCosts": 15920,
+            "stripe": 1246.6996,
+            "riskReserve": 255.42000000000002,
+            "contribution": 8119.8804,
+            "margin": 0.31790307728447265
+          }
+        }
+      ],
+      "previousFloorAnnual": {
+        "netRevenue": 5800,
+        "operatingCosts": 3184,
+        "stripe": 283.29,
+        "riskReserve": 58,
+        "contribution": 2274.71,
+        "margin": 0.3921913793103448
+      },
+      "stepBelowFloorAnnual": {
+        "netRevenue": 4950,
+        "operatingCosts": 3184,
+        "stripe": 241.81,
+        "riskReserve": 49.5,
+        "contribution": 1474.69,
+        "margin": 0.29791717171717175
+      },
+      "stressAtFloorAnnual": {
+        "netRevenue": 5000,
+        "operatingCosts": 5182,
+        "stripe": 244.25,
+        "riskReserve": 50,
+        "contribution": -476.25,
+        "margin": -0.09525
+      },
+      "stressFloor": 809,
+      "scenarioFloors": {
+        "ai": [
+          {
+            "aiAllInEur": 0.0014,
+            "cents": 374
+          },
+          {
+            "aiAllInEur": 0.0025,
+            "cents": 497
+          },
+          {
+            "aiAllInEur": 0.0035,
+            "cents": 609
+          },
+          {
+            "aiAllInEur": 0.005275,
+            "cents": 809
+          }
+        ],
+        "support": [
+          {
+            "supportMinutes": 0,
+            "cents": 341
+          },
+          {
+            "supportMinutes": 1,
+            "cents": 497
+          },
+          {
+            "supportMinutes": 3,
+            "cents": 809
+          },
+          {
+            "supportMinutes": 5,
+            "cents": 1121
+          }
+        ],
+        "scale": [
+          {
+            "totalPaidSeats": 100,
+            "cents": 868
+          },
+          {
+            "totalPaidSeats": 250,
+            "cents": 621
+          },
+          {
+            "totalPaidSeats": 500,
+            "cents": 538
+          },
+          {
+            "totalPaidSeats": 1000,
+            "cents": 497
+          }
+        ],
+        "sharedInfrastructure": [
+          {
+            "sharedInfrastructureMonthlyEur": 7.5,
+            "cents": 476
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 30,
+            "cents": 480
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 60,
+            "cents": 486
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 120,
+            "cents": 497
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 300,
+            "cents": 531
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 500,
+            "cents": 568
+          }
+        ],
+        "growth": [
+          {
+            "name": "Avvio",
+            "totalPaidSeats": 100,
+            "sharedInfrastructureMonthlyEur": 15,
+            "platformMaintenanceHours": 2,
+            "cents": 671
+          },
+          {
+            "name": "Crescita",
+            "totalPaidSeats": 500,
+            "sharedInfrastructureMonthlyEur": 60,
+            "platformMaintenanceHours": 2,
+            "cents": 516
+          },
+          {
+            "name": "Consolidamento",
+            "totalPaidSeats": 1000,
+            "sharedInfrastructureMonthlyEur": 120,
+            "platformMaintenanceHours": 2,
+            "cents": 497
+          },
+          {
+            "name": "Scala maggiore",
+            "totalPaidSeats": 5000,
+            "sharedInfrastructureMonthlyEur": 500,
+            "platformMaintenanceHours": 6,
+            "cents": 486
+          }
+        ]
+      }
+    },
+    {
+      "name": "Business",
+      "quota": 1000,
+      "baseCents": 1000,
+      "previousFloorCents": 940,
+      "gross": false,
+      "supportMinutes": 3,
+      "minimum": 996,
+      "floor": 1000,
+      "monthlyOperatingCost": 5.32,
+      "bands": [
+        {
+          "from": 1,
+          "to": null,
+          "cents": 1000
+        }
+      ],
+      "flatFloorAnnual": {
+        "netRevenue": 10000,
+        "operatingCosts": 6384,
+        "stripe": 488.25,
+        "riskReserve": 100,
+        "contribution": 3027.75,
+        "margin": 0.302775
+      },
+      "examples": [
+        {
+          "seats": 2,
+          "monthlyCents": 2000,
+          "annualCents": 20000,
+          "annualEconomics": {
+            "netRevenue": 200,
+            "operatingCosts": 127.68,
+            "stripe": 10.01,
+            "riskReserve": 2,
+            "contribution": 60.309999999999995,
+            "margin": 0.30155
+          }
+        },
+        {
+          "seats": 3,
+          "monthlyCents": 3000,
+          "annualCents": 30000,
+          "annualEconomics": {
+            "netRevenue": 300,
+            "operatingCosts": 191.52,
+            "stripe": 14.89,
+            "riskReserve": 3,
+            "contribution": 90.58999999999999,
+            "margin": 0.3019666666666666
+          }
+        },
+        {
+          "seats": 4,
+          "monthlyCents": 4000,
+          "annualCents": 40000,
+          "annualEconomics": {
+            "netRevenue": 400,
+            "operatingCosts": 255.36,
+            "stripe": 19.77,
+            "riskReserve": 4,
+            "contribution": 120.86999999999999,
+            "margin": 0.30217499999999997
+          }
+        },
+        {
+          "seats": 10,
+          "monthlyCents": 10000,
+          "annualCents": 100000,
+          "annualEconomics": {
+            "netRevenue": 1000,
+            "operatingCosts": 638.4000000000001,
+            "stripe": 49.050000000000004,
+            "riskReserve": 10,
+            "contribution": 302.5499999999999,
+            "margin": 0.3025499999999999
+          }
+        },
+        {
+          "seats": 25,
+          "monthlyCents": 25000,
+          "annualCents": 250000,
+          "annualEconomics": {
+            "netRevenue": 2500,
+            "operatingCosts": 1596,
+            "stripe": 122.25,
+            "riskReserve": 25,
+            "contribution": 756.75,
+            "margin": 0.3027
+          }
+        },
+        {
+          "seats": 50,
+          "monthlyCents": 50000,
+          "annualCents": 500000,
+          "annualEconomics": {
+            "netRevenue": 5000,
+            "operatingCosts": 3192,
+            "stripe": 244.25,
+            "riskReserve": 50,
+            "contribution": 1513.75,
+            "margin": 0.30275
+          }
+        },
+        {
+          "seats": 99,
+          "monthlyCents": 99000,
+          "annualCents": 990000,
+          "annualEconomics": {
+            "netRevenue": 9900,
+            "operatingCosts": 6320.160000000001,
+            "stripe": 483.37,
+            "riskReserve": 99,
+            "contribution": 2997.4699999999993,
+            "margin": 0.3027747474747474
+          }
+        },
+        {
+          "seats": 100,
+          "monthlyCents": 100000,
+          "annualCents": 1000000,
+          "annualEconomics": {
+            "netRevenue": 10000,
+            "operatingCosts": 6384,
+            "stripe": 488.25,
+            "riskReserve": 100,
+            "contribution": 3027.75,
+            "margin": 0.302775
+          }
+        },
+        {
+          "seats": 101,
+          "monthlyCents": 101000,
+          "annualCents": 1010000,
+          "annualEconomics": {
+            "netRevenue": 10100,
+            "operatingCosts": 6447.84,
+            "stripe": 493.13,
+            "riskReserve": 101,
+            "contribution": 3058.0299999999997,
+            "margin": 0.30277524752475243
+          }
+        },
+        {
+          "seats": 200,
+          "monthlyCents": 200000,
+          "annualCents": 2000000,
+          "annualEconomics": {
+            "netRevenue": 20000,
+            "operatingCosts": 12768,
+            "stripe": 976.25,
+            "riskReserve": 200,
+            "contribution": 6055.75,
+            "margin": 0.3027875
+          }
+        },
+        {
+          "seats": 500,
+          "monthlyCents": 500000,
+          "annualCents": 5000000,
+          "annualEconomics": {
+            "netRevenue": 50000,
+            "operatingCosts": 31920,
+            "stripe": 2440.25,
+            "riskReserve": 500,
+            "contribution": 15139.75,
+            "margin": 0.302795
+          }
+        }
+      ],
+      "previousFloorAnnual": {
+        "netRevenue": 9400,
+        "operatingCosts": 6384,
+        "stripe": 458.97,
+        "riskReserve": 94,
+        "contribution": 2463.0299999999997,
+        "margin": 0.2620244680851064
+      },
+      "stepBelowFloorAnnual": {
+        "netRevenue": 9950,
+        "operatingCosts": 6384,
+        "stripe": 485.81,
+        "riskReserve": 99.5,
+        "contribution": 2980.69,
+        "margin": 0.2995668341708543
+      },
+      "stressAtFloorAnnual": {
+        "netRevenue": 10000,
+        "operatingCosts": 9713.999999999998,
+        "stripe": 488.25,
+        "riskReserve": 100,
+        "contribution": -302.2499999999982,
+        "margin": -0.030224999999999818
+      },
+      "stressFloor": 1516,
+      "scenarioFloors": {
+        "ai": [
+          {
+            "aiAllInEur": 0.0014,
+            "cents": 790
+          },
+          {
+            "aiAllInEur": 0.0025,
+            "cents": 996
+          },
+          {
+            "aiAllInEur": 0.0035,
+            "cents": 1183
+          },
+          {
+            "aiAllInEur": 0.005275,
+            "cents": 1516
+          }
+        ],
+        "support": [
+          {
+            "supportMinutes": 0,
+            "cents": 528
+          },
+          {
+            "supportMinutes": 1,
+            "cents": 684
+          },
+          {
+            "supportMinutes": 3,
+            "cents": 996
+          },
+          {
+            "supportMinutes": 5,
+            "cents": 1308
+          }
+        ],
+        "scale": [
+          {
+            "totalPaidSeats": 100,
+            "cents": 1367
+          },
+          {
+            "totalPaidSeats": 250,
+            "cents": 1120
+          },
+          {
+            "totalPaidSeats": 500,
+            "cents": 1037
+          },
+          {
+            "totalPaidSeats": 1000,
+            "cents": 996
+          }
+        ],
+        "sharedInfrastructure": [
+          {
+            "sharedInfrastructureMonthlyEur": 7.5,
+            "cents": 975
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 30,
+            "cents": 979
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 60,
+            "cents": 985
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 120,
+            "cents": 996
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 300,
+            "cents": 1030
+          },
+          {
+            "sharedInfrastructureMonthlyEur": 500,
+            "cents": 1067
+          }
+        ],
+        "growth": [
+          {
+            "name": "Avvio",
+            "totalPaidSeats": 100,
+            "sharedInfrastructureMonthlyEur": 15,
+            "platformMaintenanceHours": 2,
+            "cents": 1170
+          },
+          {
+            "name": "Crescita",
+            "totalPaidSeats": 500,
+            "sharedInfrastructureMonthlyEur": 60,
+            "platformMaintenanceHours": 2,
+            "cents": 1015
+          },
+          {
+            "name": "Consolidamento",
+            "totalPaidSeats": 1000,
+            "sharedInfrastructureMonthlyEur": 120,
+            "platformMaintenanceHours": 2,
+            "cents": 996
+          },
+          {
+            "name": "Scala maggiore",
+            "totalPaidSeats": 5000,
+            "sharedInfrastructureMonthlyEur": 500,
+            "platformMaintenanceHours": 6,
+            "cents": 985
+          }
+        ]
+      }
+    }
+  ]
+}

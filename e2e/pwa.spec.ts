@@ -21,90 +21,6 @@ async function fakeUpdate(page: Page) {
   });
 }
 
-test("app guide has keyboard focus, escape dismissal and fits the viewport", async ({ page }) => {
-  await page.goto("/demo");
-  const button = page.getByRole("button", { name: "App", exact: true });
-  await button.focus();
-  await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", { name: "BoardCue sul tuo dispositivo" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Accedi per attivare le notifiche dei progetti.")).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.keyboard.press("Tab");
-  expect(await dialog.evaluate(node => node.contains(document.activeElement))).toBe(true);
-  await page.screenshot({ path: test.info().outputPath("app-dialog.png") });
-  await page.keyboard.press("Escape");
-  await expect(dialog).not.toBeVisible();
-  await expect(button).toBeFocused();
-});
-
-test("real worker offers offline fallback without caching private pages or APIs", async ({ page, context }) => {
-  await page.goto("/login");
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-    if (!navigator.serviceWorker.controller)
-      await new Promise<void>(resolve => navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true }));
-  });
-  await expect(page.getByRole("button", { name: "Aggiorna ora", exact: true })).toHaveCount(0);
-  const keys = await page.evaluate(async () =>
-    (
-      await Promise.all(
-        (await caches.keys()).map(async name => (await (await caches.open(name)).keys()).map(request => new URL(request.url).pathname)),
-      )
-    ).flat(),
-  );
-  expect(keys.some(key => key.startsWith("/api/") || key === "/login" || key.startsWith("/app"))).toBe(false);
-  const swResponse = await page.request.get("/sw.js");
-  expect(swResponse.headers()["cache-control"]).toContain("no-store");
-  await context.setOffline(true);
-  await page.goto("/pwa-offline-fixture");
-  await expect(page.getByRole("heading", { name: "Connessione assente" })).toBeVisible();
-  await page.screenshot({ path: test.info().outputPath("offline.png"), fullPage: true });
-  await context.setOffline(false);
-  await page.getByRole("link", { name: "Riprova ad aprire BoardCue" }).click();
-  await expect(page).toHaveURL(/\/$/);
-});
-
-test("waiting update neither reloads nor activates while a form is dirty", async ({ page }) => {
-  await fakeUpdate(page);
-  await page.goto("/login");
-  const update = page.getByRole("button", { name: "Aggiorna ora", exact: true });
-  await expect(update).toBeEnabled();
-  await page.locator('input[type="email"]').fill("synthetic@example.invalid");
-  await expect(update).toBeDisabled();
-  expect(await page.evaluate(() => sessionStorage.getItem("update-requested"))).toBeNull();
-  await expect(page.locator('input[type="email"]')).toHaveValue("synthetic@example.invalid");
-});
-
-test("explicit update sends activation only after user action", async ({ page }) => {
-  await fakeUpdate(page);
-  await page.goto("/login");
-  await page.getByRole("button", { name: "Ho capito", exact: true }).click();
-  await page.getByRole("button", { name: "Aggiorna ora", exact: true }).click();
-  expect(await page.evaluate(() => sessionStorage.getItem("update-requested"))).toBe("yes");
-});
-
-test("notification permission denial is explained without saving a subscription", async ({ page }) => {
-  let writes = 0;
-  await page.route("**/api/notifications/subscription", route => {
-    if (route.request().method() === "POST") writes++;
-    return route.fulfill({ json: { enabled: true, subscribed: false, publicKey: "A".repeat(87) } });
-  });
-  await page.addInitScript(() => {
-    Object.defineProperty(Notification, "requestPermission", { value: async () => "denied" });
-  });
-  await page.goto("/demo");
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
-  });
-  await page.getByRole("button", { name: "App", exact: true }).click();
-  const enable = page.getByRole("button", { name: "Attiva notifiche", exact: true });
-  await expect(enable).toBeEnabled();
-  await enable.click();
-  await expect(page.getByText(/Notifiche non autorizzate/)).toBeVisible();
-  expect(writes).toBe(0);
-});
-
 const testUrl = process.env.BOARDCUE_TEST_DATABASE_URL;
 if (testUrl) {
   const u = new URL(testUrl);
@@ -158,6 +74,96 @@ test.describe("authenticated board with synthetic PostgreSQL fixture", () => {
       await db.$disconnect();
     }
   });
+  test.beforeEach(async ({ context, baseURL }) => {
+    await context.addCookies([{ name: "boardcue_session", value: token, url: baseURL!, httpOnly: true, sameSite: "Lax" }]);
+  });
+test("app guide has keyboard focus, escape dismissal and fits the viewport", async ({ page }) => {
+  await page.goto("/account");
+  const button = page.getByRole("button", { name: "App", exact: true });
+  await button.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "BoardCue sul tuo dispositivo" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Aggiornamenti dell’app" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.keyboard.press("Tab");
+  expect(await dialog.evaluate(node => node.contains(document.activeElement))).toBe(true);
+  await page.screenshot({ path: test.info().outputPath("app-dialog.png") });
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(button).toBeFocused();
+});
+
+test("real worker offers offline fallback without caching private pages or APIs", async ({ page, context }) => {
+  await page.goto("/account");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller)
+      await new Promise<void>(resolve => navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true }));
+  });
+  await expect(page.getByRole("button", { name: "Aggiorna ora", exact: true })).toHaveCount(0);
+  const keys = await page.evaluate(async () =>
+    (
+      await Promise.all(
+        (await caches.keys()).map(async name => (await (await caches.open(name)).keys()).map(request => new URL(request.url).pathname)),
+      )
+    ).flat(),
+  );
+  expect(keys.some(key => key.startsWith("/api/") || key === "/login" || key.startsWith("/app"))).toBe(false);
+  const swResponse = await page.request.get("/sw.js");
+  expect(swResponse.headers()["cache-control"]).toContain("no-store");
+  await context.setOffline(true);
+  await page.goto("/pwa-offline-fixture");
+  await expect(page.getByRole("heading", { name: "Connessione assente" })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("offline.png"), fullPage: true });
+  await context.setOffline(false);
+  await page.getByRole("link", { name: "Riprova ad aprire BoardCue" }).click();
+  await expect(page).toHaveURL(/\/app$/);
+});
+
+test("waiting update neither reloads nor activates while a form is dirty", async ({ page }) => {
+  await fakeUpdate(page);
+  await page.goto("/account");
+  await page.locator(".pwa-install").click();
+  const update = page.getByRole("button", { name: "Aggiorna ora", exact: true });
+  await expect(update).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await page.locator("#acc-name").fill("Synthetic changed name");
+  await page.locator(".pwa-install").click();
+  await expect(update).toBeDisabled();
+  expect(await page.evaluate(() => sessionStorage.getItem("update-requested"))).toBeNull();
+  await expect(page.locator("#acc-name")).toHaveValue("Synthetic changed name");
+});
+
+test("explicit update sends activation only after user action", async ({ page }) => {
+  await fakeUpdate(page);
+  await page.goto("/account");
+  await page.locator(".pwa-install").click();
+  await page.getByRole("button", { name: "Aggiorna ora", exact: true }).click();
+  expect(await page.evaluate(() => sessionStorage.getItem("update-requested"))).toBe("yes");
+});
+
+test("notification permission denial is explained without saving a subscription", async ({ page }) => {
+  let writes = 0;
+  await page.route("**/api/notifications/subscription", route => {
+    if (route.request().method() === "POST") writes++;
+    return route.fulfill({ json: { enabled: true, subscribed: false, publicKey: "A".repeat(87) } });
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, "requestPermission", { value: async () => "denied" });
+  });
+  await page.goto("/account");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.getByRole("button", { name: "App", exact: true }).click();
+  const enable = page.getByRole("button", { name: "Attiva notifiche", exact: true });
+  await expect(enable).toBeEnabled();
+  await enable.click();
+  await expect(page.getByText(/Notifiche non autorizzate/)).toBeVisible();
+  expect(writes).toBe(0);
+});
+
   test("draft blocks update, manual card save works and offline errors retain text", async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "boardcue_session", value: token, url: baseURL!, httpOnly: true, sameSite: "Lax" }]);
     await fakeUpdate(page);
@@ -166,7 +172,10 @@ test.describe("authenticated board with synthetic PostgreSQL fixture", () => {
     const draft = page.getByPlaceholder("Racconta cosa è cambiato…");
     await expect(draft).toBeVisible();
     await draft.fill("Bozza sintetica da conservare");
+    await page.getByRole("button", { name: "Menu account" }).click();
+    await page.getByRole("button", { name: "Installa app", exact: true }).click();
     await expect(page.getByRole("button", { name: "Aggiorna ora", exact: true })).toBeDisabled();
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Nuova card", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Nuova card" });
     await dialog.getByLabel("Titolo").fill("Card sintetica");
@@ -180,6 +189,8 @@ test.describe("authenticated board with synthetic PostgreSQL fixture", () => {
     await context.setOffline(false);
     await page.screenshot({ path: test.info().outputPath("board-draft.png"), fullPage: true });
     await draft.fill("");
+    await page.getByRole("button", { name: "Menu account" }).click();
+    await page.getByRole("button", { name: "Installa app", exact: true }).click();
     await expect(page.getByRole("button", { name: "Aggiorna ora", exact: true })).toBeEnabled();
   });
 });

@@ -7,10 +7,10 @@ import { Topbar } from "@/components/Topbar";
 import { HomeBoards } from "@/components/HomeBoards";
 import { HomeAssistant } from "@/components/HomeAssistant";
 import { canWriteCards, workspaceReadOnly } from "@/lib/board";
-import { ensureDefaultOrganization } from "@/lib/default-organization";
-import { getOrganizationLimits, getUsageStatus, monthlyPrice } from "@/lib/plans";
+import { canUseSpaces } from "@/lib/spaces";
+import { canCreateWorkspaceInOrganization, ensureActiveOrganization } from "@/lib/default-organization";
+import { getOrganizationLimits, getUsageStatus } from "@/lib/plans";
 import { getTranslator } from "@/lib/i18n/server";
-import { usedSeats } from "@/lib/invites";
 import { Icon } from "@/components/Icon";
 import { isPersonalBoard, PERSONAL_BOARD_NAMES } from "@/lib/onboarding";
 
@@ -25,14 +25,14 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
   if (!user) redirect(flag("shared") === "1" ? "/login?next=%2Fapp%3Fshared%3D1" : "/login");
   if (await twoFactorRequiredButMissing(user)) redirect("/account?require2fa=1#security");
   const { t, locale } = await getTranslator(user.locale);
-  const team = await ensureDefaultOrganization(user.id);
-  const [membership, memberships, seats, usage] = await Promise.all([
+  const team = await ensureActiveOrganization(user.id);
+  const [membership, memberships, usage] = await Promise.all([
     prisma.organizationMember.findUnique({
       where: { organizationId_userId: { organizationId: team.id, userId: user.id } },
       select: { role: true },
     }),
     prisma.workspaceMember.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, workspace: { organizationId: team.id } },
       include: {
         workspace: {
           include: {
@@ -54,17 +54,18 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
       },
       orderBy: { createdAt: "desc" },
     }),
-    usedSeats(team.id),
     getUsageStatus(team.id),
   ]);
   const organization = await prisma.organization.findUniqueOrThrow({ where: { id: team.id } });
   const limits = getOrganizationLimits(organization);
-  const price = monthlyPrice(organization);
+  const canCreate = Boolean(membership && canCreateWorkspaceInOrganization(user.defaultOrganizationId, team.id, membership.role) && membership.role !== "GUEST" && !usage?.readOnly);
+  const spaces = await prisma.space.findMany({ where: { organizationId: team.id, ...(!["OWNER", "ADMIN"].includes(membership?.role || "") && { members: { some: { userId: user.id } } }) }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } });
   const boards = memberships.map(({ role, workspace }) => ({
     id: workspace.id,
     name: workspace.name,
     slug: workspace.slug,
     role,
+    spaceId: workspace.spaceId,
     organizationId: workspace.organization.id,
     organizationName: workspace.organization.name,
     lifecycleStatus: workspace.lifecycleStatus,
@@ -91,8 +92,6 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
   const completed = steps.filter(step => step.done).length;
   const activeBoards = boards.filter(board => board.organizationId === organization.id && board.lifecycleStatus === "ACTIVE").length;
   const atBoardLimit = activeBoards >= limits.workspaceLimit;
-  const renewal = organization.trialEndsAt && organization.plan === "TRIAL" ? organization.trialEndsAt : null;
-  const trialDaysLeft = renewal ? Math.max(0, Math.ceil((renewal.getTime() - Date.now()) / 86400000)) : null;
   return (
     <div className="shell">
       <Topbar />
@@ -128,6 +127,7 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
           </div>
         )}
         <HomeAssistant
+          key={organization.id}
           userId={user.id}
           initialBoards={captureBoards}
           paused={!captureBoards.length}
@@ -136,26 +136,29 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
           shareError={flag("shareError") === "1"}
           personalBoardOffer={
             memberships.some(({ workspace }) => isPersonalBoard(workspace) && workspace.lifecycleStatus === "ACTIVE") ||
-            membership?.role === "GUEST" ||
+            !canCreate ||
             usage?.readOnly ||
             atBoardLimit
               ? null
               : { organizationId: organization.id, locale: user.locale, name: PERSONAL_BOARD_NAMES[locale === "it" ? "it" : "en"] }
           }
           newBoardTarget={
-            membership?.role !== "GUEST" && !usage?.readOnly && !atBoardLimit
+            canCreate && !atBoardLimit
               ? { organizationId: organization.id, locale: locale === "en" ? "en" : organization.locale }
               : null
           }
           boardList={
             <HomeBoards
               boards={boards}
+              spaces={spaces}
+              selectedSpace={flag("space")}
+              canManageSpaces={canUseSpaces(organization.plan) && ["OWNER", "ADMIN"].includes(membership?.role || "")}
               teams={[
                 {
                   id: organization.id,
                   name: organization.name,
                   locale: organization.locale,
-                  canCreate: membership?.role !== "GUEST" && !usage?.readOnly,
+                  canCreate,
                   boardLimit: atBoardLimit ? limits.workspaceLimit : null,
                 },
               ]}
@@ -191,69 +194,6 @@ export default async function AppPage({ searchParams }: { searchParams: Promise<
                   </ol>
                 </section>
               )}
-              <section className="panel" aria-labelledby="plan-title">
-                <div className="row">
-                  <h2 id="plan-title" style={{ fontSize: 16 }}>
-                    {t("home.plan.title")}
-                  </h2>
-                  <span className="spacer" />
-                  <span className={`plan-badge plan-${limits.key}`}>{t(`plans.${limits.key}`)}</span>
-                </div>
-                {trialDaysLeft !== null && (
-                  <p className="subtle" style={{ marginTop: 6 }}>
-                    {trialDaysLeft > 0 ? t("home.plan.trialLeft", { days: trialDaysLeft }) : t("home.plan.trialOver")}
-                  </p>
-                )}
-                {usage && (
-                  <div style={{ marginTop: 14 }}>
-                    <div className="row">
-                      <span className="subtle">{t("home.plan.aiUpdates")}</span>
-                      <span className="spacer" />
-                      <strong>{Number.isFinite(usage.included) ? `${usage.used} / ${usage.included}` : "∞"}</strong>
-                    </div>
-                    <div className={`meter ${usage.percent >= 90 ? "crit" : usage.percent >= 75 ? "warn" : ""}`} style={{ marginTop: 6 }}>
-                      <i style={{ width: `${usage.percent}%` }} />
-                    </div>
-                    {usage.credits > 0 && (
-                      <p className="subtle" style={{ marginTop: 6 }}>
-                        {t("home.plan.credits", { count: usage.credits })}
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div className="stat-list">
-                  <div>
-                    <span>{t("home.plan.seats")}</span>
-                    <strong>
-                      {seats} / {Number.isFinite(limits.memberLimit) ? limits.memberLimit : "∞"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>{t("home.plan.boards")}</span>
-                    <strong>
-                      {activeBoards} / {Number.isFinite(limits.workspaceLimit) ? limits.workspaceLimit : "∞"}
-                    </strong>
-                  </div>
-                  {price !== null && price > 0 && (
-                    <div>
-                      <span>{t("home.plan.price")}</span>
-                      <strong>
-                        €{price.toFixed(2).replace(".00", "")} {t("pricing.perMonth")}
-                      </strong>
-                    </div>
-                  )}
-                </div>
-                <div className="row" style={{ marginTop: 16 }}>
-                  <Link className="btn sm" href="/account#teams">
-                    {t("home.plan.manage")}
-                  </Link>
-                  {(limits.key === "TRIAL" || usage?.readOnly) && (
-                    <Link className="btn sm primary" href="/pricing">
-                      {t("home.plan.choose")}
-                    </Link>
-                  )}
-                </div>
-              </section>
             </aside>
           }
         />

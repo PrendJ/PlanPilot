@@ -1,3 +1,5 @@
+import { lockSpaceOrganization } from "@/lib/spaces";
+import { spaceError } from "@/lib/space-errors";
 import { safeJson } from "@/lib/security";
 import { after, NextResponse } from "next/server";
 import { notifyBoardSoftLimit } from "@/lib/board-soft-limit";
@@ -12,6 +14,7 @@ import { apiError } from "@/lib/errors";
 
 const schema = z.object({
   organizationId: z.string().cuid(),
+  spaceId: z.string().cuid().optional(),
   name: z.string().trim().min(1).max(100),
   presetKey: z.enum(["GENERAL", "PERSONAL", "SOFTWARE", "MARKETING", "PROJECT", "CONSULTING"]).default("GENERAL"),
   locale: z.enum(SUPPORTED_LOCALES).default("it"),
@@ -59,13 +62,12 @@ export async function POST(request: Request) {
   if (count >= config.workspaceLimit)
     return apiError(request, "WORKSPACE_LIMIT", 402, { limit: config.workspaceLimit }, { limit: config.workspaceLimit });
   try {
-    const workspace = await createWorkspace({
-      name: body.name,
-      userId: user.id,
-      organizationId: body.organizationId,
-      presetKey: body.presetKey,
-      locale: body.locale,
-    });
+    const input = { name: body.name, userId: user.id, organizationId: body.organizationId, presetKey: body.presetKey, locale: body.locale, spaceId: body.spaceId };
+    const workspace = body.spaceId ? await prisma.$transaction(async tx => {
+      await lockSpaceOrganization(tx, body.organizationId, user.id);
+      if (!await tx.space.findFirst({ where: { id: body.spaceId, organizationId: body.organizationId } })) throw new Error("NOT_FOUND");
+      return createWorkspace(input, tx);
+    }) : await createWorkspace(input);
     const { boardSoftLimit } = config;
     if (boardSoftLimit !== null && count + 1 > boardSoftLimit)
       after(() =>
@@ -77,6 +79,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof Error && ["FORBIDDEN", "READ_ONLY", "NOT_FOUND"].includes(error.message)) return spaceError(request, error);
     console.error("Workspace creation failed", error);
     return apiError(request, "SERVER_ERROR", 500);
   }

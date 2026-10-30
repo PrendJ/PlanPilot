@@ -42,6 +42,7 @@ model User {
   deleteAfter                DateTime?
   isAdmin                    Boolean                     @default(false)
   defaultOrganizationId      String?                     @unique
+  activeOrganizationId       String?
   lifetimeFree               Boolean                     @default(false)
   lifetimeFreeGrantedAt      DateTime?
   lifetimeFreeGrantedBy      String?
@@ -66,6 +67,7 @@ model User {
   twoFactorChallenges        TwoFactorChallenge[]
   memberships                WorkspaceMember[]
   organizationMemberships    OrganizationMember[]
+  spaceMemberships           SpaceMember[]
   createdOrganizations       Organization[]              @relation("OrganizationCreator")
   defaultOrganization        Organization?               @relation("DefaultOrganization", fields: [defaultOrganizationId], references: [id], onDelete: SetNull)
   createdWorkspaces          Workspace[]                 @relation("WorkspaceCreator")
@@ -164,6 +166,7 @@ model Organization {
   readOnlyAt                 DateTime?
   deleteAfter                DateTime?
   seats                      Int?
+  billingPricingVersion      String?
   billingInterval            String?
   require2fa                 Boolean              @default(false)
   billingName                String?
@@ -186,6 +189,7 @@ model Organization {
   defaultForUser             User?                @relation("DefaultOrganization")
   members                    OrganizationMember[]
   workspaces                 Workspace[]
+  spaces                     Space[]
   invites                    WorkspaceInvite[]
   subscription               Subscription?
   usageEvents                UsageEvent[]
@@ -210,6 +214,7 @@ model OrganizationMember {
 model Workspace {
   id                 String            @id @default(cuid())
   organizationId     String
+  spaceId            String?
   name               String
   slug               String            @unique
   presetKey          String            @default("GENERAL")
@@ -227,6 +232,7 @@ model Workspace {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  space              Space?            @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   createdBy          User              @relation("WorkspaceCreator", fields: [createdById], references: [id])
   members            WorkspaceMember[]
   columns            BoardColumn[]
@@ -241,6 +247,7 @@ model Workspace {
   webhooks           Webhook[]
 
   @@index([organizationId])
+  @@index([spaceId])
   @@index([lifecycleStatus, deleteAfter])
 }
 
@@ -249,6 +256,7 @@ model WorkspaceMember {
   workspaceId String
   userId      String
   role        String    @default("MEMBER")
+  inheritedFromSpaceId String?
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -257,10 +265,37 @@ model WorkspaceMember {
   @@index([userId])
 }
 
+// Customer-managed workspace grouping. The legacy Workspace model remains a board.
+model Space {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        SpaceMember[]
+  boards         Workspace[]
+  invites        WorkspaceInvite[]
+
+  @@index([organizationId])
+}
+
+model SpaceMember {
+  id      String @id @default(cuid())
+  spaceId String
+  userId  String
+  role    String @default("MEMBER")
+  space   Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user    User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@index([userId])
+}
+
 model WorkspaceInvite {
   id             String       @id @default(cuid())
   organizationId String
   workspaceId    String?
+  spaceId        String?
   invitedById    String
   email          String
   role           String       @default("MEMBER")
@@ -271,6 +306,7 @@ model WorkspaceInvite {
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   workspace      Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  space          Space?       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   invitedBy      User         @relation("InviteSender", fields: [invitedById], references: [id])
 
   @@index([email, expiresAt])
@@ -296,6 +332,7 @@ model Card {
   id                String         @id @default(cuid())
   workspaceId       String
   columnId          String
+  previousColumnId  String?
   title             String
   description       String         @default("")
   priority          String         @default("NORMAL")

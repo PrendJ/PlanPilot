@@ -1,4 +1,5 @@
 "use client";
+import { rememberedColumn } from "@/lib/board-state";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -241,7 +242,7 @@ export function Board({ slug }: { slug: string }) {
         const target = columns.find(column => column.id === columnId);
         if (target) {
           const cards = [...target.cards];
-          cards.splice(index ?? 0, 0, { ...card, columnId });
+          cards.splice(index ?? 0, 0, { ...card, columnId, previousColumnId: rememberedColumn(current.columns, card.columnId, columnId, card.previousColumnId) });
           target.cards = cards;
         }
         return { ...current, columns };
@@ -342,15 +343,6 @@ export function Board({ slug }: { slug: string }) {
 
   const { workspace, quota } = data;
   const filtersActive = query || priority !== "ALL" || assignee !== "ALL" || due !== "all";
-  const quotaClass = quota
-    ? quota.status === "PAUSED"
-      ? "paused"
-      : quota.status === "CRITICAL"
-        ? "crit"
-        : quota.status === "WARNING"
-          ? "warn"
-          : ""
-    : "";
   const canComment = !workspace.readOnly;
   return (
     <div className="board-page">
@@ -368,23 +360,6 @@ export function Board({ slug }: { slug: string }) {
           ))}
         </div>
         <span className="spacer" />
-        {quota && (
-          <Link
-            href="/account#teams"
-            className={`quota-chip ${quotaClass}`}
-            title={
-              quota.resetsAt
-                ? t("board.quota.resets", { date: new Date(quota.resetsAt).toLocaleDateString(locale === "en" ? "en-GB" : "it-IT") })
-                : undefined
-            }
-          >
-            <Icon name="sparkles" size={14} />
-            <span>{quota.remaining === null ? t("board.quota.unlimited") : t("board.quota.remaining", { count: quota.remaining })}</span>
-            <span className={`meter ${quotaClass === "warn" ? "warn" : quotaClass ? "crit" : ""}`}>
-              <i style={{ width: `${quota.percent}%` }} />
-            </span>
-          </Link>
-        )}
         <button type="button" className="btn ghost" onClick={() => setActivityOpen(true)}>
           <Icon name="activity" size={16} />
           <span className="hide-mobile">{t("activity.title")}</span>
@@ -570,7 +545,7 @@ export function Board({ slug }: { slug: string }) {
           onAdd={columnId => setEditing({ card: null, columnId })}
         />
       )}
-      {view === "list" && <ListView columns={visible} onOpen={card => setEditing({ card })} />}
+      {view === "list" && <ListView columns={visible} allColumns={data.columns} canWrite={workspace.canWrite && !archived} onOpen={card => setEditing({ card })} onMove={(card, columnId) => void moveCard(card, columnId)} />}
       {view === "calendar" && <CalendarView columns={visible} onOpen={card => setEditing({ card })} />}
 
       {editing && (

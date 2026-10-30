@@ -1,5 +1,6 @@
 "use client";
 
+import { seatTotalCents, type SeatTier } from "@/lib/seat-pricing";
 import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "./Icon";
@@ -8,6 +9,7 @@ import { api, useFeedback } from "./ui";
 import type { SellablePlanKey } from "@/lib/plans";
 
 type Plan = {
+  tiers: Record<"consumer" | "business", Record<"month" | "year", SeatTier[]>>;
   key: SellablePlanKey;
   priceEur: number;
   priceEurYearly: number;
@@ -17,6 +19,7 @@ type Plan = {
   /** Null = unlimited boards. */
   boardsPerPerson: number | null;
   historyMonths: number;
+  boardSoftLimitPerPerson: number | null;
   consumerPriceEur: number;
   consumerPriceEurYearly: number;
 };
@@ -27,6 +30,7 @@ type Plan = {
  */
 export function PricingTable({
   plans,
+  canPurchase = true,
   organizationId,
   highlight,
   trialDays,
@@ -35,6 +39,7 @@ export function PricingTable({
   businessContact,
 }: {
   plans: Plan[];
+  canPurchase?: boolean;
   organizationId: string | null;
   highlight?: string;
   trialDays: number;
@@ -77,6 +82,13 @@ export function PricingTable({
       plan.boardsPerPerson === null
         ? t("pricing.features.boardsUnlimited")
         : t(plan.seatBased ? "pricing.features.boardsPerSeat" : "pricing.features.boards", { count: plan.boardsPerPerson }),
+      ...(plan.boardSoftLimitPerPerson
+        ? [
+            tag.startsWith("it")
+              ? `Soglia indicativa di ${plan.boardSoftLimitPerPerson} board per posto, condivisa tra i workspace; nessun blocco al superamento`
+              : `${plan.boardSoftLimitPerPerson} boards per seat guideline, shared across workspaces; exceeding it does not block work`,
+          ]
+        : []),
       t("pricing.features.history", { months: plan.historyMonths }),
     ];
   };
@@ -149,6 +161,13 @@ export function PricingTable({
           </button>
         </div>
       </div>
+      {!canPurchase && (
+        <p className="notice warning">
+          {tag.startsWith("it")
+            ? "L’abbonamento selezionato può essere modificato dal suo titolare. Seleziona il tuo abbonamento dal menu per acquistare."
+            : "Only the selected subscription’s owner can change it. Select your own subscription from the menu to purchase."}
+        </p>
+      )}
       <div className={`pricing-grid ${consumer ? "two" : ""}`}>
         {plans
           .filter(plan => (consumer ? ["PERSONAL_PRO", "FAMILY"].includes(plan.key) : ["PRO", "TEAM"].includes(plan.key)))
@@ -159,7 +178,7 @@ export function PricingTable({
             const yearly = interval === "year";
             const perSeat = yearly ? yearlyAmount : monthly;
             const count = plan.seatBased ? seats[plan.key] : 1;
-            const total = Math.round(perSeat * count * 100) / 100;
+            const total = seatTotalCents(plan.tiers[customerType][interval], count) / 100;
             // Per seat, like the headline price; the seat picker shows the total.
             const saved = Math.round((monthly * 12 - yearlyAmount) * 100) / 100;
             const featured = (highlight || (consumer ? "FAMILY" : "TEAM")) === plan.key;
@@ -216,6 +235,13 @@ export function PricingTable({
                     </span>
                   </div>
                 )}
+                {plan.seatBased && (
+                  <p className="subtle">
+                    {tag.startsWith("it")
+                      ? `Primi 3 posti al prezzo indicato. Dal 4° il prezzo del singolo posto scende progressivamente, fino a €${euro(plan.tiers[customerType][interval].at(-1)!.cents / 100)} dal 100° posto. Il totale tiene già conto dello sconto.`
+                      : `First 3 seats at the listed price. From seat 4, each additional seat progressively costs less, down to €${euro(plan.tiers[customerType][interval].at(-1)!.cents / 100)} from seat 100. The total includes the discount.`}
+                  </p>
+                )}
                 <div className="pricing-quota">
                   <Icon name="sparkles" size={15} />
                   {plan.seatBased
@@ -240,7 +266,7 @@ export function PricingTable({
                   <button
                     type="button"
                     className={`btn block ${(plan.key === "PRO" || plan.key === "PERSONAL_PRO") && !organizationId ? "" : "primary"}`}
-                    disabled={busy === plan.key}
+                    disabled={!canPurchase || busy === plan.key}
                     onClick={() => void checkout(plan)}
                   >
                     {busy === plan.key ? <span className="spinner" /> : null}

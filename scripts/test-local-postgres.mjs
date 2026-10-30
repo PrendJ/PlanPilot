@@ -13,7 +13,7 @@ const { default: EmbeddedPostgres } = await import(pathToFileURL(modulePath).hre
 const directory = await mkdtemp(path.join(tmpdir(), 'boardcue-test-pg-'));
 const port = await new Promise(resolve => { const server = net.createServer(); server.listen(0, '127.0.0.1', () => { const port = server.address().port; server.close(() => resolve(port)); }); });
 const password = randomBytes(20).toString('hex');
-const pg = new EmbeddedPostgres({ databaseDir: path.join(directory, 'data'), user: 'postgres', password, port, persistent: true, createPostgresUser: false, postgresFlags: ['-h', '127.0.0.1'], onLog: () => {}, onError: () => {} });
+const pg = new EmbeddedPostgres({ databaseDir: path.join(directory, 'data'), user: 'postgres', password, port, persistent: true, createPostgresUser: false, initdbFlags: ['--encoding=UTF8'], postgresFlags: ['-h', '127.0.0.1'], onLog: () => {}, onError: () => {} });
 const env = { ...process.env, DATABASE_URL: `postgresql://postgres:${password}@127.0.0.1:${port}/boardcue_test_integration`, WEB_PUSH_ENABLED: 'false', OPENROUTER_API_KEY: '', OPENROUTER_WORKSPACE_KEYS: '', TELEGRAM_BOT_TOKEN: '', CRON_SECRET: '', TRUSTED_PROXY_HOPS: '0', SMTP_HOST: '', STRIPE_SECRET_KEY: '', NEXT_TELEMETRY_DISABLED: '1' };
 env.BOARDCUE_TEST_DATABASE_URL = env.DATABASE_URL;
 function run(file, args) {

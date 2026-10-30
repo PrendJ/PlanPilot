@@ -12,6 +12,7 @@ type BoardSummary = {
   name: string;
   slug: string;
   role: string;
+  spaceId?: string | null;
   organizationId: string;
   organizationName: string;
   lifecycleStatus: string;
@@ -39,22 +40,27 @@ export function HomeBoards({
   teams,
   defaultTeamId,
   defaultLocale,
+  spaces = [], selectedSpace, canManageSpaces = false,
 }: {
   boards: BoardSummary[];
   teams: Team[];
   defaultTeamId: string;
   defaultLocale: string;
+  spaces?: Array<{ id: string; name: string }>;
+  selectedSpace?: string;
+  canManageSpaces?: boolean;
 }) {
   const { t, tag } = useI18n();
   const { confirm, prompt, toast } = useFeedback();
   const router = useRouter();
   const [boards, setBoards] = useState(initial);
   const [archivedView, setArchivedView] = useState(false);
+  const [spaceFilter, setSpaceFilter] = useState(selectedSpace || "ALL");
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [importKind, setImportKind] = useState<"none" | "trello" | "csv">("none");
   const [file, setFile] = useState<File | null>(null);
-  const shown = boards.filter(board => board.lifecycleStatus === (archivedView ? "ARCHIVED" : "ACTIVE"));
+  const shown = boards.filter(board => board.lifecycleStatus === (archivedView ? "ARCHIVED" : "ACTIVE") && (spaceFilter === "ALL" || (spaceFilter === "NONE" ? !board.spaceId : board.spaceId === spaceFilter)));
   const canCreate = teams.some(team => team.canCreate);
   const fullTeam = teams.find(team => team.id === defaultTeamId && team.boardLimit);
 
@@ -66,6 +72,7 @@ export function HomeBoards({
       method: "POST",
       json: {
         name: form.get("name"),
+        ...(form.get("spaceId") && { spaceId: form.get("spaceId") }),
         organizationId: form.get("organizationId") || defaultTeamId,
         presetKey: form.get("presetKey"),
         locale: form.get("locale"),
@@ -143,6 +150,10 @@ export function HomeBoards({
           </button>
         </div>
       </div>
+      {(spaces.length > 0 || canManageSpaces) && <div className="row" style={{ marginBottom: 16 }}>
+        <select aria-label="Workspace" value={spaceFilter} onChange={event => setSpaceFilter(event.target.value)}><option value="ALL">{tag.startsWith("it") ? "Tutti i workspace" : "All workspaces"}</option><option value="NONE">{tag.startsWith("it") ? "Board senza workspace" : "Boards without a workspace"}</option>{spaces.map(space => <option key={space.id} value={space.id}>{space.name}</option>)}</select>
+        <Link className="btn" href="/workspaces">{tag.startsWith("it") ? "Gestisci workspace" : "Manage workspaces"}</Link>
+      </div>}
       <div className="board-grid">
         {shown.map(board => (
           <article key={board.id} className="board-tile">
@@ -289,6 +300,7 @@ export function HomeBoards({
                 </select>
               </div>
             )}
+            {canManageSpaces && spaces.length > 0 && <div className="field"><label htmlFor="board-space">Workspace</label><select id="board-space" name="spaceId" defaultValue={spaces.some(space => space.id === spaceFilter) ? spaceFilter : ""}><option value="">{tag.startsWith("it") ? "Senza workspace" : "No workspace"}</option>{spaces.map(space => <option key={space.id} value={space.id}>{space.name}</option>)}</select></div>}
             <div className="form-grid">
               <div className="field">
                 <label htmlFor="board-preset">{t("home.create.template")}</label>

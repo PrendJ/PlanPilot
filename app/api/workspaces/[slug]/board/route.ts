@@ -47,6 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       id: column.id,
       title: column.title,
       description: column.description,
+      semanticKey: column.semanticKey,
       position: column.position,
       cards: column.cards.map(({ _count, ...card }) => ({ ...card, commentCount: _count.comments })),
     })),

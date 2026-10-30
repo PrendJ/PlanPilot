@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
 export const checklistSchema = z
-  .array(z.object({ id: z.string().trim().min(1).max(40), text: z.string().trim().min(1).max(300), done: z.boolean() }).strict())
+  .array(z.object({ id: z.string().trim().min(1).max(40), text: z.string().trim().min(1).max(300), done: z.boolean(), suggested: z.boolean().optional() }).strict())
   .max(50);
 export type ChecklistItem = z.infer<typeof checklistSchema>[number];
 

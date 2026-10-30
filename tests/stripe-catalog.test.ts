@@ -5,7 +5,8 @@ type FakePrice = {
   id: string;
   active: boolean;
   lookup_key: string;
-  unit_amount: number;
+  unit_amount?: number;
+  tiers?: Array<{ up_to: number | "inf"; unit_amount: number }>;
   tax_behavior: string;
   metadata: Record<string, string>;
 };
@@ -105,9 +106,12 @@ describe("self-provisioned Stripe catalogue", () => {
     await creditPackPrice("consumer");
     expect(store.prices.map(price => [price.lookup_key, price.unit_amount, price.tax_behavior])).toEqual([
       ["boardcue_personal_pro_month_consumer_490", 490, "inclusive"],
-      ["boardcue_family_year_consumer_4500", 4500, "inclusive"],
+      [expect.stringMatching(/^boardcue_family_year_consumer_4500_[a-f0-9]+$/), undefined, "inclusive"],
       ["boardcue_credits_once_consumer_730", 730, "inclusive"],
     ]);
+    expect(store.prices[1]).toMatchObject({ billing_scheme: "tiered", tiers_mode: "graduated", metadata: { boardcue_pricing: "graduated-v1" } });
+    expect(store.prices[1].tiers?.[0].unit_amount).toBe(4500);
+    expect(store.prices[1].tiers?.at(-1)).toMatchObject({ up_to: "inf", unit_amount: 4350 });
   });
 
   it("survives a concurrent creation of the same price", async () => {

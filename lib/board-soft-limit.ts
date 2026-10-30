@@ -6,7 +6,7 @@ export const BOARD_SOFT_LIMIT_ACTION = "BOARD_SOFT_LIMIT_EXCEEDED";
 const REMINDER_DAYS = 30;
 
 /**
- * Business has no board limit, only a soft cap (200 boards per person). Going above it blocks nothing: it leaves an
+ * Family/Team (50 per purchased seat) and Business (200) have soft thresholds. Exceeding them leaves an
  * entry in the back-office audit and emails BoardCue's superadmins, so unusual growth or abuse can be looked at.
  * Never throws: an alert must not turn a created board into an error.
  */
@@ -47,7 +47,7 @@ export async function notifyBoardSoftLimit(input: {
             title: "Soglia di board superata",
             preheader: `${input.organization.name} ha ${input.activeBoards} board attive.`,
             paragraphs: [
-              `<strong>${name}</strong> (piano ${escapeHtml(input.organization.plan)}) ha <strong>${input.activeBoards}</strong> board attive, oltre la soglia di ${input.softLimit} (200 per persona).`,
+              `<strong>${name}</strong> (piano ${escapeHtml(input.organization.plan)}) ha <strong>${input.activeBoards}</strong> board attive, oltre la soglia di ${input.softLimit} (quota condivisa sui posti del piano).`,
               "Non è stato bloccato nulla: è un avviso per verificare crescita anomala o abusi. Non riceverai altri avvisi per questa organizzazione nei prossimi 30 giorni.",
             ],
             action: { href: appUrl("/admin"), label: "Apri il back office" },

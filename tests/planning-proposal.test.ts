@@ -21,6 +21,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(console, "info").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
+  mocks.db.workspaceMember = { findMany: vi.fn().mockResolvedValue([]) };
   mocks.db.boardColumn = { findMany: vi.fn().mockResolvedValue([{ id: "todo", title: "Da fare", description: "", cards: [] }]) };
   mocks.db.workspace = { findUniqueOrThrow: vi.fn().mockResolvedValue({ revision: 1 }) };
   mocks.db.aiProposal = { create: vi.fn(async ({ data }: any) => ({ ...data, id: "proposal", status: "PENDING" })) };

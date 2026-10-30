@@ -1,14 +1,18 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { NotificationsPanel } from "./NotificationsPanel";
+import { useI18n } from "./I18nProvider";
 import { usePathname } from "next/navigation";
 
 type InstallEvent = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
-type PwaContext = { open: () => void; block: (key: string, value: boolean) => void; updateReady: boolean };
-const Context = createContext<PwaContext>({ open: () => {}, block: () => {}, updateReady: false });
+type PwaContext = { open: () => void; block: (key: string, value: boolean) => void; updateReady: boolean; standalone: boolean; installComplete: boolean };
+const Context = createContext<PwaContext>({ open: () => {}, block: () => {}, updateReady: false, standalone: false, installComplete: false });
 /** Opens the app panel. A badge shows while a new version waits; it goes away once the update is applied. */
-export function InstallAppButton() {
-  const { open, updateReady } = useContext(Context);
+export function InstallAppButton({ menu = false, onOpen }: { menu?: boolean; onOpen?: () => void } = {}) {
+  const { open, updateReady, standalone, installComplete } = useContext(Context);
+  const { locale } = useI18n();
+  if (menu && (standalone || installComplete)) return null;
+  if (menu) return <button type="button" className="menu-item" onClick={() => { onOpen?.(); open(); }}>{locale === "en" ? "Install app" : "Installa app"}</button>;
   return <button className="btn ghost pwa-install" onClick={open} aria-label={updateReady ? "App: nuova versione disponibile" : undefined} title={updateReady ? "Nuova versione disponibile" : undefined}>
     App{updateReady && <span className="update-dot" aria-hidden="true" />}
   </button>;
@@ -21,6 +25,7 @@ export function useUpdateBlocker(key: string, active: boolean) {
 export function PwaProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [install, setInstall] = useState<InstallEvent | null>(null);
+  const [installComplete, setInstallComplete] = useState(false);
   const [standalone, setStandalone] = useState(false);
   const [offline, setOffline] = useState(false);
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
@@ -45,7 +50,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     setIos(/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
     const online = () => setOffline(!navigator.onLine); online();
     const prompt = (event: Event) => { event.preventDefault(); setInstall(event as InstallEvent); };
-    const complete = () => { setInstall(null); installed(); };
+    const complete = () => { setInstall(null); setInstallComplete(true); installed(); };
     window.addEventListener("online", online); window.addEventListener("offline", online);
     window.addEventListener("beforeinstallprompt", prompt); window.addEventListener("appinstalled", complete);
     return () => {
@@ -114,8 +119,8 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     }, 12000);
   }
   const updateControls = waiting && <div className="pwa-update"><p>Una nuova versione è pronta.{blocked ? " Salva le modifiche e torna alla Home per aggiornare." : " Aggiornando, questa pagina verrà ricaricata."}</p><button className="btn accent" disabled={blocked || updating || offline} onClick={updateNow}>{updating ? "Aggiornamento…" : "Aggiorna ora"}</button></div>;
-  return <Context.Provider value={{ open, block, updateReady: Boolean(waiting) }}>{children}
-    {(offline || waiting) && <aside className="pwa-status" aria-label="Stato app" aria-live="polite">{offline && <p>Sei offline. Mantieni aperta la pagina per conservare la bozza.</p>}{updateControls}</aside>}
+  return <Context.Provider value={{ open, block, updateReady: Boolean(waiting), standalone, installComplete }}>{children}
+    {offline && <aside className="pwa-status" aria-label="Stato app" aria-live="polite"><p>Sei offline. Mantieni aperta la pagina per conservare la bozza.</p></aside>}
     <dialog className="pwa-dialog" ref={dialog} onClose={() => setOpened(false)} aria-labelledby="pwa-title">
       <header><h2 id="pwa-title">BoardCue sul tuo dispositivo</h2><button className="btn" onClick={() => dialog.current?.close()} aria-label="Chiudi impostazioni app">Chiudi</button></header>
       <p>{standalone ? "Stai usando BoardCue come app installata." : "Apri BoardCue dalla schermata Home o dal desktop, in una finestra dedicata."}</p>

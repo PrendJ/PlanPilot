@@ -2,13 +2,14 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildCompactPlan } from "@/lib/ai-context";
 import { InvalidAiPatchError, selectActions, validateAiPatch } from "@/lib/ai-patch";
-import { isDoneColumn } from "@/lib/board-state";
+import { rememberedColumn, isDoneColumn } from "@/lib/board-state";
 import { AiProviderError, planPatchFromText, type AiAction, type PlanScope } from "@/lib/openrouter";
 import { recordUsage, refundAiUpdate, reserveAiUpdate } from "@/lib/plans";
 import { getWorkspaceApiKey } from "@/lib/workspace";
 import { platformModels } from "@/lib/platform-ai";
 import { selectPlanningModel } from "@/lib/planning-model";
 import { assertBoardAccess, BoardAccessError, bumpRevision, logActivity, markMilestone, placeCard } from "@/lib/board";
+import { notify } from "@/lib/notifications";
 import { trackEvent } from "@/lib/product-events";
 
 export const PROPOSAL_TTL_MS = 15 * 60_000;
@@ -36,12 +37,19 @@ export type PreviewAction = {
   newTitle: string | null;
   fromColumn: string | null;
   toColumn: string | null;
-  changes: Array<{ field: "priority" | "dueDate" | "tags" | "description" | "title"; from: string | null; to: string | null }>;
+  changes: Array<{
+    field: "priority" | "dueDate" | "tags" | "description" | "title" | "assignees" | "checklist";
+    from: string | null;
+    to: string | null;
+  }>;
   reason: string;
+  requiresReview?: boolean;
+  checklist?: Array<{ text: string; done: boolean; suggested: boolean }>;
   editable?: { title: string; description: string; tags: string[] };
 };
 
 type BoardSnapshot = {
+  members?: Array<{ userId: string; user: { name: string } }>;
   columns: Array<{
     id: string;
     title: string;
@@ -81,6 +89,12 @@ export function previewActions(actions: AiAction[], board: BoardSnapshot): Previ
       if (action.dueDate) changes.push({ field: "dueDate", from: null, to: action.dueDate });
       if (action.tags?.length) changes.push({ field: "tags", from: null, to: action.tags.join(", ") });
     }
+    if (action.assigneeIds != null)
+      changes.push({
+        field: "assignees",
+        from: null,
+        to: action.assigneeIds.map(id => board.members?.find(member => member.userId === id)?.user.name ?? "?").join(", "),
+      });
     const moving = action.targetColumnId && (!card || card.columnId !== action.targetColumnId);
     return {
       index,
@@ -92,6 +106,8 @@ export function previewActions(actions: AiAction[], board: BoardSnapshot): Previ
       toColumn: moving ? (columnTitle.get(action.targetColumnId!) ?? null) : null,
       changes,
       reason: action.reason,
+      requiresReview: action.assigneeIds != null || action.checklist != null,
+      ...(action.checklist != null && { checklist: action.checklist }),
       ...((action.action === "create" || action.action === "update") && {
         editable: {
           title: action.title ?? card?.title ?? "",
@@ -107,9 +123,13 @@ async function loadBoard(workspaceId: string) {
   const columns = await prisma.boardColumn.findMany({
     where: { workspaceId },
     orderBy: { position: "asc" },
-    include: { cards: { where: { archived: false }, orderBy: { position: "asc" } } },
+    include: { cards: { where: { archived: false }, orderBy: { position: "asc" }, include: { assignees: true } } },
   });
-  return { columns };
+  const members = await prisma.workspaceMember.findMany({
+    where: { workspaceId, role: { not: "GUEST" }, user: { lifecycleStatus: "ACTIVE" } },
+    include: { user: { select: { name: true } } },
+  });
+  return { columns, members };
 }
 
 export function proposalDto(
@@ -159,13 +179,21 @@ export async function createProposal(input: {
   const models = await platformModels();
   const board = await loadBoard(input.workspace.id);
   const plan = buildCompactPlan(
-    board.columns.map(column => ({ id: column.id, title: column.title, description: column.description, cards: column.cards })),
+    board.columns.map(column => ({
+      id: column.id,
+      title: column.title,
+      description: column.description,
+      semanticKey: column.semanticKey,
+      cards: column.cards,
+    })),
     input.text,
   );
+  plan.members = board.members.map(member => ({ id: member.userId, name: member.user.name }));
   const inPlan = new Set(plan.columns.flatMap(column => column.cards.map(card => card.id)));
   const openColumn = board.columns.find((column, index) => !isDoneColumn(column, index, board.columns.length));
   const scope: PlanScope = {
     columnIds: board.columns.map(column => column.id),
+    memberIds: board.members.map(member => member.userId),
     defaultColumnId: (openColumn ?? board.columns[0])?.id,
     cards: board.columns.flatMap(column =>
       column.cards
@@ -225,6 +253,7 @@ export async function createProposal(input: {
     patch = validateAiPatch(result.patch, {
       columnIds: new Set(board.columns.map(column => column.id)),
       cardIds: new Set(allCards.map(card => card.id)),
+      memberIds: new Set(board.members.map(member => member.userId)),
     });
   } catch (error) {
     // The provider produced nothing usable: the person should not pay an update for our outage.
@@ -303,17 +332,36 @@ export async function applyProposal(input: {
     );
     const versions = proposal.cardVersions as Record<string, number>;
     const touchedIds = actions.map(action => action.cardId).filter((id): id is string => Boolean(id));
-    const current = await tx.card.findMany({ where: { id: { in: touchedIds }, workspaceId: workspace.id } });
+    const current = await tx.card.findMany({ where: { id: { in: touchedIds }, workspaceId: workspace.id }, include: { assignees: true } });
     if (current.length !== touchedIds.length || current.some(card => card.archived || card.version !== versions[card.id]))
       throw new ProposalError("PROPOSAL_STALE");
-    const columns = new Set(
-      (await tx.boardColumn.findMany({ where: { workspaceId: workspace.id }, select: { id: true } })).map(column => column.id),
+    const boardColumns = await tx.boardColumn.findMany({ where: { workspaceId: workspace.id } });
+    const columns = new Set(boardColumns.map(column => column.id));
+    const memberIds = new Set(
+      (
+        await tx.workspaceMember.findMany({
+          where: { workspaceId: workspace.id, role: { not: "GUEST" }, user: { lifecycleStatus: "ACTIVE" } },
+          select: { userId: true },
+        })
+      ).map(member => member.userId),
     );
+    if (actions.some(action => action.assigneeIds?.some(id => !memberIds.has(id)))) throw new ProposalError("PROPOSAL_STALE");
     if (actions.some(action => action.targetColumnId && !columns.has(action.targetColumnId))) throw new ProposalError("PROPOSAL_STALE");
     const byId = new Map(current.map(card => [card.id, card]));
     const batchId = crypto.randomUUID();
     const applied: AiAction[] = [];
     for (const action of actions) {
+      const previous = action.cardId ? byId.get(action.cardId) : undefined;
+      const oldItems = Array.isArray(previous?.checklist) ? (previous.checklist as Array<{ id: string }>) : [];
+      const itemIds = action.checklist?.map(item => item.id).filter((id): id is string => Boolean(id)) ?? [];
+      if (new Set(itemIds).size !== itemIds.length || itemIds.some(id => !oldItems.some(item => item.id === id)))
+        throw new ProposalError("PROPOSAL_STALE");
+      const checklist = action.checklist?.map(item => ({
+        ...item,
+        id: item.id || crypto.randomUUID(),
+        done: !item.id && item.suggested ? false : item.done,
+      }));
+      const assignees = action.assigneeIds == null ? null : [...new Set(action.assigneeIds)];
       if (action.action === "create") {
         const created = await tx.card.create({
           data: {
@@ -324,11 +372,22 @@ export async function applyProposal(input: {
             priority: action.priority || "NORMAL",
             dueDate: action.dueDate ? new Date(action.dueDate) : null,
             tags: action.tags || [],
+            ...(checklist && { checklist }),
+            ...(assignees && { assignees: { create: assignees.map(userId => ({ userId })) } }),
             position: 100000,
           },
         });
         await placeCard(tx, workspace.id, created.columnId, created.id, 0);
-        const fresh = await tx.card.findUniqueOrThrow({ where: { id: created.id } });
+        const fresh = await tx.card.findUniqueOrThrow({ where: { id: created.id }, include: { assignees: true } });
+        if (assignees?.length)
+          await notify(tx, {
+            userIds: assignees,
+            type: "ASSIGNED",
+            workspaceId: workspace.id,
+            cardId: created.id,
+            actorId: input.userId,
+            payload: { cardTitle: created.title, boardName: workspace.name, boardSlug: workspace.slug },
+          });
         await logActivity(tx, {
           organizationId: workspace.organizationId,
           workspaceId: workspace.id,
@@ -346,7 +405,10 @@ export async function applyProposal(input: {
       const before = byId.get(action.cardId!)!;
       const data: Prisma.CardUpdateInput = { version: { increment: 1 } };
       if (action.action === "archive") data.archived = true;
-      if (action.targetColumnId && action.targetColumnId !== before.columnId) data.column = { connect: { id: action.targetColumnId } };
+      if (action.targetColumnId && action.targetColumnId !== before.columnId) {
+        data.column = { connect: { id: action.targetColumnId } };
+        data.previousColumnId = rememberedColumn(boardColumns, before.columnId, action.targetColumnId, before.previousColumnId);
+      }
       if (action.action === "update") {
         if (action.title) data.title = action.title.slice(0, 180);
         if (action.description !== null) data.description = action.description;
@@ -356,10 +418,21 @@ export async function applyProposal(input: {
           data.dueReminderSentAt = null;
         }
         if (action.tags !== null) data.tags = action.tags;
+        if (checklist) data.checklist = checklist;
+        if (assignees) data.assignees = { deleteMany: {}, create: assignees.map(userId => ({ userId })) };
       }
       await tx.card.update({ where: { id: before.id }, data });
       if (data.column) await placeCard(tx, workspace.id, action.targetColumnId!, before.id, 0);
-      const after = await tx.card.findUniqueOrThrow({ where: { id: before.id } });
+      const after = await tx.card.findUniqueOrThrow({ where: { id: before.id }, include: { assignees: true } });
+      if (assignees)
+        await notify(tx, {
+          userIds: assignees.filter(id => !before.assignees.some(member => member.userId === id)),
+          type: "ASSIGNED",
+          workspaceId: workspace.id,
+          cardId: before.id,
+          actorId: input.userId,
+          payload: { cardTitle: after.title, boardName: workspace.name, boardSlug: workspace.slug },
+        });
       await logActivity(tx, {
         organizationId: workspace.organizationId,
         workspaceId: workspace.id,

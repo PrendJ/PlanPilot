@@ -1,3 +1,4 @@
+import { graduatedSeatTiers, seatFloorCents, seatTotalCents, SEAT_PRICING_VERSION } from "@/lib/seat-pricing";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -34,7 +35,8 @@ export type PlanConfig = {
 
 /**
  * Owner decision of 2026-10-25, after docs/ANALISI_COSTO_BOARD_2026-10-25.md: base plans (trial, Pro personale, Pro)
- * get 20 boards per person and 6 months of history; every other plan 50 boards per person and 24 months.
+ * get 20 boards per person and 6 months of history; advanced plans retain 24 months.
+ * Owner clarification 2026-10-29: FAMILY/TEAM have a soft threshold of 50 boards per purchased seat; BUSINESS 200.
  */
 export const BASE_LIMITS = { boardsPerPerson: 20, historyMonths: 6 } as const;
 export const ADVANCED_LIMITS = { boardsPerPerson: 50, historyMonths: 24 } as const;
@@ -69,6 +71,8 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
   FAMILY: {
     ...base,
     label: "Family",
+    boardsPerPerson: Infinity,
+    boardSoftLimitPerPerson: 50,
     // €4.50 per person per month VAT included for private customers (owner, 2026-10-23): below Pro personale.
     priceEur: 3.69,
     priceEurYearly: annualEur(3.69),
@@ -83,6 +87,8 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
   TEAM: {
     ...base,
     label: "Team",
+    boardsPerPerson: Infinity,
+    boardSoftLimitPerPerson: 50,
     priceEur: 6,
     priceEurYearly: annualEur(6),
     seatBased: true,
@@ -179,6 +185,17 @@ export function planPriceCents(plan: SellablePlanKey, interval: "month" | "year"
   return interval === "year" ? annualCents(monthly) : monthly;
 }
 
+/** Graduated pricing applies only to the current seat-based catalogue. */
+export function planPriceTiers(plan: SellablePlanKey, interval: "month" | "year", customerType: CustomerType) {
+  const config = PLANS[plan];
+  if (!config.seatBased) return [{ upTo: null, cents: planPriceCents(plan, interval, customerType) }];
+  return graduatedSeatTiers(
+    planPriceCents(plan, "month", customerType),
+    seatFloorCents(config.aiUpdates, config.prioritySupport, customerType === "consumer" ? 1 + CONSUMER_VAT_RATE : 1),
+    interval === "year",
+  );
+}
+
 export function creditPackPriceCents(customerType: CustomerType) {
   return customerType === "consumer" ? consumerPriceCents(CREDIT_PACK.priceEur) : CREDIT_PACK.priceEur * 100;
 }
@@ -229,7 +246,7 @@ export function getOrganizationLimits(organization: OrganizationEntitlementSourc
     key,
     seats,
     memberLimit,
-    // Per person: Family and Team grow with their seats; Business is unlimited (soft cap only); the back office can override Enterprise.
+    // Family, Team and Business have soft board thresholds only; Enterprise can have contractual overrides.
     workspaceLimit:
       enterprise && organization.workspaceLimitOverride != null ? organization.workspaceLimitOverride : plan.boardsPerPerson * people,
     boardSoftLimit: plan.boardSoftLimitPerPerson === null ? null : plan.boardSoftLimitPerPerson * people,
@@ -239,10 +256,25 @@ export function getOrganizationLimits(organization: OrganizationEntitlementSourc
 }
 
 /** Monthly equivalent the customer pays; VAT included for private customers (null = custom quote). */
-export function monthlyPrice(organization: OrganizationEntitlementSource & { billingInterval?: string | null; legalType?: string | null }) {
+export function monthlyPrice(
+  organization: OrganizationEntitlementSource & {
+    billingInterval?: string | null;
+    legalType?: string | null;
+    billingPricingVersion?: string | null;
+  },
+) {
   const limits = getOrganizationLimits(organization);
   if (limits.priceEur === null) return null;
   const customerType = organization.legalType === "PERSONAL" ? "consumer" : "business";
+  if (limits.sellable && organization.billingPricingVersion === SEAT_PRICING_VERSION) {
+    const interval = organization.billingInterval === "year" ? "year" : "month";
+    return (
+      Math.round(
+        seatTotalCents(planPriceTiers(limits.key as SellablePlanKey, interval, customerType), limits.seats) /
+          (interval === "year" ? 12 : 1),
+      ) / 100
+    );
+  }
   const monthly = limits.sellable ? planPriceCents(limits.key as SellablePlanKey, "month", customerType) / 100 : limits.priceEur;
   const yearly = limits.sellable ? planPriceCents(limits.key as SellablePlanKey, "year", customerType) / 100 : limits.priceEurYearly;
   const perSeat = organization.billingInterval === "year" && yearly !== null ? yearly / 12 : monthly;
@@ -343,10 +375,11 @@ async function readUsage(client: Prisma.TransactionClient | typeof prisma, organ
   if (!organization) return null;
   const limits = getOrganizationLimits(organization);
   const window = usageWindow(organization, now);
-  const [included, cost, credits] = await Promise.all([
+  const [included, cost, credits, spentCredits] = await Promise.all([
     client.usageEvent.aggregate({ where: { organizationId, fromCredits: false, ...window }, _sum: { units: true } }),
     client.usageEvent.aggregate({ where: { organizationId, ...window }, _sum: { costUsd: true } }),
     client.creditGrant.aggregate({ where: { organizationId, remaining: { gt: 0 } }, _sum: { remaining: true } }),
+    client.usageEvent.aggregate({ where: { organizationId, fromCredits: true, ...window }, _sum: { units: true } }),
   ]);
   const usedIncluded = included._sum.units || 0;
   const creditUnits = credits._sum.remaining || 0;
@@ -359,6 +392,7 @@ async function readUsage(client: Prisma.TransactionClient | typeof prisma, organ
     includedRemaining,
     remaining: Number.isFinite(limits.aiUpdates) ? includedRemaining + creditUnits : Infinity,
     costUsed: cost._sum.costUsd || 0,
+    costCap: limits.aiBudgetUsd + (creditUnits + (spentCredits._sum.units || 0)) * COST_CAP_PER_UPDATE_USD,
   };
 }
 
@@ -377,7 +411,7 @@ export async function getUsageStatus(organizationId: string) {
     remaining: usage.remaining,
     included: limits.aiUpdates,
     costUsed: usage.costUsed,
-    costCap: limits.aiBudgetUsd,
+    costCap: usage.costCap,
   });
   const percent =
     Number.isFinite(limits.aiUpdates) && limits.aiUpdates > 0
@@ -394,7 +428,7 @@ export async function getUsageStatus(organizationId: string) {
     readOnly,
     resetsAt: limits.key === "TRIAL" ? organization.trialEndsAt : nextPeriodStart(now),
     costUsedUsd: usage.costUsed,
-    costCapUsd: limits.aiBudgetUsd,
+    costCapUsd: usage.costCap,
   };
 }
 
@@ -422,7 +456,7 @@ export async function reserveAiUpdate(input: {
     const usage = await readUsage(tx, input.organizationId);
     if (!usage) throw new QuotaExceededError();
     const readOnly = organizationReadOnly(usage.organization);
-    if (readOnly || usage.costUsed >= usage.limits.aiBudgetUsd) throw new QuotaExceededError();
+    if (readOnly || usage.costUsed >= usage.costCap) throw new QuotaExceededError();
     let grantId: string | null = null;
     if (usage.includedRemaining <= 0) {
       const grant = await tx.creditGrant.findFirst({

@@ -1,5 +1,5 @@
 export type Person = { id: string; name: string; email: string; role?: string };
-export type ChecklistItem = { id: string; text: string; done: boolean };
+export type ChecklistItem = { id: string; text: string; done: boolean; suggested?: boolean };
 export type Card = {
   id: string;
   title: string;
@@ -12,12 +12,13 @@ export type Card = {
   version: number;
   checklist: unknown;
   columnId: string;
+  previousColumnId?: string | null;
   updatedAt: string;
   createdAt: string;
   assignees: { user: Person }[];
   commentCount: number;
 };
-export type Column = { id: string; title: string; description: string; position: number; cards: Card[] };
+export type Column = { id: string; title: string; description: string; semanticKey?: string | null; position: number; cards: Card[] };
 export type Quota = {
   used: number;
   included: number;
@@ -58,8 +59,10 @@ export type PreviewAction = {
   newTitle: string | null;
   fromColumn: string | null;
   toColumn: string | null;
-  changes: Array<{ field: "priority" | "dueDate" | "tags" | "description" | "title"; from: string | null; to: string | null }>;
+  changes: Array<{ field: "priority" | "dueDate" | "tags" | "description" | "title" | "assignees" | "checklist"; from: string | null; to: string | null }>;
   reason: string;
+  requiresReview?: boolean;
+  checklist?: Array<{ text: string; done: boolean; suggested: boolean }>;
   editable?: { title: string; description: string; tags: string[] };
 };
 export type Proposal = {
