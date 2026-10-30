@@ -1,4 +1,4 @@
-import { graduatedSeatTiers, seatFloorCents, seatTotalCents, SEAT_PRICING_VERSION } from "@/lib/seat-pricing";
+import { graduatedSeatTiers, SEAT_ECONOMICS, seatFloorCents, seatTotalCents, SEAT_PRICING_VERSION } from "@/lib/seat-pricing";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -26,6 +26,8 @@ export type PlanConfig = {
   /** Months of change history (activity, AI update logs, proposals) kept before the hourly retention deletes it. */
   historyMonths: number;
   aiUpdates: number;
+  /** Owner-set price from seat 100 (net, like priceEur), below the computed margin floor. */
+  seatFloorEur?: number;
   sellable: boolean;
   guests: boolean;
   enforce2fa: boolean;
@@ -80,6 +82,8 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
     minSeats: 2,
     memberLimit: 2,
     aiUpdates: 300,
+    // Owner, 2026-10-30: seats descend to €4.00 VAT included from the 100th, accepting ~24% margin on those seats.
+    seatFloorEur: 3.28,
     sellable: true,
     guests: true,
   },
@@ -185,15 +189,20 @@ export function planPriceCents(plan: SellablePlanKey, interval: "month" | "year"
   return interval === "year" ? annualCents(monthly) : monthly;
 }
 
+/** Monthly price of one seat from the 100th on, in cents. */
+export function planSeatFloorCents(plan: SellablePlanKey, customerType: CustomerType) {
+  const config = PLANS[plan];
+  if (config.seatFloorEur !== undefined)
+    return customerType === "consumer"
+      ? consumerPriceCents(config.seatFloorEur)
+      : Math.ceil(Math.round(config.seatFloorEur * 100) / SEAT_ECONOMICS.priceStepCents) * SEAT_ECONOMICS.priceStepCents;
+  return seatFloorCents(config.aiUpdates, config.prioritySupport, customerType === "consumer" ? 1 + CONSUMER_VAT_RATE : 1);
+}
+
 /** Graduated pricing applies only to the current seat-based catalogue. */
 export function planPriceTiers(plan: SellablePlanKey, interval: "month" | "year", customerType: CustomerType) {
-  const config = PLANS[plan];
-  if (!config.seatBased) return [{ upTo: null, cents: planPriceCents(plan, interval, customerType) }];
-  return graduatedSeatTiers(
-    planPriceCents(plan, "month", customerType),
-    seatFloorCents(config.aiUpdates, config.prioritySupport, customerType === "consumer" ? 1 + CONSUMER_VAT_RATE : 1),
-    interval === "year",
-  );
+  if (!PLANS[plan].seatBased) return [{ upTo: null, cents: planPriceCents(plan, interval, customerType) }];
+  return graduatedSeatTiers(planPriceCents(plan, "month", customerType), planSeatFloorCents(plan, customerType), interval === "year");
 }
 
 export function creditPackPriceCents(customerType: CustomerType) {

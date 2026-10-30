@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthlyPrice, planPriceCents, planPriceTiers, PLANS } from "@/lib/plans";
+import { monthlyPrice, planPriceCents, planPriceTiers, planSeatFloorCents, PLANS } from "@/lib/plans";
 import { seatTotalCents, seatFloorCents, SEAT_ECONOMICS, SEAT_PRICING_VERSION } from "@/lib/seat-pricing";
 
 describe("graduated seats", () => {
@@ -10,7 +10,7 @@ describe("graduated seats", () => {
         const tiers = planPriceTiers(plan, "month", customer);
         const annual = planPriceTiers(plan, "year", customer);
         const base = planPriceCents(plan, "month", customer);
-        const floor = seatFloorCents(PLANS[plan].aiUpdates, PLANS[plan].prioritySupport, customer === "consumer" ? 1.22 : 1);
+        const floor = planSeatFloorCents(plan, customer);
         expect(seatTotalCents(tiers, 3)).toBe(base * 3);
         let last = base;
         for (let seat = 4; seat <= 500; seat++) {
@@ -26,11 +26,19 @@ describe("graduated seats", () => {
     },
   );
   it("matches the 5-cent bands of docs/ANALISI_ECONOMICA_POSTI_2026-10-30.md", () => {
-    expect(planPriceTiers("FAMILY", "month", "consumer")).toEqual([
-      { upTo: 3, cents: 450 },
-      { upTo: 59, cents: 445 },
-      { upTo: 99, cents: 440 },
-      { upTo: null, cents: 435 },
+    // Family's €4.00 from the 100th seat is the owner's choice (2026-10-30), below the €4.35 margin floor.
+    expect(planPriceTiers("FAMILY", "month", "consumer").map(tier => [tier.upTo, tier.cents])).toEqual([
+      [3, 450],
+      [19, 445],
+      [29, 440],
+      [39, 435],
+      [49, 430],
+      [59, 425],
+      [69, 420],
+      [79, 415],
+      [89, 410],
+      [99, 405],
+      [null, 400],
     ]);
     expect(planPriceTiers("TEAM", "month", "business").map(tier => tier.cents)).toEqual([600, 595, 580, 570, 560, 550, 540, 530, 520, 510, 500]);
     expect(planPriceTiers("TEAM", "month", "business")[1].upTo).toBe(19);
@@ -39,8 +47,8 @@ describe("graduated seats", () => {
   });
   it("protects at least 30% contribution margin at the minimum on annual billing", () => {
     const e = SEAT_ECONOMICS;
+    expect(seatFloorCents(PLANS.FAMILY.aiUpdates, false, 1.22)).toBe(435);
     for (const [plan, vat] of [
-      ["FAMILY", 1.22],
       ["TEAM", 1],
       ["BUSINESS", 1],
     ] as const) {

@@ -111,7 +111,7 @@ describe("self-provisioned Stripe catalogue", () => {
     ]);
     expect(store.prices[1]).toMatchObject({ billing_scheme: "tiered", tiers_mode: "graduated", metadata: { boardcue_pricing: "graduated-v1" } });
     expect(store.prices[1].tiers?.[0].unit_amount).toBe(4500);
-    expect(store.prices[1].tiers?.at(-1)).toMatchObject({ up_to: "inf", unit_amount: 4350 });
+    expect(store.prices[1].tiers?.at(-1)).toMatchObject({ up_to: "inf", unit_amount: 4000 });
   });
 
   it("survives a concurrent creation of the same price", async () => {

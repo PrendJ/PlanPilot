@@ -1,6 +1,6 @@
 # BoardCue — costi, prezzo minimo e sconti sui posti
 
-Analisi del 30 ottobre 2026. **Proposta economica, non un nuovo listino applicato.** I prezzi del prodotto e Stripe non sono stati modificati da questa analisi.
+Analisi del 30 ottobre 2026. **Aggiornamento dello stesso giorno:** gli scaglioni Team e Family sono stati applicati al listino (`lib/seat-pricing.ts`, `lib/plans.ts`). Per decisione del titolare, Family scende fino a €4,00 invece di €4,35: vedi [Decisione del titolare su Family](#decisione-del-titolare-su-family). Business non ha listino pubblico: è un canone dedicato concordato con ogni azienda.
 
 ## Risultato
 
@@ -168,6 +168,26 @@ Gli scaglioni approssimano la discesa lineare: si valuta il prezzo alla prima po
 Family IVA inclusa; Team/Business IVA esclusa. Il posto 101 aggiunge rispettivamente €4,35, €5,00 o €10,00 al totale mensile. Nell'annuale aggiunge dieci volte tali importi.
 
 Con le ipotesi del caso da 1.000 posti complessivi, il margine degli abbonamenti da 100 posti, annuali, è circa 31,22% Family, 36,66% Team e 30,28% Business. È superiore al minimo marginale grazie ai primi posti più cari.
+
+### Decisione del titolare su Family
+
+Il 30 ottobre il titolare ha scelto di far scendere Family fino a **€4,00 IVA inclusa dal centesimo posto**, sotto il minimo calcolato di €4,35. Le fasce applicate sono:
+
+| Posizione del posto | Family, IVA inclusa |
+| --- | ---: |
+| 1–3 | €4,50 |
+| 4–19 | €4,45 |
+| 20–29 | €4,40 |
+| 30–39 | €4,35 |
+| 40–49 | €4,30 |
+| 50–59 | €4,25 |
+| 60–69 | €4,20 |
+| 70–79 | €4,15 |
+| 80–89 | €4,10 |
+| 90–99 | €4,05 |
+| **100 e successivi** | **€4,00** |
+
+Fino a 19 posti i totali coincidono con la proposta a €4,35, quindi le famiglie reali pagano lo stesso. Nello scenario da 1.000 posti un posto a €4,00 lascia un margine annuale del 24,45%. Un abbonamento da 100 posti costa €426,70 al mese e lascia il 28,81%, invece di €443,05 e 31,22%. Il minimo scenderebbe sotto €4,00 con meno di ¾ di minuto di assistenza per persona al mese (€3,88), con un costo IA medio di €0,0014 per aggiornamento (€3,60) o con 200 aggiornamenti per persona (€3,78).
 
 ## Effetti sul resto del sistema
 
